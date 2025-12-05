@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local Claude Code settings (keep .claude/commands/ tracked)
+.claude/settings.*
+.claude/statsig/
+
+# Environment and local config
+.env
+.env.local
+*.local
+
+# Logs
+*.log
