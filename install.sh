@@ -207,39 +207,45 @@ create_claude_md_template() {
 
 > Brief description of this project
 
-## Overview
+## Genie Team Quick Reference
 
+This project uses **Genie Team** - specialized AI genies for product discovery and delivery.
+
+### Start Here
+- `/genie:help` - Show all commands
+- `/genie:status` - Show current work status
+- `/context:load` - Initialize full session context
+
+### Common Workflows
+| Command | Use When |
+|---------|----------|
+| `/feature [topic]` | Building something new end-to-end |
+| `/bugfix [issue]` | Quick fix for a known issue |
+| `/spike [question]` | Technical investigation/research |
+| `/cleanup [scope]` | Reducing tech debt |
+
+### The 6 D's Lifecycle
+```
+/discover → /shape → /design → /deliver → /discern
+                                              ↓
+                              /diagnose → /tidy
+```
+
+---
+
+## Project Context
+
+### Overview
 [What this project does and why it exists]
 
-## Architecture
+### Architecture
+[Key components and patterns]
 
-[Key components and structure]
+### Active Work
+[Current focus areas]
 
-## Genie Team
-
-This project uses [Genie Team](https://github.com/your-username/genie-team) for AI-assisted development.
-
-**Available commands:**
-- `/discover [topic]` - Explore problems with Scout genie
-- `/shape [input]` - Define scope with Shaper genie
-- `/design [contract]` - Technical design with Architect genie
-- `/deliver [design]` - TDD implementation with Crafter genie
-- `/discern [impl]` - Review with Critic genie
-- `/diagnose` / `/tidy` - Maintenance with Tidier genie
-
-**Workflows:**
-- `/feature [topic]` - Full discovery → delivery cycle
-- `/bugfix [issue]` - Quick bug fix workflow
-- `/spike [question]` - Technical investigation
-- `/cleanup` - Debt reduction cycle
-
-## Context
-
-[Important context for working on this project]
-
-## Setup
-
-[How to set up the development environment]
+### Conventions
+[Project-specific patterns and standards]
 
 ---
 
