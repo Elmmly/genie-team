@@ -1,4 +1,4 @@
-# /deliver [design-doc]
+# /deliver [backlog-item]
 
 Activate Crafter genie to implement the technical design with TDD discipline.
 
@@ -6,7 +6,7 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 
 ## Arguments
 
-- `design-doc` - Path to design document (required)
+- `backlog-item` - Path to backlog item (contains design section) (required)
 - Optional flags:
   - `--tests` - Write tests only (TDD start)
   - `--implement` - Implementation only (tests exist)
@@ -26,7 +26,7 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 ## Context Loading
 
 **READ (automatic):**
-- docs/analysis/YYYYMMDD_design_{topic}.md
+- docs/backlog/{priority}-{topic}.md (contains shaped contract + design)
 - Target code files
 - Related test files
 - docs/context/codebase_structure.md
@@ -42,10 +42,12 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 **WRITE:**
 - Code changes
 - Test files
-- Implementation report (inline or separate)
 
 **UPDATE:**
-- docs/backlog/{priority}-{topic}.md (progress notes)
+- Backlog item: Append "# Implementation" section before "# End of Shaped Work Contract"
+- Backlog frontmatter: `status: designed` → `status: implemented`
+
+> **Note:** Implementation notes are appended directly to the backlog item rather than creating a separate report file.
 
 ---
 
@@ -80,7 +82,7 @@ Crafter follows strict TDD:
 ## Usage Examples
 
 ```
-/deliver docs/analysis/20251203_design_auth.md
+/deliver docs/backlog/P2-auth-improvements.md
 > [Crafter implements with TDD]
 >
 > Implementation complete:
@@ -94,9 +96,12 @@ Crafter follows strict TDD:
 >
 > All tests passing: 47 pass, 0 fail
 >
-> Next: /handoff deliver discern
+> Appended to docs/backlog/P2-auth-improvements.md
+> Status updated: designed → implemented
+>
+> Next: /discern docs/backlog/P2-auth-improvements.md
 
-/deliver:tests docs/analysis/20251203_design_auth.md
+/deliver:tests docs/backlog/P2-auth-improvements.md
 > Test scaffolding complete
 > 12 test cases written (all failing - ready for implementation)
 > Next: /deliver:implement

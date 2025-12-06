@@ -1,9 +1,20 @@
+---
+type: shaped-work
+concept: {concept}
+enhancement: {enhancement}
+status: shaped
+created: {YYYY-MM-DD}
+---
+
 # Shaped Work Contract — Shaper Genie
 ### Structured Markdown Output Template
 
 > This template defines the required output sections for the Shaper genie.
 > All sections should be included, even if marked "N/A" or empty.
 > Adapt depth based on complexity and appetite.
+>
+> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
+> **Status progression:** shaped → designed → implemented → reviewed → done
 
 ---
 

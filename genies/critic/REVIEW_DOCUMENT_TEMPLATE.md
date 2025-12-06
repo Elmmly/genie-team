@@ -1,8 +1,18 @@
+---
+type: review
+concept: {concept}
+enhancement: {enhancement}
+status: active
+created: {YYYY-MM-DD}
+---
+
 # Review Document — Critic Genie
 ### Structured Markdown Output Template
 
 > This template documents the review conducted by Critic.
 > Include all sections. Clear verdict required.
+>
+> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
 
 ---
 

@@ -1,9 +1,19 @@
+---
+type: design
+concept: {concept}
+enhancement: {enhancement}
+status: active
+created: {YYYY-MM-DD}
+---
+
 # Design Document — Architect Genie
 ### Structured Markdown Output Template
 
 > This template defines the required output sections for the Architect genie.
 > All sections should be included. Mark as "N/A" if not applicable.
 > Depth should match complexity and appetite.
+>
+> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
 
 ---
 

@@ -1,9 +1,21 @@
+---
+type: discover
+concept: {concept}
+enhancement: {enhancement}
+status: active
+created: {YYYY-MM-DD}
+---
+
 # Opportunity Snapshot — Scout Genie
 ### Structured Markdown Output Template
 
 > This template defines the required output sections for the Scout genie.
 > All sections should be included, even if empty or marked "N/A".
 > Keep sections concise but meaningful.
+>
+> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
+> - `concept`: Feature or capability category (e.g., `agents`, `authentication`)
+> - `enhancement`: Specific work item (e.g., `complement-commands`, `refresh-tokens`)
 
 ---
 

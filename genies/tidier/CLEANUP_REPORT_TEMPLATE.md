@@ -1,8 +1,18 @@
+---
+type: cleanup
+concept: {concept}
+enhancement: {enhancement}
+status: active
+created: {YYYY-MM-DD}
+---
+
 # Cleanup Report — Tidier Genie
 ### Structured Markdown Output Template
 
 > This template documents cleanup work done by Tidier.
 > Include all sections. Update defrag-progress.md alongside.
+>
+> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
 
 ---
 

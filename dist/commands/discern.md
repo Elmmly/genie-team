@@ -53,7 +53,7 @@ Prioritize by risk level:
 
 # Command Specification
 
-# /discern [implementation]
+# /discern [backlog-item]
 
 Activate Critic genie to review implementation against acceptance criteria.
 
@@ -61,7 +61,7 @@ Activate Critic genie to review implementation against acceptance criteria.
 
 ## Arguments
 
-- `implementation` - Implementation report or code reference (required)
+- `backlog-item` - Path to backlog item (contains shaped contract + design + implementation) (required)
 - Optional flags:
   - `--security` - Security-focused review only
   - `--performance` - Performance-focused review only
@@ -81,11 +81,9 @@ Activate Critic genie to review implementation against acceptance criteria.
 ## Context Loading
 
 **READ (automatic):**
-- Implementation report from /deliver
+- docs/backlog/{priority}-{topic}.md (contains shaped contract + design + implementation)
 - Code changes (diff)
 - Test results
-- Design document
-- Shaped contract (acceptance criteria)
 
 **RECALL:**
 - Past review patterns
@@ -95,12 +93,11 @@ Activate Critic genie to review implementation against acceptance criteria.
 
 ## Context Writing
 
-**WRITE:**
-- docs/analysis/YYYYMMDD_review_{topic}.md
-
 **UPDATE:**
-- docs/backlog/{priority}-{topic}.md (status)
-- Move to archive if complete
+- Backlog item: Append "# Review" section before "# End of Shaped Work Contract"
+- Backlog frontmatter: `status: implemented` → `status: reviewed`
+
+> **Note:** Review content is appended directly to the backlog item rather than creating a separate analysis file.
 
 ---
 
@@ -139,9 +136,10 @@ Critic evaluates:
 ## Usage Examples
 
 ```
-/discern docs/analysis/20251203_impl_auth.md
+/discern docs/backlog/P2-auth-improvements.md
 > [Critic reviews implementation]
-> Saved to docs/analysis/20251203_review_auth.md
+> Appended to docs/backlog/P2-auth-improvements.md
+> Status updated: implemented → reviewed
 >
 > Verdict: APPROVED
 >
@@ -152,9 +150,9 @@ Critic evaluates:
 > Performance: Pass
 >
 > Ready for deployment
-> Monitoring: Watch token refresh failure rate
+> Next: /done docs/backlog/P2-auth-improvements.md
 
-/discern docs/analysis/20251203_impl_auth.md
+/discern docs/backlog/P2-auth-improvements.md
 > Verdict: CHANGES REQUESTED
 >
 > Issues:
@@ -169,7 +167,7 @@ Critic evaluates:
 ## Routing
 
 After review:
-- **APPROVED**: Notify Navigator, ready for deploy
+- **APPROVED**: Run `/done` to archive completed work
 - **CHANGES REQUESTED**: Route to Crafter, schedule re-review
 - **BLOCKED**: Escalate to Architect or Navigator
 

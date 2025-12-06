@@ -94,12 +94,13 @@ Activate Architect genie to create technical design within shaped boundaries.
 
 ## Context Writing
 
-**WRITE:**
-- docs/analysis/YYYYMMDD_design_{topic}.md
-
 **UPDATE:**
+- Backlog item: Append "# Design" section before "# End of Shaped Work Contract"
+- Backlog frontmatter: `status: shaped` → `status: designed`
 - docs/context/system_architecture.md (if architecture changes)
 - docs/decisions/ADR-{N}.md (if significant decision)
+
+> **Note:** Design content is appended directly to the backlog item rather than creating a separate analysis file. This keeps all work context in one living document.
 
 ---
 
@@ -130,8 +131,9 @@ Produces a **Design Document** containing:
 
 ```
 /design docs/backlog/P2-auth-improvements.md
-> [Architect produces Design Document]
-> Saved to docs/analysis/20251203_design_auth.md
+> [Architect produces Design]
+> Appended to docs/backlog/P2-auth-improvements.md
+> Status updated: shaped → designed
 >
 > Components:
 > - TokenService (new)
@@ -140,7 +142,7 @@ Produces a **Design Document** containing:
 >
 > ADR created: ADR-015-jwt-refresh-strategy.md
 >
-> Next: /handoff design deliver
+> Next: /deliver docs/backlog/P2-auth-improvements.md
 
 /design:spike "can we use WebSockets for notifications?"
 > Feasibility: Yes, with caveats

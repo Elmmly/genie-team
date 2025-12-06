@@ -21,24 +21,26 @@ print_usage() {
     echo "Usage: $0 <command> [options]"
     echo ""
     echo "Commands:"
-    echo "  global              Install commands globally (~/.claude/commands/)"
+    echo "  global              Install commands and agents globally (~/.claude/)"
     echo "  project [path]      Install to project (default: current directory)"
-    echo "  update              Update existing installation"
     echo "  status              Show installation status"
     echo "  uninstall           Remove genie-team installation"
     echo ""
     echo "Options:"
-    echo "  --commands-only     Only install commands (skip genies/templates)"
+    echo "  --no-commands       Skip installing commands"
+    echo "  --no-agents         Skip installing agents"
+    echo "  --no-genies         Skip installing genie specs (project only)"
     echo "  --permissions       Also update permissions in settings.json"
     echo "  --force             Overwrite existing files without prompting"
     echo "  --dry-run           Show what would be done without making changes"
     echo ""
     echo "Examples:"
-    echo "  $0 global                    # Install commands globally"
-    echo "  $0 global --permissions      # Install commands + update permissions"
-    echo "  $0 project                   # Install to current project"
+    echo "  $0 global                    # Install commands + agents globally"
+    echo "  $0 global --force            # Re-install/upgrade global installation"
+    echo "  $0 global --no-agents        # Install commands only (no agents)"
+    echo "  $0 project                   # Full project install"
+    echo "  $0 project --force           # Re-install/upgrade project"
     echo "  $0 project ~/code/myapp      # Install to specific project"
-    echo "  $0 update                    # Update all installations"
 }
 
 log_info() {
@@ -115,6 +117,33 @@ install_genies() {
                     fi
                 fi
             done
+        fi
+    done
+}
+
+# Install agent definitions to a target directory
+install_agents() {
+    local target_dir="$1"
+    local force="$2"
+
+    if [[ ! -d "$SCRIPT_DIR/agents" ]]; then
+        log_warn "No agents directory found in source. Skipping agents installation."
+        return
+    fi
+
+    mkdir -p "$target_dir"
+
+    for agent_file in "$SCRIPT_DIR/agents"/*.md; do
+        if [[ -f "$agent_file" ]]; then
+            local filename=$(basename "$agent_file")
+            local target_file="$target_dir/$filename"
+
+            if [[ -f "$target_file" && "$force" != "true" ]]; then
+                log_warn "Skipping agents/$filename (exists, use --force to overwrite)"
+            else
+                cp "$agent_file" "$target_file"
+                log_success "Installed agents/$filename"
+            fi
         fi
     done
 }
@@ -259,6 +288,8 @@ TEMPLATE
 cmd_global() {
     local force="false"
     local with_permissions="false"
+    local no_commands="false"
+    local no_agents="false"
     local dry_run="false"
 
     # Parse options
@@ -266,6 +297,8 @@ cmd_global() {
         case "$1" in
             --force) force="true"; shift ;;
             --permissions) with_permissions="true"; shift ;;
+            --no-commands) no_commands="true"; shift ;;
+            --no-agents) no_agents="true"; shift ;;
             --dry-run) dry_run="true"; shift ;;
             *) shift ;;
         esac
@@ -276,15 +309,27 @@ cmd_global() {
     check_source
 
     if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY RUN] Would install commands to $GLOBAL_CLAUDE_DIR/commands/"
+        if [[ "$no_commands" != "true" ]]; then
+            log_info "[DRY RUN] Would install commands to $GLOBAL_CLAUDE_DIR/commands/"
+        fi
+        if [[ "$no_agents" != "true" ]]; then
+            log_info "[DRY RUN] Would install agents to $GLOBAL_CLAUDE_DIR/agents/"
+        fi
         if [[ "$with_permissions" == "true" ]]; then
             log_info "[DRY RUN] Would update permissions in $GLOBAL_CLAUDE_DIR/settings.json"
         fi
         return
     fi
 
-    # Install commands
-    install_commands "$GLOBAL_CLAUDE_DIR/commands" "$force"
+    # Install commands (unless skipped)
+    if [[ "$no_commands" != "true" ]]; then
+        install_commands "$GLOBAL_CLAUDE_DIR/commands" "$force"
+    fi
+
+    # Install agents (unless skipped)
+    if [[ "$no_agents" != "true" ]]; then
+        install_agents "$GLOBAL_CLAUDE_DIR/agents" "$force"
+    fi
 
     # Update permissions if requested
     if [[ "$with_permissions" == "true" ]]; then
@@ -293,14 +338,21 @@ cmd_global() {
 
     echo ""
     log_success "Global installation complete!"
-    log_info "Commands available in all projects: /discover, /shape, /design, etc."
+    if [[ "$no_commands" != "true" ]]; then
+        log_info "Commands available: /discover, /shape, /design, etc."
+    fi
+    if [[ "$no_agents" != "true" ]]; then
+        log_info "Agents available: scout, architect, critic, tidier"
+    fi
 }
 
 # Project installation
 cmd_project() {
     local project_path="${1:-.}"
     local force="false"
-    local commands_only="false"
+    local no_commands="false"
+    local no_agents="false"
+    local no_genies="false"
     local with_permissions="false"
     local dry_run="false"
 
@@ -309,7 +361,9 @@ cmd_project() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force) force="true"; shift ;;
-            --commands-only) commands_only="true"; shift ;;
+            --no-commands) no_commands="true"; shift ;;
+            --no-agents) no_agents="true"; shift ;;
+            --no-genies) no_genies="true"; shift ;;
             --permissions) with_permissions="true"; shift ;;
             --dry-run) dry_run="true"; shift ;;
             *)
@@ -330,19 +384,34 @@ cmd_project() {
     check_source
 
     if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY RUN] Would install commands to $claude_dir/commands/"
-        if [[ "$commands_only" != "true" ]]; then
+        if [[ "$no_commands" != "true" ]]; then
+            log_info "[DRY RUN] Would install commands to $claude_dir/commands/"
+        fi
+        if [[ "$no_agents" != "true" ]]; then
+            log_info "[DRY RUN] Would install agents to $claude_dir/agents/"
+        fi
+        if [[ "$no_genies" != "true" ]]; then
             log_info "[DRY RUN] Would install genies to $claude_dir/genies/"
             log_info "[DRY RUN] Would create $project_path/CLAUDE.md"
+        fi
+        if [[ "$with_permissions" == "true" ]]; then
+            log_info "[DRY RUN] Would update permissions in $claude_dir/settings.local.json"
         fi
         return
     fi
 
-    # Install commands
-    install_commands "$claude_dir/commands" "$force"
+    # Install commands (unless skipped)
+    if [[ "$no_commands" != "true" ]]; then
+        install_commands "$claude_dir/commands" "$force"
+    fi
 
-    # Install genies and templates unless --commands-only
-    if [[ "$commands_only" != "true" ]]; then
+    # Install agents (unless skipped)
+    if [[ "$no_agents" != "true" ]]; then
+        install_agents "$claude_dir/agents" "$force"
+    fi
+
+    # Install genies and templates (unless skipped)
+    if [[ "$no_genies" != "true" ]]; then
         install_genies "$claude_dir/genies" "$force"
         create_claude_md_template "$project_path/CLAUDE.md" "$force"
 
@@ -361,32 +430,16 @@ cmd_project() {
 
     echo ""
     log_success "Project installation complete!"
-    log_info "Edit CLAUDE.md with your project details"
-}
-
-# Update existing installations
-cmd_update() {
-    log_info "Updating Genie Team installations..."
-
-    check_source
-
-    # Update global if exists
-    if [[ -d "$GLOBAL_CLAUDE_DIR/commands" ]]; then
-        log_info "Updating global installation..."
-        install_commands "$GLOBAL_CLAUDE_DIR/commands" "true"
+    if [[ "$no_genies" != "true" ]]; then
+        log_info "Edit CLAUDE.md with your project details"
     fi
-
-    # Update current project if exists
-    if [[ -d "./.claude/commands" ]]; then
-        log_info "Updating current project..."
-        install_commands "./.claude/commands" "true"
-
-        if [[ -d "./.claude/genies" ]]; then
-            install_genies "./.claude/genies" "true"
-        fi
+    if [[ "$no_commands" != "true" ]]; then
+        log_info "Commands available: /discover, /shape, /design, etc."
     fi
-
-    log_success "Update complete!"
+    if [[ "$no_agents" != "true" ]]; then
+        log_info "Agents available: scout, architect, critic, tidier"
+        log_info "Use with: Task(subagent_type='scout', prompt='...')"
+    fi
 }
 
 # Show installation status
@@ -402,6 +455,13 @@ cmd_status() {
         echo "  Commands: $cmd_count installed"
     else
         echo "  Commands: Not installed"
+    fi
+
+    if [[ -d "$GLOBAL_CLAUDE_DIR/agents" ]]; then
+        local agent_count=$(ls -1 "$GLOBAL_CLAUDE_DIR/agents"/*.md 2>/dev/null | wc -l | tr -d ' ')
+        echo "  Agents: $agent_count installed"
+    else
+        echo "  Agents: Not installed"
     fi
 
     if [[ -f "$GLOBAL_CLAUDE_DIR/settings.json" ]]; then
@@ -428,6 +488,13 @@ cmd_status() {
         echo "  Genies: Not installed"
     fi
 
+    if [[ -d "./.claude/agents" ]]; then
+        local agent_count=$(ls -1 "./.claude/agents"/*.md 2>/dev/null | wc -l | tr -d ' ')
+        echo "  Agents: $agent_count installed"
+    else
+        echo "  Agents: Not installed"
+    fi
+
     if [[ -f "./CLAUDE.md" ]]; then
         echo "  CLAUDE.md: Found"
     else
@@ -446,7 +513,12 @@ cmd_uninstall() {
                 rm -rf "$GLOBAL_CLAUDE_DIR/commands"
                 log_success "Global commands removed"
             else
-                log_warn "No global installation found"
+                log_warn "No global commands found"
+            fi
+            if [[ -d "$GLOBAL_CLAUDE_DIR/agents" ]]; then
+                log_info "Removing global agents..."
+                rm -rf "$GLOBAL_CLAUDE_DIR/agents"
+                log_success "Global agents removed"
             fi
             ;;
         project)
@@ -459,6 +531,11 @@ cmd_uninstall() {
                 log_info "Removing project genies..."
                 rm -rf "./.claude/genies"
                 log_success "Project genies removed"
+            fi
+            if [[ -d "./.claude/agents" ]]; then
+                log_info "Removing project agents..."
+                rm -rf "./.claude/agents"
+                log_success "Project agents removed"
             fi
             ;;
         *)
@@ -530,9 +607,6 @@ case "${1:-}" in
     project)
         shift
         cmd_project "$@"
-        ;;
-    update)
-        cmd_update
         ;;
     status)
         cmd_status

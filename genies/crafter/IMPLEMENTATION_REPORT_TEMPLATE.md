@@ -1,8 +1,18 @@
+---
+type: implementation
+concept: {concept}
+enhancement: {enhancement}
+status: active
+created: {YYYY-MM-DD}
+---
+
 # Implementation Report — Crafter Genie
 ### Structured Markdown Output Template
 
 > This template documents the implementation work done by Crafter.
 > Include all sections. Mark as "N/A" if not applicable.
+>
+> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
 
 ---
 
