@@ -1,4 +1,4 @@
-# /shape [input]
+# /define [input]
 
 Activate Shaper genie to define problem boundaries and create a shaped work contract.
 
@@ -64,16 +64,16 @@ Produces a **Shaped Work Contract** containing:
 
 | Command | Purpose |
 |---------|---------|
-| `/shape:appetite [input]` | Just appetite and boundaries |
-| `/shape:risks [input]` | Focus on assumption/risk identification |
-| `/shape:options [input]` | Generate options without full contract |
+| `/define:appetite [input]` | Just appetite and boundaries |
+| `/define:risks [input]` | Focus on assumption/risk identification |
+| `/define:options [input]` | Generate options without full contract |
 
 ---
 
 ## Usage Examples
 
 ```
-/shape docs/analysis/20251203_discover_auth.md
+/define docs/analysis/20251203_discover_auth.md
 > [Shaper produces Shaped Work Contract]
 > Saved to docs/backlog/P2-auth-improvements.md
 >
@@ -81,9 +81,9 @@ Produces a **Shaped Work Contract** containing:
 > Solution sketch: Implement refresh tokens with sliding window
 > Key rabbit holes: Don't rebuild entire auth system
 >
-> Next: /handoff shape design
+> Next: /handoff define design
 
-/shape:appetite "add dark mode"
+/define:appetite "add dark mode"
 > Appetite assessment: Small batch (3 days max)
 > Boundaries: CSS variables only, no component changes
 ```
@@ -92,9 +92,9 @@ Produces a **Shaped Work Contract** containing:
 
 ## Routing
 
-After shaping:
-- If ready for technical design: `/handoff shape design`
-- If appetite unclear: `/shape:appetite` then full `/shape`
+After defining:
+- If ready for technical design: `/handoff define design`
+- If appetite unclear: `/define:appetite` then full `/define`
 - If high risk: Flag for Navigator review
 
 ---
@@ -104,4 +104,4 @@ After shaping:
 - Sets boundaries BEFORE deep technical work
 - Prevents scope creep through explicit appetite
 - Creates clear contract between discovery and delivery
-- Anti-pattern: shaping as detailed specification
+- Anti-pattern: defining as detailed specification

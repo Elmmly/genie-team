@@ -20,7 +20,7 @@ This copies command definitions to your project's `.claude/commands/` directory.
 | Genie | Command | Purpose |
 |-------|---------|---------|
 | **Scout** | `/discover` | Discovery, research, opportunity mapping |
-| **Shaper** | `/shape` | Problem framing, appetite, constraints |
+| **Shaper** | `/define` | Problem framing, appetite, constraints |
 | **Architect** | `/design`, `/diagnose` | Technical design, patterns, health analysis |
 | **Crafter** | `/deliver` | TDD implementation, code quality |
 | **Critic** | `/discern` | Review, acceptance criteria, risks |
@@ -30,7 +30,7 @@ This copies command definitions to your project's `.claude/commands/` directory.
 
 ### Lifecycle
 - `/discover [topic]` - Explore a problem space
-- `/shape [input]` - Frame work with appetite and constraints
+- `/define [input]` - Frame work with appetite and constraints
 - `/design [contract]` - Create technical design
 - `/deliver [design]` - Implement with TDD
 - `/discern [impl]` - Review and validate

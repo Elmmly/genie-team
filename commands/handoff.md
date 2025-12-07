@@ -6,8 +6,8 @@ Explicit transition between lifecycle phases with context summarization.
 
 ## Arguments
 
-- `from` - Source phase: discover, shape, design, deliver (required)
-- `to` - Target phase: shape, design, deliver, discern (required)
+- `from` - Source phase: discover, define, design, deliver (required)
+- `to` - Target phase: define, design, deliver, discern (required)
 
 ---
 
@@ -15,8 +15,8 @@ Explicit transition between lifecycle phases with context summarization.
 
 | From | To | Handoff Creates |
 |------|-----|-----------------|
-| discover | shape | Opportunity summary + shaping guidance |
-| shape | design | Design brief + constraints |
+| discover | define | Opportunity summary + defining guidance |
+| define | design | Design brief + constraints |
 | design | deliver | Implementation guidance |
 | deliver | discern | Review request + focus areas |
 
@@ -54,10 +54,10 @@ Handoffs ensure:
 
 ## Handoff Details
 
-### discover → shape
+### discover → define
 
 ```markdown
-# Handoff: Discovery → Shaping
+# Handoff: Discovery → Defining
 
 **Discovery completed:** docs/analysis/20251203_discover_auth.md
 
@@ -75,15 +75,15 @@ Handoffs ensure:
 - Appetite signal: [complexity indicator]
 - Constraints: [any discovered constraints]
 
-**Next:** `/shape docs/analysis/20251203_discover_auth.md`
+**Next:** `/define docs/analysis/20251203_discover_auth.md`
 ```
 
-### shape → design
+### define → design
 
 ```markdown
-# Handoff: Shaping → Design
+# Handoff: Defining → Design
 
-**Shaping completed:** docs/backlog/P2-auth-improvements.md
+**Defining completed:** docs/backlog/P2-auth-improvements.md
 
 **Problem frame:**
 [Summary of what we're solving]
@@ -93,7 +93,7 @@ Handoffs ensure:
 **For Architect:**
 - Solution sketch: [rough direction]
 - Rabbit holes: [what to avoid]
-- Constraints: [boundaries from shaping]
+- Constraints: [boundaries from defining]
 
 **Next:** `/design docs/backlog/P2-auth-improvements.md`
 ```
@@ -129,7 +129,7 @@ Handoffs ensure:
 - [Component 2]
 
 **For Critic:**
-- Acceptance criteria: [from shaped contract]
+- Acceptance criteria: [from defined contract]
 - Test results: [summary]
 - Focus areas: [where to look closely]
 - Known limitations: [if any]
@@ -142,8 +142,8 @@ Handoffs ensure:
 ## Usage Examples
 
 ```
-/handoff discover shape
-> Handoff: Discovery → Shaping
+/handoff discover define
+> Handoff: Discovery → Defining
 >
 > Discovery completed: docs/analysis/20251203_discover_auth.md
 >
@@ -158,10 +158,10 @@ Handoffs ensure:
 > - Focus on token refresh mechanism
 > - Appetite signal: Medium complexity
 >
-> Ready to shape? (y/n)
+> Ready to define? (y/n)
 > y
 >
-> Next: /shape docs/analysis/20251203_discover_auth.md
+> Next: /define docs/analysis/20251203_discover_auth.md
 ```
 
 ---

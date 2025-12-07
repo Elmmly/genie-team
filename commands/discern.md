@@ -95,7 +95,7 @@ Critic evaluates:
 > Performance: Pass
 >
 > Ready for deployment
-> Next: /done docs/backlog/P2-auth-improvements.md
+> Next: /commit then /done docs/backlog/P2-auth-improvements.md
 
 /discern docs/backlog/P2-auth-improvements.md
 > Verdict: CHANGES REQUESTED
@@ -112,7 +112,7 @@ Critic evaluates:
 ## Routing
 
 After review:
-- **APPROVED**: Run `/done` to archive completed work
+- **APPROVED**: Run `/commit` to commit, then `/done` to archive
 - **CHANGES REQUESTED**: Route to Crafter, schedule re-review
 - **BLOCKED**: Escalate to Architect or Navigator
 

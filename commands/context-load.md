@@ -48,7 +48,7 @@ Initialize session with project context. Run at the start of every session.
 
 ```
 /context:load
-> Context loaded. No current work. Ready for /discover or /shape.
+> Context loaded. No current work. Ready for /discover or /define.
 
 /context:load
 > Context loaded. Current work: P2-auth-improvements (Design phase)

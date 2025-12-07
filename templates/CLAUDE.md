@@ -21,11 +21,13 @@ This project uses **Genie Team** - specialized AI genies for product discovery a
 | `/spike [question]` | Technical investigation/research |
 | `/cleanup [scope]` | Reducing tech debt |
 
-### The 6 D's Lifecycle
+### The 7 D's Lifecycle
 ```
-/discover → /shape → /design → /deliver → /discern
+/discover → /define → /design → /deliver → /discern → /done
                                               ↓
                               /diagnose → /tidy
+
+After /discern APPROVED: /commit → /done
 ```
 
 ---

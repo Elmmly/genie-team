@@ -13,13 +13,14 @@ When invoked, display the following reference:
 │  GENIE TEAM COMMANDS                                            │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  LIFECYCLE (the 6 D's)                                          │
+│  LIFECYCLE (the 7 D's)                                          │
 │  ─────────────────────                                          │
 │  /discover [topic]     Scout explores opportunities             │
-│  /shape [input]        Shaper frames work with appetite         │
+│  /define [input]       Shaper frames work with appetite         │
 │  /design [contract]    Architect creates technical design       │
 │  /deliver [design]     Crafter implements with TDD              │
 │  /discern [impl]       Critic reviews and validates             │
+│  /done [concept]       Archive completed work                   │
 │  /diagnose [scope]     Architect analyzes codebase health       │
 │  /tidy [report]        Tidier executes cleanup                  │
 │                                                                 │
@@ -40,6 +41,7 @@ When invoked, display the following reference:
 │  TRANSITIONS                                                    │
 │  ───────────                                                    │
 │  /handoff [from] [to]  Explicit phase transition                │
+│  /commit [item]        Create conventional commit               │
 │                                                                 │
 │  HELP                                                           │
 │  ────                                                           │
@@ -48,8 +50,10 @@ When invoked, display the following reference:
 │                                                                 │
 ╰─────────────────────────────────────────────────────────────────╯
 
-WORKFLOW:  /discover → /shape → /design → /deliver → /discern
+WORKFLOW:  /discover → /define → /design → /deliver → /discern
                                                           ↓
+FINALIZE:                                    /commit → /done
+
 MAINTAIN:                               /diagnose → /tidy
 ```
 

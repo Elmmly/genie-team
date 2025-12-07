@@ -104,7 +104,7 @@ Spikes answer technical questions before committing to full implementation:
 ## Routing
 
 After spike:
-- **Feasible**: Proceed to `/shape` with findings
+- **Feasible**: Proceed to `/define` with findings
 - **Not feasible**: Document why, consider alternatives
 - **Needs more**: Extend time box or split into sub-spikes
 

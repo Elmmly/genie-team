@@ -253,11 +253,13 @@ This project uses **Genie Team** - specialized AI genies for product discovery a
 | `/spike [question]` | Technical investigation/research |
 | `/cleanup [scope]` | Reducing tech debt |
 
-### The 6 D's Lifecycle
+### The 7 D's Lifecycle
 ```
-/discover → /shape → /design → /deliver → /discern
+/discover → /define → /design → /deliver → /discern → /done
                                               ↓
                               /diagnose → /tidy
+
+After /discern APPROVED: /commit → /done
 ```
 
 ---
@@ -339,7 +341,7 @@ cmd_global() {
     echo ""
     log_success "Global installation complete!"
     if [[ "$no_commands" != "true" ]]; then
-        log_info "Commands available: /discover, /shape, /design, etc."
+        log_info "Commands available: /discover, /define, /design, etc."
     fi
     if [[ "$no_agents" != "true" ]]; then
         log_info "Agents available: scout, architect, critic, tidier"
@@ -434,7 +436,7 @@ cmd_project() {
         log_info "Edit CLAUDE.md with your project details"
     fi
     if [[ "$no_commands" != "true" ]]; then
-        log_info "Commands available: /discover, /shape, /design, etc."
+        log_info "Commands available: /discover, /define, /design, etc."
     fi
     if [[ "$no_agents" != "true" ]]; then
         log_info "Agents available: scout, architect, critic, tidier"

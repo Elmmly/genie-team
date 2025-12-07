@@ -1,6 +1,6 @@
 # /feature [topic]
 
-Orchestrate full feature lifecycle: discover → shape → design → deliver → discern.
+Orchestrate full feature lifecycle: discover → define → design → deliver → discern.
 
 ---
 
@@ -8,7 +8,7 @@ Orchestrate full feature lifecycle: discover → shape → design → deliver �
 
 - `topic` - Feature to build (required)
 - Optional flags:
-  - `--skip-discover` - Start from shaping (topic already explored)
+  - `--skip-discover` - Start from defining (topic already explored)
   - `--resume` - Continue from last checkpoint
 
 ---
@@ -24,13 +24,13 @@ Orchestrate full feature lifecycle: discover → shape → design → deliver �
     ├─→ /discover "user authentication"
     │   └─→ Scout produces Opportunity Snapshot
     │
-    ├─→ /handoff discover shape
+    ├─→ /handoff discover define
     │   └─→ Transition summary
     │
-    ├─→ /shape [discovery-output]
+    ├─→ /define [discovery-output]
     │   └─→ Shaper produces Shaped Contract
     │
-    ├─→ /handoff shape design
+    ├─→ /handoff define design
     │   └─→ Transition summary
     │
     ├─→ /design [shaped-contract]
@@ -58,11 +58,11 @@ Orchestrate full feature lifecycle: discover → shape → design → deliver �
 
 **Status:** [Phase] of 5
 **Started:** [Date]
-**Current phase:** [discover/shape/design/deliver/discern]
+**Current phase:** [discover/define/design/deliver/discern]
 
 ## Progress
 - [x] Discover - docs/analysis/...
-- [x] Shape - docs/backlog/...
+- [x] Define - docs/backlog/...
 - [ ] Design
 - [ ] Deliver
 - [ ] Discern

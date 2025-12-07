@@ -48,7 +48,7 @@ Create a handoff summary of current work state. Run at end of session or before 
 > Last activity: Completed discovery on auth improvements
 > Key outputs: docs/analysis/20251203_discover_auth.md
 > Open items: Shape auth improvements, decide on token strategy
-> Recommended next: /shape docs/analysis/20251203_discover_auth.md
+> Recommended next: /define docs/analysis/20251203_discover_auth.md
 ```
 
 ---
