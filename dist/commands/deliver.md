@@ -70,12 +70,59 @@ Produces:
 
 ---
 
-## TDD Workflow
+## TDD Discipline (MANDATORY)
 
-Crafter follows strict TDD:
-1. Red - Write failing test
-2. Green - Minimal code to pass
-3. Refactor - Clean up while green
+Crafter MUST follow strict test-first development. This is NOT optional.
+
+### Phase 1: Red (Write Failing Tests)
+
+YOU MUST write all tests BEFORE any implementation code.
+
+**Constraints:**
+- Write tests that define expected behavior based on the design
+- Tests MUST use Arrange-Act-Assert (AAA) pattern
+- Run tests and CONFIRM they fail (red)
+- Do NOT write any implementation code during this phase
+- Do NOT proceed until failing tests exist
+
+**AAA Pattern Structure:**
+```
+// Arrange - Set up test data and prerequisites
+const user = createTestUser({ role: 'admin' });
+const request = mockRequest({ userId: user.id });
+
+// Act - Execute single method being tested
+const result = await authService.validateAccess(request);
+
+// Assert - Verify expected outcome
+expect(result.allowed).toBe(true);
+expect(result.role).toBe('admin');
+```
+
+**AAA Best Practices:**
+- Separate phases with blank lines for readability
+- One action per test (no Act-Assert-Act-Assert chains)
+- Specific assertions (not just "not null")
+- No conditional logic (if/else) in tests
+
+### Phase 2: Green (Minimal Implementation)
+
+ONLY after failing tests are written and confirmed failing:
+
+**Constraints:**
+- Write minimal code to make tests pass
+- Do NOT modify the tests themselves
+- If a test is wrong, STOP and escalate to user - do not "fix" the test
+- Focus on making tests green, not on perfect code
+
+### Phase 3: Refactor (Clean Up)
+
+ONLY after all tests pass:
+
+**Constraints:**
+- Improve code quality (naming, structure, duplication)
+- Tests MUST stay green throughout refactoring
+- If tests fail during refactor, revert and try again
 
 ---
 
@@ -85,16 +132,29 @@ Crafter follows strict TDD:
 /deliver docs/backlog/P2-auth-improvements.md
 > [Crafter implements with TDD]
 >
+> === PHASE 1: RED (Writing Tests) ===
+> Writing tests based on design specification...
+>
+> Tests written:
+> - tests/services/TokenService.test.ts (12 test cases)
+> - tests/integration/auth.test.ts (8 test cases)
+>
+> Running tests to confirm RED state...
+> Test run: 20 tests, 0 passed, 20 failed (RED - as expected)
+>
+> === PHASE 2: GREEN (Implementation) ===
+> Writing minimal implementation to pass tests...
+>
 > Implementation complete:
 > - src/services/TokenService.ts (new)
 > - src/middleware/auth.ts (modified)
 > - src/controllers/RefreshController.ts (new)
 >
-> Tests:
-> - tests/services/TokenService.test.ts
-> - tests/integration/auth.test.ts
+> Running tests to confirm GREEN state...
+> Test run: 20 tests, 20 passed, 0 failed (GREEN)
 >
-> All tests passing: 47 pass, 0 fail
+> === PHASE 3: REFACTOR ===
+> No refactoring needed - code is clean.
 >
 > Appended to docs/backlog/P2-auth-improvements.md
 > Status updated: designed → implemented
@@ -102,9 +162,27 @@ Crafter follows strict TDD:
 > Next: /discern docs/backlog/P2-auth-improvements.md
 
 /deliver:tests docs/backlog/P2-auth-improvements.md
-> Test scaffolding complete
-> 12 test cases written (all failing - ready for implementation)
-> Next: /deliver:implement
+> [Crafter writes tests only - RED phase]
+>
+> Tests written:
+> - tests/services/TokenService.test.ts (12 test cases)
+> - tests/integration/auth.test.ts (8 test cases)
+>
+> Test run: 20 tests, 0 passed, 20 failed (RED - as expected)
+>
+> Ready for implementation.
+> Next: /deliver:implement docs/backlog/P2-auth-improvements.md
+
+/deliver:implement docs/backlog/P2-auth-improvements.md
+> [Crafter implements to pass tests - GREEN phase]
+>
+> Implementation complete:
+> - src/services/TokenService.ts (new)
+> - src/middleware/auth.ts (modified)
+>
+> Test run: 20 tests, 20 passed, 0 failed (GREEN)
+>
+> Next: /discern docs/backlog/P2-auth-improvements.md
 ```
 
 ---
