@@ -9,11 +9,34 @@
 ## Quick Start
 
 ```bash
-# Install to your Claude Code project
-./install.sh /path/to/your/project
+# Install globally (available to all projects)
+./install.sh global
+
+# Or install to a specific project
+./install.sh project /path/to/your/project
+
+# Check what's installed
+./install.sh status
 ```
 
-This copies command definitions to your project's `.claude/commands/` directory.
+### What Gets Installed
+
+| Component | Purpose | Location |
+|-----------|---------|----------|
+| **Commands** | Slash commands (`/discover`, `/deliver`, etc.) | `.claude/commands/` |
+| **Skills** | Automatic behaviors (TDD, code quality) | `.claude/skills/` |
+| **Rules** | Always-on constraints | `.claude/rules/` |
+| **Agents** | Subagent definitions | `.claude/agents/` |
+| **Genies** | Genie specifications (project only) | `.claude/genies/` |
+
+### Install Options
+
+```bash
+./install.sh global --commands    # Commands only
+./install.sh global --skills      # Skills only (automatic behaviors)
+./install.sh project --force      # Re-install/upgrade
+./install.sh project --dry-run    # Preview changes
+```
 
 ## The Genies
 
