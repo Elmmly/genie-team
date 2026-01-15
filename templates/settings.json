@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Claude Code settings template for Genie Team projects",
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(git *)",
+      "Bash(npm test*)",
+      "Bash(npm run *)",
+      "Bash(ls *)",
+      "Bash(tree *)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -3,6 +3,7 @@ name: scout
 description: Discovery specialist for exploring problems, surfacing assumptions, and mapping opportunities. Use for research-heavy discovery that benefits from context isolation.
 tools: Read, Glob, Grep, WebFetch, WebSearch
 model: inherit
+context: fork
 ---
 
 # Scout Agent

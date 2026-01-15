@@ -3,6 +3,7 @@ name: critic
 description: Code reviewer and quality assessor for validating implementations against acceptance criteria. Use for review preparation and test execution that benefits from context isolation.
 tools: Read, Glob, Grep, Bash
 model: inherit
+context: fork
 ---
 
 # Critic Agent

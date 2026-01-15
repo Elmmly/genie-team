@@ -3,6 +3,7 @@ name: architect
 description: Technical designer for system architecture, pattern enforcement, and feasibility assessment. Use for design exploration and technical spikes that benefit from context isolation.
 tools: Read, Glob, Grep, Bash
 model: inherit
+context: fork
 ---
 
 # Architect Agent

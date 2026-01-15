@@ -3,6 +3,7 @@ name: tidier
 description: Cleanup analyst for identifying refactoring opportunities and tech debt. Use for codebase analysis that benefits from context isolation. Note - actual refactoring stays in main thread.
 tools: Read, Glob, Grep, Bash
 model: inherit
+context: fork
 ---
 
 # Tidier Agent
