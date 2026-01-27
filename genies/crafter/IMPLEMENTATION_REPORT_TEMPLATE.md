@@ -1,211 +1,69 @@
 ---
-type: implementation
-concept: {concept}
-enhancement: {enhancement}
-status: active
-created: {YYYY-MM-DD}
+spec_version: "1.0"
+type: execution-report
+id: "{ID}"
+title: "{Title}"
+status: "{complete|partial|failed|blocked}"
+created: "{YYYY-MM-DDTHH:MM:SSZ}"
+spec_ref: "{docs/backlog/Pn-topic.md}"
+design_ref: "{docs/backlog/Pn-topic.md}"
+execution_mode: "{interactive|headless}"
+exit_code: 0
+confidence: "{high|medium|low}"
+branch: "{feat/id-title-slug}"
+commit_sha: "{sha}"
+files_changed:
+  - action: "{added|modified|deleted}"
+    path: "{path/to/file}"
+    purpose: "{Why this file changed}"
+test_results:
+  passed: 0
+  failed: 0
+  skipped: 0
+  command: "{npm test|pytest|etc}"
+  tests:
+    - name: "{test_name}"
+      status: "{pass|fail|skip|error}"
+      duration_ms: 0
+      ac_id: "{AC-n}"
+acceptance_criteria:
+  - id: AC-1
+    status: "{met|not_met|partial|skipped}"
+    evidence: "{How verified or why not met}"
 ---
 
-# Implementation Report — Crafter Genie
-### Structured Markdown Output Template
+# Execution Report: {Title}
 
-> This template documents the implementation work done by Crafter.
-> Include all sections. Mark as "N/A" if not applicable.
+> **Schema:** `schemas/execution-report.schema.md` v1.0
 >
-> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
+> All structured data lives in the YAML frontmatter above. The body below
+> is free-form narrative for human context. Machines parse frontmatter only.
 
----
+## Summary
 
-## 1. Implementation Summary
-[What was built - 2-3 sentences]
+[What was built -- 2-3 sentences]
 [Key decisions made during implementation]
 
-**Design reference:** [Link to Design Document]
-**Status:** [Complete / Partial / Blocked]
-**Scope adherence:** [On scope / Minor deviation / Scope question]
+## Implementation Decisions
 
----
+- [Decision 1]: [What and why]
+- [Decision 2]: [What and why]
 
-## 2. Test Cases
+## Quality Checklist
 
-### Unit Tests
-| Test | Description | Status |
-|------|-------------|--------|
-| `test_name_1` | [What it verifies] | ✅ Pass |
-| `test_name_2` | [What it verifies] | ✅ Pass |
-
-### Integration Tests
-| Test | Description | Status |
-|------|-------------|--------|
-| `test_integration_1` | [What it verifies] | ✅ Pass |
-
-### Test Coverage
-- **Target:** [From design]
-- **Achieved:** [Actual percentage]
-- **Gaps:** [What's not covered and why]
-
-### Test Commands
-```bash
-# Run all tests
-pytest path/to/tests/
-
-# Run specific test
-pytest path/to/tests/test_file.py::test_name
-```
-
----
-
-## 3. Code Changes
-
-### Files Created
-| File | Purpose | Lines |
-|------|---------|-------|
-| `path/to/new_file.py` | [What it does] | ~N |
-| `path/to/test_new_file.py` | [Tests for above] | ~N |
-
-### Files Modified
-| File | Changes | Lines Changed |
-|------|---------|---------------|
-| `path/to/existing.py` | [What changed] | +N/-M |
-
-### Dependencies Added
-| Dependency | Version | Reason |
-|------------|---------|--------|
-| [package] | [version] | [Why needed] |
-
----
-
-## 4. Key Implementation Details
-
-### Approach
-[Brief description of implementation approach]
-
-### Notable Decisions
-- **[Decision 1]:** [What and why]
-- **[Decision 2]:** [What and why]
-
-### Code Snippets (if helpful)
-```python
-# Key implementation pattern used
-def example_function():
-    pass
-```
-
----
-
-## 5. Pattern Adherence
-
-### Conventions Followed
-- [x] No hardcoded values (used config/registry)
-- [x] Type hints on public methods
-- [x] Docstrings for public functions
-- [x] Consistent naming conventions
-- [x] Error handling in place
-- [x] Logging added
-
-### Patterns Used
-- **[Pattern]:** [How it was applied]
-
-### Deviations
-| Deviation | Reason | Flagged? |
-|-----------|--------|----------|
-| [What] | [Why necessary] | Yes/No |
-
----
-
-## 6. Error Handling
-
-### Errors Handled
-| Error Scenario | Handling | Test Coverage |
-|----------------|----------|---------------|
-| [Scenario 1] | [How handled] | ✅ |
-| [Scenario 2] | [How handled] | ✅ |
-
-### Error Messages
-- All error messages include: [context provided]
-- Logging level: [ERROR/WARNING as appropriate]
-
----
-
-## 7. Edge Cases
-
-| Edge Case | Handling | Test |
-|-----------|----------|------|
-| [Case 1] | [Behavior] | `test_edge_case_1` |
-| [Case 2] | [Behavior] | `test_edge_case_2` |
-
----
-
-## 8. Instrumentation & Telemetry
-
-### Logging Added
-| Log Point | Level | Payload |
-|-----------|-------|---------|
-| [Where] | INFO/DEBUG/etc | [What's logged] |
-
-### Metrics Added
-| Metric | Type | Description |
-|--------|------|-------------|
-| [Name] | counter/gauge/histogram | [What it measures] |
-
----
-
-## 9. Quality Checklist
-
-- [ ] All tests written and passing
-- [ ] Type hints on public methods
+- [ ] Tests written first (TDD)
+- [ ] All tests passing
 - [ ] No hardcoded values
 - [ ] Error handling complete
-- [ ] Edge cases covered
-- [ ] Telemetry/logging instrumented
-- [ ] Non-obvious code documented
-- [ ] Linting passes
-- [ ] Security considerations addressed
-- [ ] Design boundaries respected
+- [ ] Type hints on public methods
+- [ ] Follows project patterns
 
----
+## Warnings & Blockers
 
-## 10. Open Items
+[Any issues encountered, deferred items, or concerns for the Critic]
 
-### Blockers
-| Blocker | Impact | Escalation |
-|---------|--------|------------|
-| [Issue] | [Impact] | [Who to escalate to] |
-
-### Questions for Critic
-- [Question 1]
-- [Question 2]
-
-### Future Considerations (Out of Scope)
-- [Thing noticed but not addressed - per scope discipline]
-
----
-
-## 11. Handoff to Critic
+## Handoff to Critic
 
 **Ready for review:** [Yes / No]
-
-If No, reason: [What's blocking]
-
-**Review focus areas:**
-- [Area 1 to pay attention to]
-- [Area 2 to pay attention to]
-
-**How to test:**
-```bash
-# Steps to verify the implementation
-1. [Step 1]
-2. [Step 2]
-```
-
----
-
-## 12. Artifacts
-
-- **Branch/Commit:** [Reference]
-- **Test results:** [Pass/Fail summary]
-- **Coverage report:** [Location if generated]
-
----
-
-# End of Implementation Report
+**Test command:** `{test command}`
+**Key review areas:** [What to focus on]

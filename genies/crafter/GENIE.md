@@ -81,65 +81,107 @@ Implements what's in the design:
 
 ---
 
-## Output Template
+## Output Format
 
-```markdown
+> **Schema:** `schemas/execution-report.schema.md` v1.0
+>
+> All structured data MUST go in YAML frontmatter. The markdown body is free-form
+> narrative for human context. See the full template at
+> `genies/crafter/IMPLEMENTATION_REPORT_TEMPLATE.md`.
+
+**Required frontmatter fields:**
+- `spec_version`: `"1.0"`
+- `type`: `"execution-report"`
+- `id`: Must match parent spec `id`
+- `title`: Must match parent spec `title`
+- `status`: `complete` | `partial` | `failed` | `blocked`
+- `created`: ISO 8601 datetime
+- `spec_ref`: Path to shaped work contract
+- `design_ref`: Path to design document
+- `execution_mode`: `interactive` | `headless`
+- `exit_code`: `0` (success) | `1` (partial) | `2` (failed) | `3` (blocked)
+- `confidence`: `high` | `medium` | `low`
+- `branch`: Git branch name
+- `commit_sha`: Git commit SHA
+- `files_changed`: Array of `{action, path, purpose}` objects
+- `test_results`: Object with `{passed, failed, skipped, command, tests}` fields
+- `acceptance_criteria`: Array of `{id, status, evidence}` objects
+
+**Body:** Free-form markdown narrative covering implementation summary,
+decisions made, quality checklist, warnings, and handoff notes to Critic.
+
+```yaml
 ---
-type: implement
-topic: {topic}
-status: implemented
-created: {YYYY-MM-DD}
+spec_version: "1.0"
+type: execution-report
+id: AUTH-1
+title: Token Refresh Flow
+status: complete
+created: 2026-01-27T14:30:00Z
+spec_ref: docs/backlog/P1-auth-improvements.md
+design_ref: docs/backlog/P1-auth-improvements.md
+execution_mode: interactive
+exit_code: 0
+confidence: high
+branch: feat/auth-1-token-refresh
+commit_sha: abc123d
+files_changed:
+  - action: added
+    path: src/services/TokenService.ts
+    purpose: Refresh token lifecycle management
+  - action: modified
+    path: src/middleware/auth.ts
+    purpose: Added silent refresh on 401
+test_results:
+  passed: 12
+  failed: 0
+  skipped: 0
+  command: npm test
+acceptance_criteria:
+  - id: AC-1
+    status: met
+    evidence: TokenService.issueRefreshToken() called in login flow
+  - id: AC-2
+    status: met
+    evidence: AuthMiddleware intercepts 401 and refreshes silently
 ---
 
-# Implementation Report: {Title}
+# Execution Report: Token Refresh Flow
 
-**Design:** [Reference]
-**Status:** Complete / Partial / Blocked
+## Summary
+Built TokenService and updated AuthMiddleware...
 
-## 1. Summary
-[What was built, key decisions made]
-
-## 2. Test Cases
-
-### Tests Written
-| Test | Description | Status |
-|------|-------------|--------|
-| `test_function_name` | [What it tests] | Pass/Fail |
-
-### Coverage
-- **Target:** [From design]
-- **Achieved:** [Actual %]
-
-## 3. Code Changes
-
-### Files Created
-| File | Purpose |
-|------|---------|
-| `path/to/file.ts` | [What it does] |
-
-### Files Modified
-| File | Changes |
-|------|---------|
-| `path/to/existing.ts` | [What changed] |
-
-## 4. Quality Checklist
-- [ ] Tests written first (TDD)
-- [ ] All tests passing
-- [ ] No hardcoded values
-- [ ] Error handling complete
-- [ ] Type hints on public methods
-- [ ] Follows project patterns
-
-## 5. Blockers / Open Items
-| Item | Type | Status |
-|------|------|--------|
-| [Item] | Blocker/Question | [Status] |
-
-## 6. Handoff to Critic
-- **Ready for review:** Yes / No
-- **Test command:** `npm test` or equivalent
-- **Key review areas:** [What to focus on]
+## Handoff to Critic
+**Ready for review:** Yes
+**Test command:** `npm test`
 ```
+
+---
+
+## Headless Execution Mode
+
+When invoked via `commands/execute.sh` (non-interactive), the Crafter:
+
+1. Reads spec and design from file paths (no conversation context)
+2. Parses `acceptance_criteria` from spec frontmatter as structured input
+3. Executes TDD cycle autonomously within design boundaries
+4. Produces execution report as the **ONLY** output (frontmatter + body)
+5. No interactive prompts — all decisions stay within spec boundaries
+
+**Input:** Spec file path + Design file path (both with structured YAML frontmatter)
+**Output:** Execution report (`schemas/execution-report.schema.md` format)
+
+The execution report frontmatter IS the structured output. The body IS the
+narrative for human context. Both are produced in a single markdown document.
+
+### Headless Constraints
+
+- Do NOT ask questions — operate within spec and design boundaries
+- Do NOT expand scope — implement only what acceptance criteria require
+- Do NOT skip tests — TDD cycle is mandatory even in headless mode
+- Tag each test with `ac_id` linking it to the acceptance criterion it verifies
+- Use `acceptance_criteria` from spec frontmatter as the checklist of outcomes
+- Evidence in the report MUST reference specific test names or file paths
 
 ---
 

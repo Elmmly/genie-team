@@ -32,6 +32,8 @@ Options:
   --skills            Install skills only
   --rules             Install rules only
   --agents            Install agents only
+  --genies            Install genie specs only (project only)
+  --schemas           Install schemas only
   --all               Install everything (default)
   --force             Overwrite existing files
   --dry-run           Show what would be done
@@ -130,7 +132,14 @@ install_agents() {
     copy_dir "$SCRIPT_DIR/agents" "$dest" "$force" "agents"
 }
 
-# Install consolidated genie specs
+# Install schemas
+install_schemas() {
+    local dest="$1"
+    local force="$2"
+    copy_dir "$SCRIPT_DIR/schemas" "$dest" "$force" "schemas"
+}
+
+# Install consolidated genie specs (all .md files per genie)
 install_genies() {
     local dest="$1"
     local force="$2"
@@ -141,24 +150,25 @@ install_genies() {
     for genie_dir in "$SCRIPT_DIR/genies"/*; do
         if [[ -d "$genie_dir" ]]; then
             local genie_name=$(basename "$genie_dir")
-            local genie_file="$genie_dir/GENIE.md"
+            local target_dir="$dest/$genie_name"
+            mkdir -p "$target_dir"
 
-            if [[ -f "$genie_file" ]]; then
-                local target_dir="$dest/$genie_name"
-                mkdir -p "$target_dir"
-
-                if [[ -f "$target_dir/GENIE.md" && "$force" != "true" ]]; then
-                    log_warn "Skipping genies/$genie_name/GENIE.md (exists)"
-                else
-                    cp "$genie_file" "$target_dir/GENIE.md"
-                    ((count++))
+            for md_file in "$genie_dir"/*.md; do
+                if [[ -f "$md_file" ]]; then
+                    local filename=$(basename "$md_file")
+                    if [[ -f "$target_dir/$filename" && "$force" != "true" ]]; then
+                        log_warn "Skipping genies/$genie_name/$filename (exists)"
+                    else
+                        cp "$md_file" "$target_dir/$filename"
+                        ((count++))
+                    fi
                 fi
-            fi
+            done
         fi
     done
 
     if [[ $count -gt 0 ]]; then
-        log_success "Installed $count genie specs"
+        log_success "Installed $count genie files"
     fi
 }
 
@@ -210,6 +220,7 @@ cmd_global() {
     local install_skills="false"
     local install_rules="false"
     local install_agents="false"
+    local install_schemas="false"
     local install_all="true"
     local dry_run="false"
 
@@ -220,6 +231,7 @@ cmd_global() {
             --skills) install_skills="true"; install_all="false" ;;
             --rules) install_rules="true"; install_all="false" ;;
             --agents) install_agents="true"; install_all="false" ;;
+            --schemas) install_schemas="true"; install_all="false" ;;
             --all) install_all="true" ;;
             --dry-run) dry_run="true" ;;
         esac
@@ -237,6 +249,8 @@ cmd_global() {
             log_info "[DRY RUN] Would install rules"
         [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
             log_info "[DRY RUN] Would install agents"
+        [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
+            log_info "[DRY RUN] Would install schemas"
         return
     fi
 
@@ -252,6 +266,9 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
         install_agents "$GLOBAL_CLAUDE_DIR/agents" "$force"
 
+    [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
+        install_schemas "$GLOBAL_CLAUDE_DIR/schemas" "$force"
+
     echo ""
     log_success "Global installation complete!"
     echo ""
@@ -259,6 +276,7 @@ cmd_global() {
     echo "  Commands: /discover, /define, /design, /deliver, /discern, /commit, /done"
     echo "  Skills:   tdd-discipline, code-quality, conventional-commits, problem-first"
     echo "  Agents:   scout, architect, critic, tidier"
+    echo "  Schemas:  shaped-work-contract, design-document, execution-report, review-document"
 }
 
 # Project installation
@@ -270,6 +288,7 @@ cmd_project() {
     local install_rules="false"
     local install_agents="false"
     local install_genies="false"
+    local install_schemas="false"
     local install_all="true"
     local dry_run="false"
 
@@ -281,6 +300,7 @@ cmd_project() {
             --rules) install_rules="true"; install_all="false" ;;
             --agents) install_agents="true"; install_all="false" ;;
             --genies) install_genies="true"; install_all="false" ;;
+            --schemas) install_schemas="true"; install_all="false" ;;
             --all) install_all="true" ;;
             --dry-run) dry_run="true" ;;
             *)
@@ -308,6 +328,8 @@ cmd_project() {
             log_info "[DRY RUN] Would install agents to $claude_dir/agents/"
         [[ "$install_all" == "true" || "$install_genies" == "true" ]] && \
             log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/"
+        [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
+            log_info "[DRY RUN] Would install schemas to $project_path/schemas/"
         return
     fi
 
@@ -325,6 +347,9 @@ cmd_project() {
 
     [[ "$install_all" == "true" || "$install_genies" == "true" ]] && \
         install_genies "$claude_dir/genies" "$force"
+
+    [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
+        install_schemas "$project_path/schemas" "$force"
 
     # Create project structure
     if [[ "$install_all" == "true" ]]; then
@@ -349,7 +374,7 @@ cmd_status() {
     echo ""
 
     echo "Global (~/.claude/):"
-    for dir in commands skills rules agents; do
+    for dir in commands skills rules agents schemas; do
         if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
             local count=$(find "$GLOBAL_CLAUDE_DIR/$dir" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"
@@ -359,7 +384,7 @@ cmd_status() {
     done
 
     echo ""
-    echo "Project (./.claude/):"
+    echo "Project (./.claude/ and ./schemas/):"
     for dir in commands skills rules agents genies; do
         if [[ -d "./.claude/$dir" ]]; then
             local count=$(find "./.claude/$dir" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
@@ -368,6 +393,12 @@ cmd_status() {
             echo "  $dir: not installed"
         fi
     done
+    if [[ -d "./schemas" ]]; then
+        local count=$(find "./schemas" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+        echo "  schemas: $count files"
+    else
+        echo "  schemas: not installed"
+    fi
 
     echo ""
     if [[ -f "./CLAUDE.md" ]]; then
@@ -384,7 +415,7 @@ cmd_uninstall() {
     case "$target" in
         global)
             log_info "Removing global installation..."
-            for dir in commands skills rules agents; do
+            for dir in commands skills rules agents schemas; do
                 if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
                     rm -rf "$GLOBAL_CLAUDE_DIR/$dir"
                     log_success "Removed $dir"
@@ -399,6 +430,10 @@ cmd_uninstall() {
                     log_success "Removed $dir"
                 fi
             done
+            if [[ -d "./schemas" ]]; then
+                rm -rf "./schemas"
+                log_success "Removed schemas"
+            fi
             ;;
         *)
             log_error "Specify 'global' or 'project'"

@@ -68,81 +68,66 @@ For each risk: Likelihood (L/M/H), Impact (L/M/H), Mitigation strategy.
 
 ---
 
-## Output Template
+## Output Format
 
-```markdown
+> **Schema:** `schemas/design-document.schema.md` v1.0
+>
+> All structured data MUST go in YAML frontmatter. The markdown body is free-form
+> narrative for human context. See the full template at
+> `genies/architect/DESIGN_DOCUMENT_TEMPLATE.md`.
+
+**Required frontmatter fields:**
+- `spec_version`: `"1.0"`
+- `type`: `"design"`
+- `id`: Must match parent shaped work `id`
+- `title`: Must match parent shaped work `title`
+- `status`: `"designed"`
+- `created`: ISO date
+- `spec_ref`: Path to parent shaped work contract
+- `appetite`: Inherited from shaped work
+- `complexity`: `simple` | `moderate` | `complex`
+- `ac_mapping`: Array of `{ac_id, approach, components}` objects tracing each AC to its design
+- `components`: Array of `{name, action, files}` objects listing file changes
+
+**Body:** Free-form markdown narrative covering design overview, architecture,
+interfaces, pattern adherence, technical decisions, implementation guidance,
+risks, and testing strategy.
+
+```yaml
 ---
+spec_version: "1.0"
 type: design
-topic: {topic}
+id: AUTH-1
+title: Token Refresh Flow
 status: designed
-created: {YYYY-MM-DD}
+created: 2026-01-27
+spec_ref: docs/backlog/P1-auth-improvements.md
+appetite: medium
+complexity: moderate
+author: architect
+ac_mapping:
+  - ac_id: AC-1
+    approach: TokenService.issueRefreshToken() called during login flow
+    components: [src/services/TokenService.ts]
+  - ac_id: AC-2
+    approach: AuthMiddleware intercepts 401, calls TokenService.refresh()
+    components: [src/middleware/auth.ts, src/services/TokenService.ts]
+components:
+  - name: TokenService
+    action: create
+    files: [src/services/TokenService.ts, tests/services/TokenService.test.ts]
+  - name: AuthMiddleware
+    action: modify
+    files: [src/middleware/auth.ts]
 ---
 
-# Design Document: {Title}
+# Design: Token Refresh Flow
 
-**Appetite:** [From shaped contract]
+## Overview
+Adds silent token refresh via a new TokenService...
 
-## 1. Design Overview
-[High-level technical approach and key decisions]
-
-## 2. Architecture
-
-### Components
-| Component | Responsibility | Interfaces |
-|-----------|----------------|------------|
-| [Name] | [What it does] | [Public API] |
-
-### Data Flow
-[How data moves through the system]
-
-## 3. Interfaces & Contracts
-
-```typescript
-// Example interface definition
-interface UserService {
-  getUser(id: string): Promise<User>;
-  updateUser(id: string, data: UserUpdate): Promise<User>;
-}
-```
-
-## 4. Pattern Adherence
-- **Patterns used:** [Pattern]: [How applied]
-- **Deviations:** [If any, with justification]
-
-## 5. Technical Decisions
-
-| Decision | Options | Choice | Rationale |
-|----------|---------|--------|-----------|
-| [What] | [Alternatives] | [Selected] | [Why] |
-
-## 6. Implementation Guidance
-1. [Step 1]
-2. [Step 2]
-3. [Step 3]
-
-## 7. Error Handling & Edge Cases
-| Scenario | Handling |
-|----------|----------|
-| [Error case] | [Approach] |
-
-## 8. Risks & Mitigations
-
-| Risk | L | I | Mitigation |
-|------|---|---|------------|
-| [Risk] | M | H | [How to address] |
-
-## 9. Testing Strategy
-- **Unit:** [What to test]
-- **Integration:** [What to test]
-- **Key scenarios:** [Critical paths]
-
-## 10. Rollback Plan
-- **Feature flag:** [Name and behavior]
-- **Rollback steps:** [How to revert]
-
-## 11. Routing
-- [ ] **Ready for Crafter** — Design complete
-- [ ] **Needs Shaper clarification** — Scope questions
+## Architecture
+TokenService manages refresh token lifecycle...
 ```
 
 ---

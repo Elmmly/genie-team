@@ -60,57 +60,59 @@ Checks every item for: North-star alignment, quarterly priority fit, opportunity
 
 ---
 
-## Output Template
+## Output Format
 
-```markdown
+> **Schema:** `schemas/shaped-work-contract.schema.md` v1.0
+>
+> All structured data MUST go in YAML frontmatter. The markdown body is free-form
+> narrative for human context. See the full template at
+> `genies/shaper/SHAPED_WORK_CONTRACT_TEMPLATE.md`.
+
+**Required frontmatter fields:**
+- `spec_version`: `"1.0"`
+- `type`: `"shaped-work"`
+- `id`: Unique identifier (e.g. `GT-2`, `AUTH-1`)
+- `title`: Human-readable title
+- `status`: `"shaped"`
+- `created`: ISO date
+- `appetite`: `small` | `medium` | `big`
+- `acceptance_criteria`: Array of `{id, description, status: "pending"}` objects
+
+**Body:** Free-form markdown narrative covering problem statement, evidence,
+boundaries, goals, risks, options, and routing recommendations.
+
+```yaml
 ---
-type: define
-topic: {topic}
-appetite: {small|medium|big}
+spec_version: "1.0"
+type: shaped-work
+id: AUTH-1
+title: Token Refresh Flow
 status: shaped
-created: {YYYY-MM-DD}
+created: 2026-01-27
+appetite: medium
+priority: P1
+target_project: my-app
+author: shaper
+depends_on: []
+tags: [auth, security]
+acceptance_criteria:
+  - id: AC-1
+    description: Refresh tokens issued on login
+    status: pending
+  - id: AC-2
+    description: Expired access tokens trigger silent refresh
+    status: pending
 ---
 
-# Shaped Work Contract: {Title}
+# Shaped Work Contract: Token Refresh Flow
 
-## 1. Problem Statement
-[Clear, solution-free articulation of the underlying problem]
+## Problem
+Users are logged out after 15 minutes due to short-lived access tokens...
 
-## 2. Evidence & Insights
-- **From Discovery:** [Key findings]
-- **JTBD:** "When [situation], [user] wants to [motivation] so they can [outcome]"
-
-## 3. Appetite & Boundaries
-- **Appetite:** [Small: 1-2d / Medium: 3-5d / Big: 1-2w]
-- **Boundaries:** [What's in scope]
-- **No-gos:** [Explicitly excluded]
-- **Fixed elements:** [Cannot change]
-
-## 4. Goals
-**Outcome Hypothesis:** "We believe [doing X] will result in [outcome Y] for [user Z]."
-**Success Signals:** [Metrics or behavioral signals]
-
-## 5. Risks & Assumptions
-
-| Assumption | Type | Fastest Test |
-|------------|------|--------------|
-| [Riskiest assumption] | value/usability/feasibility | [How to test] |
-
-## 6. Options (Ranked)
-
-### Option 1: [Name] (Recommended)
-- **Description:** [What this entails]
-- **Pros:** [Benefits]
-- **Cons:** [Drawbacks]
-- **Appetite fit:** [Good/Tight/Exceeds]
-
-### Option 2: [Name]
+## Appetite & Boundaries
+- **Appetite:** Medium (3-5 days)
+- **No-gos:** No SSO integration in this cycle
 ...
-
-## 7. Routing
-- [ ] **Architect** — Needs technical design
-- [ ] **Crafter** — Ready for implementation (small, clear)
-- [ ] **More Discovery** — Needs Scout exploration
 ```
 
 ---

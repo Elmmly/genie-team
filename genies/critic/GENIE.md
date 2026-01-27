@@ -68,79 +68,75 @@ No approval without:
 
 ---
 
-## Output Template
+## Input: Execution Report
 
-```markdown
+When reviewing an implementation, the Critic receives an **Execution Report**
+(schema: `schemas/execution-report.schema.md`). Parse the YAML frontmatter to
+extract structured data:
+
+- `acceptance_criteria` array: Each AC has `id`, `status` (`met`/`not_met`/`partial`/`skipped`), and `evidence`
+- `test_results` object: `passed`, `failed`, `skipped` counts
+- `files_changed` array: What was created/modified/deleted
+- `confidence`: Crafter's self-assessment (`high`/`medium`/`low`)
+
+Use this structured data as the basis for review. Verify the evidence claims
+against the actual code changes.
+
+## Output Format
+
+> **Schema:** `schemas/review-document.schema.md` v1.0
+>
+> All structured data MUST go in YAML frontmatter. The markdown body is free-form
+> narrative for human context. See the full template at
+> `genies/critic/REVIEW_DOCUMENT_TEMPLATE.md`.
+
+**Required frontmatter fields:**
+- `spec_version`: `"1.0"`
+- `type`: `"review"`
+- `id`: Must match parent spec `id`
+- `title`: Must match parent spec `title`
+- `verdict`: `APPROVED` | `CHANGES_REQUESTED` | `BLOCKED`
+- `created`: ISO 8601 date
+- `spec_ref`: Path to parent shaped work contract
+- `execution_ref`: Path to execution report being reviewed
+- `issues`: Array of `{severity, location, description, fix}` objects
+- `acceptance_criteria`: Array of `{id, status, notes}` objects
+
+**Body:** Free-form markdown narrative covering summary, code quality,
+test coverage, security review, risk assessment, and routing.
+
+```yaml
 ---
+spec_version: "1.0"
 type: review
-topic: {topic}
-verdict: APPROVED | CHANGES REQUESTED | BLOCKED
-created: {YYYY-MM-DD}
+id: GT-2
+title: Stable Spec Schema
+verdict: APPROVED
+created: 2026-01-27
+spec_ref: docs/backlog/P0-spec-driven.md
+execution_ref: docs/backlog/P0-spec-driven.md
+confidence: high
+issues:
+  - severity: major
+    location: "schemas/execution-report.schema.md:27"
+    description: "exit_code enum missing value 3 (blocked)"
+    fix: "Add 3=blocked to exit_code constraint"
+acceptance_criteria:
+  - id: AC-1
+    status: pass
+    notes: Schema files created with field tables
+  - id: AC-2
+    status: pass
+    notes: Design document schema complete
 ---
 
-# Review Document: {Title}
+# Review: GT-2 Stable Spec Schema
 
-**Implementation:** [Reference]
-**Verdict:** APPROVED / CHANGES REQUESTED / BLOCKED
+## Summary
+Implementation covers all acceptance criteria...
 
-## 1. Summary
-[2-3 sentence assessment]
-
-## 2. Acceptance Criteria
-
-| Criterion | Status | Notes |
-|-----------|--------|-------|
-| [Criterion] | Pass/Fail | [Notes] |
-
-## 3. Code Quality
-
-### Strengths
-- [What's done well]
-
-### Issues Found
-
-| Issue | Severity | Location | Fix |
-|-------|----------|----------|-----|
-| [Issue] | Critical/Major/Minor | `file:line` | [Suggestion] |
-
-## 4. Test Coverage
-
-- **Target:** [%]
-- **Achieved:** [%]
-- **Missing:** [What's not covered]
-
-## 5. Security Review
-
-- [ ] No sensitive data exposure
-- [ ] Input validation present
-- [ ] No injection vulnerabilities
-
-## 6. Risk Assessment
-
-| Risk | L | I | Status |
-|------|---|---|--------|
-| [Risk] | M | H | Addressed/Open |
-
-## 7. Verdict
-
-### If APPROVED:
-- Ready for deployment
-- Monitor: [What to watch]
-
-### If CHANGES REQUESTED:
-| Required Change | Priority | Assigned |
-|-----------------|----------|----------|
-| [Change] | Must/Should | Crafter |
-
-### If BLOCKED:
-- **Reason:** [Critical issue]
-- **Resolution:** [What must happen]
-- **Escalate to:** [Who]
-
-## 8. Routing
-- **APPROVED** → Ready for `/commit`
-- **CHANGES REQUESTED** → Back to Crafter
-- **BLOCKED** → Escalate to Architect/Navigator
+## Verdict
+APPROVED — Ready for `/commit`
 ```
 
 ---

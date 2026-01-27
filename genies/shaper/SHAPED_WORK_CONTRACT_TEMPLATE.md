@@ -1,205 +1,94 @@
 ---
+spec_version: "1.0"
 type: shaped-work
-concept: {concept}
-enhancement: {enhancement}
+id: "{ID}"
+title: "{Title}"
 status: shaped
-created: {YYYY-MM-DD}
+created: "{YYYY-MM-DD}"
+appetite: "{small|medium|big}"
+priority: "{P0|P1|P2|P3}"
+target_project: "{project-name}"
+author: shaper
+depends_on: []
+tags: []
+acceptance_criteria:
+  - id: AC-1
+    description: "{First acceptance criterion}"
+    status: pending
+  - id: AC-2
+    description: "{Second acceptance criterion}"
+    status: pending
 ---
 
-# Shaped Work Contract — Shaper Genie
-### Structured Markdown Output Template
+# Shaped Work Contract: {Title}
 
-> This template defines the required output sections for the Shaper genie.
-> All sections should be included, even if marked "N/A" or empty.
-> Adapt depth based on complexity and appetite.
+> **Schema:** `schemas/shaped-work-contract.schema.md` v1.0
 >
-> **Frontmatter:** Replace `{concept}`, `{enhancement}`, and `{YYYY-MM-DD}` with actual values.
-> **Status progression:** shaped → designed → implemented → reviewed → done
+> All structured data lives in the YAML frontmatter above. The body below
+> is free-form narrative for human context. Machines parse frontmatter only.
+>
+> **Status progression:** shaped -> designed -> implemented -> reviewed -> done
 
----
+## Problem / Opportunity Statement
 
-## 1. Problem / Opportunity Statement
 [Clear, solution-free articulation of the underlying problem or opportunity]
-[If the original input was solution-loaded, rewrite it here as a problem]
 
 **Original input:** [What was provided]
 **Reframed problem:** [Solution-free problem statement]
 
----
+## Evidence & Insights
 
-## 2. Evidence & Insights
 - **From Discovery:** [Reference Scout Opportunity Snapshot if available]
-- **Telemetry:**
-- **Behavioral Signals:**
-- **JTBD (if applicable):**
-- **User/Customer Insights:**
+- **Behavioral Signals:** [User behavior or telemetry]
+- **JTBD:** "When [situation], [user] wants to [motivation] so they can [outcome]"
 
-> Keep concise but meaningful. Include only evidence relevant to shaping decisions.
+## Appetite & Boundaries
 
----
+- **Appetite:** [Small: 1-2d / Medium: 3-5d / Big: 1-2w]
+- **Boundaries:** [What's in scope]
+- **No-gos:** [Explicitly excluded]
+- **Fixed elements:** [Cannot change]
 
-## 3. Strategic Alignment
-- **North-star Alignment:** [How this connects to ultimate goal]
-- **Quarterly Priorities:** [Fit with current priorities]
-- **Product Pillars:** [Which pillars this supports]
-- **Persona / Segment:** [Who this is for]
-- **Opportunity Cost:** [What we're NOT doing by doing this]
+## Goals
 
----
+**Outcome Hypothesis:** "We believe [doing X] will result in [outcome Y] for [user Z]."
 
-## 4. Appetite (Scope Box)
+**Success Signals:**
+- [Metric or behavioral signal 1]
+- [Metric or behavioral signal 2]
 
-> Use Shape Up's philosophy: appetite is a constraint, not an estimate.
+## Risks & Assumptions
 
-- **Appetite:** [Small: 1-2 days | Medium: 3-5 days | Big: 1-2 weeks]
-- **Boundaries:** [What's inside the scope]
-- **No-Gos:** [What we explicitly won't do]
-- **Fixed Elements:** [What cannot change]
+| Assumption | Type | Fastest Test |
+|------------|------|--------------|
+| [Riskiest assumption] | value/usability/feasibility | [How to test cheaply] |
 
----
+## Options (Ranked)
 
-## 5. Goals (Hybrid Format)
-
-### Outcome Hypothesis
-"We believe that [doing X] will result in [outcome Y] for [user segment Z]."
-
-### Success Signals
-- [Metric, behavioral signal, or leading indicator 1]
-- [Metric, behavioral signal, or leading indicator 2]
-
-### JTBD (If User-Facing)
-"When [situation/trigger], [user type] wants to [motivation/job] so they can [desired outcome]."
-
----
-
-## 6. Opportunities & Constraints
-
-### Opportunities
-- [Key opportunities this work addresses]
-- [User pains being solved]
-
-### Value & Behavioral Signals
-- [Expected impact on user behavior]
-- [Expected impact on system behavior]
-
-### Constraints
-- **Technical:** [Technical limitations]
-- **Business:** [Business constraints]
-- **User:** [User constraints]
-- **Appetite:** [Time/scope boundaries]
-
-### Risks
-- **Value Risk:** [Will users want this?]
-- **Usability Risk:** [Can users use this?]
-- **Feasibility Risk:** [Can we build this?]
-- **Viability Risk:** [Should we build this?]
-
----
-
-## 7. Riskiest Assumptions
-
-### Primary Riskiest Assumption
-- **Type:** (value / usability / feasibility / viability)
-- **Assumption:** [What we believe but haven't proven]
-- **Fastest Test:** [Cheapest way to validate]
-- **Invalidation Signal:** [What would prove us wrong]
-
-### Secondary Assumptions (Optional)
-- **Assumption 2:**
-- **Test:**
-- **Signal:**
-
-- **Assumption 3:**
-- **Test:**
-- **Signal:**
-
----
-
-## 8. Dependencies
-
-### Minor Dependencies
-- [Annotate and proceed]
-
-### Moderate Dependencies
-- [Suggest routing - need attention but not blocking]
-
-### Major Dependencies (Hard Stop)
-- [Must resolve before proceeding]
-
-### Missing Enablers
-- [Propose new backlog items if needed]
-
----
-
-## 9. Open Questions
-- **For Architect:** [Technical questions]
-- **For Crafter:** [Implementation questions]
-- **For Navigator:** [Strategic questions]
-- **For More Discovery:** [Unknowns needing exploration]
-
----
-
-## 10. Recommendation (Options + Ranked)
-
-### Option 1: [Name]
-- **Description:**
-- **Pros:**
-- **Cons:**
-- **Appetite fit:** [fits / tight / exceeds]
+### Option 1: [Name] (Recommended)
+- **Description:** [What this entails]
+- **Pros:** [Benefits]
+- **Cons:** [Drawbacks]
+- **Appetite fit:** [Good / Tight / Exceeds]
 
 ### Option 2: [Name]
-- **Description:**
-- **Pros:**
-- **Cons:**
-- **Appetite fit:**
+- **Description:** [What this entails]
+- **Pros:** [Benefits]
+- **Cons:** [Drawbacks]
 
-### Option 3: [Name] (if applicable)
-...
+## Dependencies
 
-### Ranked Recommendation
-- **Top Recommendation:** [Option X]
-- **Reasoning:** [Why this option]
+- [Dependency with severity: minor / moderate / blocking]
 
----
+## Routing
 
-## 11. Routing Target
-
-**Recommended route:**
-- [ ] **Architect** - Needs technical design
-- [ ] **Crafter** - Ready for implementation
-- [ ] **Scout** - Needs more discovery
-- [ ] **Navigator** - Needs strategic decision
+- [ ] **Architect** -- Needs technical design
+- [ ] **Crafter** -- Ready for implementation (small, clear scope)
+- [ ] **Scout** -- Needs more discovery
 
 **Rationale:** [Why this routing]
 
----
-
-## 12. Bet Framing (Adaptive)
-> Include only for medium/large appetite items
-
-- **Appetite:** [What we're investing]
-- **Tradeoffs:** [What we're trading off]
-- **Why Now:** [Why this timing]
-- **Expected Impact:** [What we expect to gain]
-- **Risk Landscape:** [What could go wrong]
-- **Fit with Strategy:** [How this advances goals]
-
----
-
-## 13. Breadcrumbs
-> Durable insights for future reference
-
-- **Opportunity Map Update:** [If this changes the opportunity landscape]
-- **Insight for Product History:** [Durable learning to record]
-- **Related Backlog Items:** [Connected work to note]
-
----
-
-## 14. Artifacts
+## Artifacts
 
 - **Contract saved to:** `docs/backlog/{priority}-{topic}.md`
 - **Discovery referenced:** `docs/analysis/YYYYMMDD_discover_{topic}.md`
-
----
-
-# End of Shaped Work Contract
