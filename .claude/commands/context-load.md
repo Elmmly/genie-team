@@ -13,7 +13,7 @@ Initialize session with project context. Run at the start of every session.
    - docs/context/current_work.md (if exists)
 
 2. Scan for spec coverage:
-   - `specs/**/*.md` — Recursively scan all domain subdirectories and `_drafts/` for `type: spec` frontmatter. Count by status: `active`, `draft`, `deprecated`. List domains found.
+   - `specs/**/*.md` — Recursively scan all domain subdirectories and `_drafts/` for `type: spec` frontmatter. Count by status: `active`, `draft`, `deprecated`. List domains found. If `specs/` does not exist, report "No specs directory — run /context:refresh to bootstrap from tests"
    - `docs/backlog/*.md` — Count backlog items (work in progress, separate from specs)
    - Detect test framework (look for `package.json` test scripts, `pytest.ini`, `jest.config.*`, `vitest.config.*`, etc.)
    - Count test files and describe/it blocks

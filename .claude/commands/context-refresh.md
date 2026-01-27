@@ -11,6 +11,7 @@ Update context documents from current codebase state. Use when context docs are 
 3. Check for new patterns or conventions
 4. Flag any drift from documented architecture
 5. **Spec bootstrapping:** Scan test files and project artifacts to produce draft specs
+   - **Create `specs/_drafts/` if it does not exist** (self-provisioning — no installer required)
    - Detect test framework from config files (package.json, pytest.ini, jest.config.*, etc.)
    - Scan test files for describe/it blocks (or equivalent per framework)
    - Group tests by capability (one top-level describe block = one behavioral capability = one draft spec)
