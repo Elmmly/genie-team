@@ -13,11 +13,11 @@ Initialize session with project context. Run at the start of every session.
    - docs/context/current_work.md (if exists)
 
 2. Scan for spec coverage:
-   - `docs/backlog/*.md` — Check frontmatter for `type: shaped-work` (structured specs)
-   - Count backlog items with structured frontmatter vs legacy (no frontmatter)
+   - `specs/**/*.md` — Recursively scan all domain subdirectories and `_drafts/` for `type: spec` frontmatter. Count by status: `active`, `draft`, `deprecated`. List domains found.
+   - `docs/backlog/*.md` — Count backlog items (work in progress, separate from specs)
    - Detect test framework (look for `package.json` test scripts, `pytest.ini`, `jest.config.*`, `vitest.config.*`, etc.)
    - Count test files and describe/it blocks
-   - Report spec coverage: how many features have specs, how many have tests but no specs
+   - Report spec coverage: how many capabilities have specs, how many have tests but no specs
 
 3. Summarize current state briefly
 
@@ -34,9 +34,11 @@ Initialize session with project context. Run at the start of every session.
 **Current work:** [In-progress item or "None"]
 **Recent decisions:** [Last 3 decisions, one-line each]
 **Spec coverage:**
-  - Backlog items: [N shaped, M legacy (no frontmatter)]
+  - Specs: [N active, M draft, K deprecated] across [D] domains (from specs/)
+  - Drafts pending review: [M] (in specs/_drafts/)
+  - Backlog: [N items] (from docs/backlog/)
   - Test suites: [N describe blocks, M test cases]
-  - Unspecified: [N describe blocks have no matching AC in any spec]
+  - Unspecified: [N test suites have no matching spec]
 **Ready for:** [Suggested next command]
 ```
 
@@ -52,7 +54,8 @@ If spec coverage shows unspecified test suites, recommend:
 - docs/context/system_architecture.md
 - docs/context/recent_decisions.md
 - docs/context/current_work.md
-- docs/backlog/*.md (scan frontmatter for `type: shaped-work`)
+- specs/**/*.md (recursive — scan all domains and _drafts/ for `type: spec`)
+- docs/backlog/*.md (scan for active work items)
 - Test config files (package.json, pytest.ini, jest.config.*, vitest.config.*, etc.)
 
 **WRITE:**

@@ -355,6 +355,7 @@ cmd_project() {
     if [[ "$install_all" == "true" ]]; then
         mkdir -p "$project_path/docs/backlog"
         mkdir -p "$project_path/docs/analysis"
+        mkdir -p "$project_path/specs/_drafts"
         create_claude_md "$project_path/CLAUDE.md" "$force"
     fi
 

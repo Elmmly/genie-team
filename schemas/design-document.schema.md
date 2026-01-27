@@ -21,7 +21,7 @@ created: 2026-01-27
 | `title` | string | Must match parent spec | Human-readable title |
 | `status` | string | enum: `designed`, `superseded` | Design lifecycle status |
 | `created` | string | ISO 8601 date | Creation date |
-| `spec_ref` | string | Relative path to parent shaped work | e.g. `"docs/backlog/P0-spec-driven.md"` |
+| `spec_ref` | string | Relative path to parent spec or shaped work | e.g. `"specs/execution/headless-mode.md"` or `"docs/backlog/P0-topic.md"` |
 | `appetite` | string | enum: `small`, `medium`, `big` | Inherited from shaped work |
 | `complexity` | string | enum: `simple`, `moderate`, `complex` | Architect's complexity assessment |
 | `ac_mapping` | array | list of AC mapping objects (see below) | Traceability from AC to design |

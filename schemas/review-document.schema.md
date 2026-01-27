@@ -21,7 +21,7 @@ created: 2026-01-27
 | `title` | string | Must match parent spec | Human-readable title |
 | `verdict` | string | enum: `APPROVED`, `CHANGES_REQUESTED`, `BLOCKED` | GO/NO-GO decision |
 | `created` | string | ISO 8601 date, e.g. `"2026-01-27"` | Review date |
-| `spec_ref` | string | Relative path | Path to parent shaped work contract |
+| `spec_ref` | string | Relative path | Path to parent spec (`specs/`) or shaped work contract (`docs/backlog/`) |
 | `execution_ref` | string | Relative path or inline reference | Path to execution report being reviewed |
 | `issues` | array | list of issue objects (see below) | Issues found during review |
 | `acceptance_criteria` | array | list of AC verdict objects (see below) | Per-criterion pass/fail verdicts |

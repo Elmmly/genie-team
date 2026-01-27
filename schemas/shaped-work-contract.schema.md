@@ -34,6 +34,7 @@ created: 2026-01-27
 | `tags` | array of strings | Categorization tags |
 | `author` | string | Producing genie or person |
 | `priority` | string (e.g. `"P0"`) | Priority level |
+| `spec_ref` | string | Path to persistent spec in `specs/` that this work modifies |
 
 ## Acceptance Criteria Object
 

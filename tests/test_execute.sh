@@ -186,6 +186,12 @@ ec=$?
 assert_exit_code "1" "$ec" \
     "validate_spec: no frontmatter fails"
 
+# type: spec (persistent spec) should also pass validation
+output=$(validate_spec "$FIXTURES_DIR/valid_spec_type.md" 2>&1)
+ec=$?
+assert_exit_code "0" "$ec" \
+    "validate_spec: type 'spec' passes (persistent spec)"
+
 # ─────────────────────────────────────────────
 # Test: validate_design
 # ─────────────────────────────────────────────
@@ -274,6 +280,17 @@ output=$("$EXECUTE_SH" --dry-run \
 ec=$?
 assert_exit_code "3" "$ec" \
     "CLI dry-run: invalid design exits 3 (blocked)"
+
+# type: spec should work as --spec input (persistent spec)
+output=$("$EXECUTE_SH" --dry-run \
+    --spec "$FIXTURES_DIR/valid_spec_type.md" \
+    --design "$FIXTURES_DIR/valid_design.md" \
+    --repo /tmp/test-repo 2>&1)
+ec=$?
+assert_exit_code "0" "$ec" \
+    "CLI dry-run: type 'spec' accepted as valid spec"
+assert_contains "$output" "SPEC-1" \
+    "CLI dry-run: output includes persistent spec id"
 
 # ─────────────────────────────────────────────
 # Test: CLI missing required arguments

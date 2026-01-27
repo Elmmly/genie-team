@@ -106,8 +106,8 @@ validate_spec() {
     if [[ -z "$type_val" ]]; then
         log_error "Missing required field 'type' in spec: $file"
         ((errors++))
-    elif [[ "$type_val" != "shaped-work" ]]; then
-        log_error "Invalid type '$type_val' in spec (expected 'shaped-work'): $file"
+    elif [[ "$type_val" != "shaped-work" && "$type_val" != "spec" ]]; then
+        log_error "Invalid type '$type_val' in spec (expected 'shaped-work' or 'spec'): $file"
         ((errors++))
     fi
 

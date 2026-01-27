@@ -5,7 +5,7 @@ id: "{ID}"
 title: "{Title}"
 status: "{complete|partial|failed|blocked}"
 created: "{YYYY-MM-DDTHH:MM:SSZ}"
-spec_ref: "{docs/backlog/Pn-topic.md}"
+spec_ref: "{specs/domain/capability.md or docs/backlog/Pn-topic.md}"
 design_ref: "{docs/backlog/Pn-topic.md}"
 execution_mode: "{interactive|headless}"
 exit_code: 0
