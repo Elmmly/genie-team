@@ -44,9 +44,23 @@ YOU MUST follow these constraints exactly:
 
 **READ (automatic):**
 - Backlog item (contains design specification)
+- Backlog frontmatter field `spec_ref` → load the linked spec for context
 - Existing test files (the contract to satisfy)
 - Target implementation files
 - docs/context/codebase_structure.md
+
+**SPEC LOADING:**
+1. Read `spec_ref` from backlog item frontmatter
+2. If `spec_ref` is present: Read the spec file for implementation context.
+3. If `spec_ref` is missing: Warn and continue:
+   > This backlog item has no spec_ref. Proceeding without spec context.
+4. If `spec_ref` points to a nonexistent file: Warn and continue:
+   > spec_ref points to {path} but file not found. Proceeding without spec context.
+
+**SPEC UPDATE (after implementation is GREEN):**
+When spec_ref is present, update the linked spec with implementation evidence:
+1. Append or update "## Implementation Evidence" section with test file paths and implementation file paths
+2. Do NOT modify spec AC statuses — that is /discern's job
 
 ---
 

@@ -27,12 +27,21 @@ Activate Critic genie to review implementation against acceptance criteria.
 
 **READ (automatic):**
 - docs/backlog/{priority}-{topic}.md (contains shaped contract + design + implementation)
+- Backlog frontmatter field `spec_ref` → load the linked spec (ACs to verify)
 - Code changes (diff)
 - Test results
 
 **RECALL:**
 - Past review patterns
 - Common issues in this area
+
+**SPEC LOADING:**
+1. Read `spec_ref` from backlog item frontmatter
+2. If `spec_ref` is present: Read the spec file. Load acceptance_criteria for verification against implementation.
+3. If `spec_ref` is missing: Warn and continue:
+   > This backlog item has no spec_ref. Review will use backlog ACs only.
+4. If `spec_ref` points to a nonexistent file: Warn and continue:
+   > spec_ref points to {path} but file not found. Review will use backlog ACs only.
 
 ---
 
@@ -41,8 +50,32 @@ Activate Critic genie to review implementation against acceptance criteria.
 **UPDATE:**
 - Backlog item: Append "# Review" section before "# End of Shaped Work Contract"
 - Backlog frontmatter: `status: implemented` → `status: reviewed`
+- **Spec (if spec_ref exists):** Update spec AC statuses and append "## Review Verdict" section (see below)
 
 > **Note:** Review content is appended directly to the backlog item rather than creating a separate analysis file.
+
+**SPEC UPDATE (when spec_ref is present):**
+
+After completing the review, update the linked spec:
+
+1. **Update acceptance_criteria statuses in frontmatter:**
+   - For each spec AC, evaluate whether the implementation satisfies it
+   - Update `status: pending` → `status: met` (if satisfied) or `status: unmet` (if not satisfied)
+   - Never remove or rewrite AC descriptions — only change the status field
+2. **Append "## Review Verdict" section** to the spec body (or update if it already exists):
+   ```markdown
+   ## Review Verdict
+   <!-- Updated by /discern on {YYYY-MM-DD} from {backlog-item-id} -->
+
+   **Verdict:** {APPROVED | CHANGES REQUESTED | BLOCKED}
+   **ACs verified:** {N}/{M} met
+
+   | AC | Status | Evidence |
+   |----|--------|----------|
+   | AC-1 | met | {brief evidence} |
+   | AC-2 | unmet | {what's missing} |
+   ```
+3. **Do NOT change spec status** — the spec stays `active` regardless of verdict
 
 ---
 
@@ -68,13 +101,14 @@ Produces a **Review Document** with clear verdict:
 ## Review Checklist
 
 Critic evaluates:
-1. Acceptance criteria met?
-2. Code quality acceptable?
-3. Test coverage sufficient?
-4. Security concerns?
-5. Performance concerns?
-6. Error handling adequate?
-7. Risks identified and mitigated?
+1. Acceptance criteria met? (backlog ACs)
+2. **Spec ACs verified?** (if spec_ref exists — each spec AC checked against implementation)
+3. Code quality acceptable?
+4. Test coverage sufficient?
+5. Security concerns?
+6. Performance concerns?
+7. Error handling adequate?
+8. Risks identified and mitigated?
 
 ---
 

@@ -37,8 +37,17 @@ YOU MUST follow these constraints exactly:
 
 **READ (automatic):**
 - Backlog item (contains design specification)
+- Backlog frontmatter field `spec_ref` → load the linked spec (ACs drive test targets)
 - Existing test files (for patterns and conventions)
 - docs/context/codebase_structure.md
+
+**SPEC LOADING:**
+1. Read `spec_ref` from backlog item frontmatter
+2. If `spec_ref` is present: Load spec and use acceptance_criteria as test targets. Each spec AC with `status: pending` should map to at least one test case. Reference AC ids in test descriptions.
+3. If `spec_ref` is missing: Warn and continue:
+   > This backlog item has no spec_ref. Proceeding with backlog ACs only.
+4. If `spec_ref` points to a nonexistent file: Warn and continue:
+   > spec_ref points to {path} but file not found. Proceeding with backlog ACs only.
 
 ---
 

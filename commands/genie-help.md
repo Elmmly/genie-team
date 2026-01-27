@@ -31,6 +31,10 @@ When invoked, display the following reference:
 │  /spike [question]     Research: discover → feasibility         │
 │  /cleanup [scope]      Maintenance: diagnose → tidy             │
 │                                                                 │
+│  SPECS                                                          │
+│  ─────                                                          │
+│  /spec:init [scope]    Bootstrap specs from existing project    │
+│                                                                 │
 │  CONTEXT                                                        │
 │  ───────                                                        │
 │  /context:load         Initialize session with project context  │

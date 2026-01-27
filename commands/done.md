@@ -28,6 +28,7 @@ Optional flags:
 - Target artifact(s) frontmatter
 - `docs/analysis/*_discover_*.md` (to find related discovery)
 - `docs/backlog/*.md` (to find related backlog item)
+- Backlog frontmatter field `spec_ref` → load the linked spec (for preservation check)
 
 ---
 
@@ -40,6 +41,11 @@ Optional flags:
 **MOVE:**
 - Discovery from `docs/analysis/` → `docs/archive/{concept}/YYYY-MM-DD_{enhancement}/`
 - Backlog item from `docs/backlog/` → `docs/archive/{concept}/YYYY-MM-DD_{enhancement}/`
+
+**SPEC PRESERVATION (when spec_ref exists in backlog):**
+1. **Never archive the spec.** Specs are persistent — only backlog items get archived.
+2. **Leave the spec in place** with all accumulated knowledge (design constraints, implementation evidence, review verdicts).
+3. The archived backlog item retains `spec_ref` as a historical pointer.
 
 ---
 
@@ -153,6 +159,7 @@ After `/discern` returns **APPROVED**:
 - Creates archive directory structure if it doesn't exist
 - Preserves original filenames in archive
 - Fully reversible: move files back and update status
+- **Specs are never archived** — they persist as the source of truth for what the system does
 
 ---
 

@@ -130,6 +130,6 @@ Users are logged out after 15 minutes due to short-lived access tokens...
 
 ## Context Usage
 
-**Read:** CLAUDE.md, Opportunity Snapshots, strategic docs
-**Write:** docs/backlog/{priority}-{topic}.md
+**Read:** CLAUDE.md, Opportunity Snapshots, strategic docs, specs/{domain}/ directories
+**Write:** docs/backlog/{priority}-{topic}.md, specs/{domain}/{capability}.md (new capability)
 **Handoff:** Shaped Work Contract → Architect or Crafter

@@ -27,6 +27,7 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 
 **READ (automatic):**
 - docs/backlog/{priority}-{topic}.md (contains shaped contract + design)
+- Backlog frontmatter field `spec_ref` → load the linked spec (ACs drive TDD targets)
 - Target code files
 - Related test files
 - docs/context/codebase_structure.md
@@ -34,6 +35,14 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 **RECALL:**
 - Similar implementations in codebase
 - Related test patterns
+
+**SPEC LOADING:**
+1. Read `spec_ref` from backlog item frontmatter
+2. If `spec_ref` is present: Read the spec file. Use its acceptance_criteria as TDD test targets in the RED phase. Each spec AC with `status: pending` should map to at least one test case.
+3. If `spec_ref` is missing: Warn and continue:
+   > This backlog item has no spec_ref. Consider linking it to a persistent spec in specs/{domain}/. Proceeding with backlog ACs only.
+4. If `spec_ref` points to a nonexistent file: Warn and continue:
+   > spec_ref points to {path} but file not found. Proceeding with backlog ACs only.
 
 ---
 
@@ -46,8 +55,29 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 **UPDATE:**
 - Backlog item: Append "# Implementation" section before "# End of Shaped Work Contract"
 - Backlog frontmatter: `status: designed` → `status: implemented`
+- **Spec (if spec_ref exists):** Append or update "## Implementation Evidence" section in the spec body (see below)
 
 > **Note:** Implementation notes are appended directly to the backlog item rather than creating a separate report file.
+
+**SPEC UPDATE (when spec_ref is present):**
+
+After completing implementation, update the linked spec:
+
+1. **Append "## Implementation Evidence" section** to the spec body (or update if it already exists):
+   ```markdown
+   ## Implementation Evidence
+   <!-- Updated by /deliver on {YYYY-MM-DD} from {backlog-item-id} -->
+
+   ### Test Coverage
+   - {test-file-path}: {N} test cases covering AC-1, AC-2
+   - {test-file-path}: {N} test cases covering AC-3
+
+   ### Implementation Files
+   - {source-file-path}: {brief description}
+   - {source-file-path}: {brief description}
+   ```
+2. **Do NOT modify spec acceptance_criteria statuses** — that is /discern's job
+3. **Do NOT change spec status** — the spec stays `active`
 
 ---
 
@@ -77,6 +107,12 @@ Crafter MUST follow strict test-first development. This is NOT optional.
 ### Phase 1: Red (Write Failing Tests)
 
 YOU MUST write all tests BEFORE any implementation code.
+
+**Spec-Driven Test Targets:**
+When a spec is loaded via `spec_ref`, use its acceptance_criteria to guide test writing:
+- Each spec AC with `status: pending` should have at least one corresponding test
+- Test descriptions should reference the AC id (e.g., "AC-1: should issue refresh tokens on login")
+- Spec ACs complement (not replace) the design section's implementation guidance
 
 **Constraints:**
 - Write tests that define expected behavior based on the design

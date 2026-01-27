@@ -13,7 +13,7 @@ Initialize session with project context. Run at the start of every session.
    - docs/context/current_work.md (if exists)
 
 2. Scan for spec coverage:
-   - `specs/**/*.md` — Recursively scan all domain subdirectories and `_drafts/` for `type: spec` frontmatter. Count by status: `active`, `draft`, `deprecated`. List domains found. If `specs/` does not exist, report "No specs directory — run /context:refresh to bootstrap from tests"
+   - `specs/**/*.md` — Recursively scan all domain subdirectories for `type: spec` frontmatter. Count by status: `active`, `deprecated`. List domains found. If `specs/` does not exist, report "No specs directory — run /spec:init to bootstrap specs from source code and tests"
    - `docs/backlog/*.md` — Count backlog items (work in progress, separate from specs)
    - Detect test framework (look for `package.json` test scripts, `pytest.ini`, `jest.config.*`, `vitest.config.*`, etc.)
    - Count test files and describe/it blocks
@@ -34,8 +34,7 @@ Initialize session with project context. Run at the start of every session.
 **Current work:** [In-progress item or "None"]
 **Recent decisions:** [Last 3 decisions, one-line each]
 **Spec coverage:**
-  - Specs: [N active, M draft, K deprecated] across [D] domains (from specs/)
-  - Drafts pending review: [M] (in specs/_drafts/)
+  - Specs: [N active, K deprecated] across [D] domains (from specs/)
   - Backlog: [N items] (from docs/backlog/)
   - Test suites: [N describe blocks, M test cases]
   - Unspecified: [N test suites have no matching spec]
@@ -43,7 +42,7 @@ Initialize session with project context. Run at the start of every session.
 ```
 
 If spec coverage shows unspecified test suites, recommend:
-`Run /context:refresh to bootstrap specs from existing tests`
+`Run /spec:init to bootstrap specs from source code and tests`
 
 ---
 
@@ -54,7 +53,7 @@ If spec coverage shows unspecified test suites, recommend:
 - docs/context/system_architecture.md
 - docs/context/recent_decisions.md
 - docs/context/current_work.md
-- specs/**/*.md (recursive — scan all domains and _drafts/ for `type: spec`)
+- specs/**/*.md (recursive — scan all domains for `type: spec`)
 - docs/backlog/*.md (scan for active work items)
 - Test config files (package.json, pytest.ini, jest.config.*, vitest.config.*, etc.)
 
