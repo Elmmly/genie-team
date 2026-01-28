@@ -32,6 +32,7 @@ Activate Shaper genie to define problem boundaries and create a shaped work cont
 - Product principles (if defined)
 - Strategic goals (if defined)
 - specs/{domain}/ directories (to discover existing specs and domains)
+- docs/decisions/ADR-*.md (scan for existing ADRs relevant to the domain or topic)
 
 **RECALL:**
 - Past shaping on related topics
@@ -43,10 +44,12 @@ Activate Shaper genie to define problem boundaries and create a shaped work cont
 
 **WRITE:**
 - docs/backlog/{priority}-{topic}.md
+- docs/decisions/ADR-{NNN}-{slug}.md (proposed ADR, when architectural choice detected — see below)
 
 **UPDATE:**
 - docs/context/current_work.md
 - Backlog frontmatter: add `spec_ref: specs/{domain}/{capability}.md`
+- Backlog frontmatter: add `adr_refs` array if proposed ADRs were created
 
 ---
 
@@ -106,6 +109,50 @@ When shaping work for a capability that has no existing spec:
 2. **Create the spec** at `specs/{domain}/{capability}.md` with `status: active`, `domain: {domain}`, and acceptance_criteria from the shaped contract
 3. **Link the backlog item:** Add `spec_ref: specs/{domain}/{capability}.md` to the backlog item frontmatter
 4. **Create domain directory:** If `specs/{domain}/` does not exist, create it
+
+---
+
+## Architectural Decision Detection
+
+While shaping work, `/define` checks whether the behavioral delta involves an architectural choice — a decision about HOW to build, not just WHAT changes.
+
+### Threshold Check
+
+Create a proposed ADR ONLY when BOTH conditions are true:
+1. **Multiple viable alternatives exist** — There is a genuine choice between technical approaches
+2. **Hard to reverse OR affects multiple domains** — The decision has lasting consequences
+
+### Proposed ADR Workflow
+
+When the threshold is met:
+
+1. **Determine next ADR number** by scanning `docs/decisions/ADR-*.md` (increment highest found; start at ADR-001 if none exist beyond ADR-000)
+2. **Create** `docs/decisions/ADR-{NNN}-{slug}.md` with `status: proposed`
+3. **Fill in Context section** — What is the issue motivating this decision? (captured while the problem is fresh)
+4. **Fill in Alternatives Considered table** — Options with pros/cons (captured while alternatives are being evaluated)
+5. **Leave Decision section as placeholder:** "To be determined by /design"
+6. **Leave Consequences section as placeholder:** "To be assessed after decision"
+7. **Add `adr_refs`** to the backlog item frontmatter
+
+### Example
+
+```
+/define docs/analysis/20260127_discover_notifications.md
+> ...
+> Architectural choice detected: How to deliver real-time notifications
+> Alternatives: WebSockets, Server-Sent Events, Polling
+> This is hard to reverse (protocol choice affects all clients)
+>
+> Created: docs/decisions/ADR-004-real-time-notification-delivery.md (proposed)
+> adr_refs added to backlog item
+```
+
+### When NOT to Create a Proposed ADR
+
+- The change is purely behavioral (WHAT changes, not HOW)
+- Only one viable approach exists
+- The choice is easily reversible
+- The decision is scoped to a single component's internals
 
 ---
 

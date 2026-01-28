@@ -29,6 +29,7 @@ Activate Scout genie to explore opportunities and surface assumptions.
 - CLAUDE.md
 - docs/context/system_architecture.md
 - docs/context/recent_decisions.md
+- docs/decisions/ADR-*.md (scan for ADRs relevant to the discovery topic)
 - Any provided telemetry/data
 
 **RECALL (if topic matches past work):**
@@ -55,6 +56,7 @@ Produces an **Opportunity Snapshot** containing:
 3. Evidence Analysis - Data, quotes, observations
 4. Assumption Map - Risky assumptions to test
 5. Recommended Path - What to do next
+6. Architecture Context - Relevant ADRs that inform the discovery topic (if they exist)
 
 ---
 

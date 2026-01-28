@@ -273,10 +273,17 @@ cmd_global() {
     log_success "Global installation complete!"
     echo ""
     echo "Available:"
-    echo "  Commands: /discover, /define, /design, /deliver, /discern, /commit, /done"
-    echo "  Skills:   tdd-discipline, code-quality, conventional-commits, problem-first"
-    echo "  Agents:   scout, architect, critic, tidier"
-    echo "  Schemas:  shaped-work-contract, design-document, execution-report, review-document"
+    echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /commit, /done"
+    echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
+    echo "  Maintain:   /diagnose, /tidy"
+    echo "  Bootstrap:  /spec:init, /arch:init"
+    echo "  Context:    /context:load, /context:summary, /context:recall, /context:refresh"
+    echo "  Help:       /genie:help, /genie:status"
+    echo "  Skills:     tdd-discipline, code-quality, conventional-commits, problem-first,"
+    echo "              pattern-enforcement, spec-awareness, architecture-awareness"
+    echo "  Agents:     scout, architect, critic, tidier"
+    echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
+    echo "              adr, architecture-diagram"
 }
 
 # Project installation
@@ -355,7 +362,9 @@ cmd_project() {
     if [[ "$install_all" == "true" ]]; then
         mkdir -p "$project_path/docs/backlog"
         mkdir -p "$project_path/docs/analysis"
+        mkdir -p "$project_path/docs/decisions"
         mkdir -p "$project_path/specs"
+        mkdir -p "$project_path/architecture/components"
         create_claude_md "$project_path/CLAUDE.md" "$force"
     fi
 
@@ -365,7 +374,22 @@ cmd_project() {
     echo "Next steps:"
     echo "  1. Edit CLAUDE.md with your project details"
     echo "  2. Run /genie:help to see available commands"
-    echo "  3. Start with /discover [topic] or /feature [topic]"
+    echo "  3. Start with /context:load, /discover [topic], or /feature [topic]"
+    echo ""
+    echo "Directories created:"
+    echo "  docs/backlog/       — Living backlog items"
+    echo "  docs/analysis/      — Discovery and design documents"
+    echo "  docs/decisions/     — Architecture Decision Records (ADRs)"
+    echo "  specs/              — Product specifications by domain"
+    echo "  architecture/       — C4 diagrams (system-context, containers, components)"
+    echo ""
+    echo "Available:"
+    echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /commit, /done"
+    echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
+    echo "  Maintain:   /diagnose, /tidy"
+    echo "  Bootstrap:  /spec:init, /arch:init"
+    echo "  Context:    /context:load, /context:summary, /context:recall, /context:refresh"
+    echo "  Help:       /genie:help, /genie:status"
 }
 
 # Show status

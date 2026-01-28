@@ -35,6 +35,12 @@ Activate Critic genie to review implementation against acceptance criteria.
 - Past review patterns
 - Common issues in this area
 
+**ADR LOADING:**
+1. Check for `adr_refs` in the backlog item or design section frontmatter
+2. If present: Read each referenced ADR from `docs/decisions/`
+3. Load component diagram for the domain (if exists in `architecture/components/`)
+4. If `docs/decisions/` does not exist: Note and continue. ADR compliance check is skipped.
+
 **SPEC LOADING:**
 1. Read `spec_ref` from backlog item frontmatter
 2. If `spec_ref` is present: Read the spec file. Load acceptance_criteria for verification against implementation.
@@ -109,6 +115,29 @@ Critic evaluates:
 6. Performance concerns?
 7. Error handling adequate?
 8. Risks identified and mitigated?
+9. **ADR compliance?** (if adr_refs exist — does implementation follow each accepted decision?)
+
+---
+
+## ADR Compliance Output
+
+When `adr_refs` exist, include an ADR Compliance table in the review:
+
+```
+## ADR Compliance
+
+| ADR | Decision | Compliant? | Notes |
+|-----|----------|------------|-------|
+| ADR-001 | JWT refresh tokens | YES | Implemented as specified |
+| ADR-003 | Auth service boundary | VIOLATION | Direct DB access bypasses service |
+```
+
+Compliance verdicts:
+- **YES** — Implementation follows the accepted decision
+- **VIOLATION** — Implementation contradicts the accepted decision (flag prominently)
+- **N/A** — ADR not relevant to this implementation
+
+An ADR VIOLATION does not automatically BLOCK the review, but it MUST be flagged prominently and the reviewer should consider whether it warrants CHANGES REQUESTED.
 
 ---
 
@@ -123,10 +152,15 @@ Critic evaluates:
 > Verdict: APPROVED
 >
 > Acceptance criteria: 5/5 met
+> Spec ACs: 3/3 met
 > Code quality: Good
 > Test coverage: 87%
 > Security: Pass
 > Performance: Pass
+>
+> ADR Compliance:
+> | ADR-015 | JWT refresh strategy | YES | Refresh tokens with rotation |
+> | ADR-016 | Token storage | YES | Redis-backed as specified |
 >
 > Ready for deployment
 > Next: /commit then /done docs/backlog/P2-auth-improvements.md

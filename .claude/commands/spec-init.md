@@ -49,9 +49,12 @@ Activate Scout genie to produce rich capability specifications from an existing 
 
 **WRITE:**
 - specs/{domain}/{capability}.md (one per capability, status: active)
+- architecture/system-context.md (Level 1 C4 diagram — system and external actors)
+- architecture/containers.md (Level 2 C4 diagram — high-level containers)
 
 **CREATE (if needed):**
 - specs/{domain}/ directories (one per domain assigned by user)
+- architecture/components/ directory (Level 3 files created later by `/design`)
 
 ---
 
@@ -74,7 +77,12 @@ Activate Scout genie to produce rich capability specifications from an existing 
    - **Adjust descriptions** ("update the description for 2")
    - **Accept as-is** ("looks good" or just provide the domain name)
 7. **Write specs:** After user confirms each batch, write spec files directly to `specs/{domain}/{capability}.md` with `status: active`
-8. **Summary:** After all batches are processed, output a summary of what was created
+8. **Generate C4 diagrams:** After all spec batches are processed:
+   a. **Level 1 — System Context** (`architecture/system-context.md`): Create diagram showing the system and discovered external actors (from imports, configs, API integrations). Set `updated_by: "/spec:init"`
+   b. **Level 2 — Containers** (`architecture/containers.md`): Create diagram showing high-level containers inferred from project structure (e.g., web app, API server, database, background workers). Include initial `## Coupling Notes` from observed dependencies. Set `updated_by: "/spec:init"`
+   c. **Level 3 directory** — Create `architecture/components/` directory. Component diagrams are created later by `/design` as domain boundaries become clearer.
+   d. These are initial diagrams — `/design` refines them as architecture evolves
+9. **Summary:** After all batches and diagrams are processed, output a summary of what was created
 
 ---
 
@@ -166,10 +174,19 @@ acceptance_criteria:
 ### Domains
 - {domain}: {N} capabilities
 
+### C4 Diagrams Created
+| Level | File | Elements |
+|-------|------|----------|
+| 1 — System Context | architecture/system-context.md | {N} systems, {M} external actors |
+| 2 — Container | architecture/containers.md | {N} containers, {M} relationships |
+| 3 — Component | architecture/components/ | Directory created (populated by /design) |
+
 ### Recommended Next Steps
 1. Review specs in specs/{domain}/ for accuracy
-2. Use /define to shape work that changes these capabilities
-3. Use /discover to explore gaps not covered by existing code
+2. Review C4 diagrams in architecture/ for completeness
+3. Use /define to shape work that changes these capabilities
+4. Use /design to create component diagrams and refine containers
+5. Use /discover to explore gaps not covered by existing code
 ```
 
 ---

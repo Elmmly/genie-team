@@ -36,6 +36,17 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 - Similar implementations in codebase
 - Related test patterns
 
+**ADR LOADING:**
+1. Check for `adr_refs` in the backlog item or design section frontmatter
+2. If present: Read each referenced ADR from `docs/decisions/`
+3. If `docs/decisions/` does not exist: **Warn** and continue without ADR context
+4. Surface relevant decisions that constrain implementation:
+   - Technology choices (e.g., "ADR-001 specifies JWT refresh tokens, not sessions")
+   - Boundary constraints (e.g., "ADR-003 requires auth to stay in its own service")
+   - Read component diagram from `architecture/components/{domain}.md` (if exists) for dependency directions
+5. If implementation would violate an accepted ADR: **Warn prominently**
+6. Note: `/deliver` reads ADRs and diagrams but does NOT create or modify them
+
 **SPEC LOADING:**
 1. Read `spec_ref` from backlog item frontmatter
 2. If `spec_ref` is present: Read the spec file. Use its acceptance_criteria as TDD test targets in the RED phase. Each spec AC with `status: pending` should map to at least one test case.

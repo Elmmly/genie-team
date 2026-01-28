@@ -19,9 +19,14 @@ Initialize session with project context. Run at the start of every session.
    - Count test files and describe/it blocks
    - Report spec coverage: how many capabilities have specs, how many have tests but no specs
 
-3. Summarize current state briefly
+3. Scan for architecture artifacts:
+   - `docs/decisions/ADR-*.md` — Count ADRs by status: `proposed`, `accepted`, `deprecated`, `superseded`. If `docs/decisions/` does not exist, report "No ADRs — consider creating ADR-000 via /design"
+   - `architecture/**/*.md` — Check `updated` date in frontmatter against 90-day staleness threshold. List diagrams found and staleness status. If `architecture/` does not exist: if `specs/` exists, report "No C4 diagrams — run /arch:init to bootstrap architecture diagrams"; if `specs/` also does not exist, report "No C4 diagrams — run /spec:init to bootstrap specs and diagrams"
+   - Report architecture health: ADR count, diagram coverage, staleness warnings
 
-4. Suggest next action based on state
+4. Summarize current state briefly
+
+5. Suggest next action based on state
 
 ---
 
@@ -38,6 +43,10 @@ Initialize session with project context. Run at the start of every session.
   - Backlog: [N items] (from docs/backlog/)
   - Test suites: [N describe blocks, M test cases]
   - Unspecified: [N test suites have no matching spec]
+**Architecture:**
+  - ADRs: [N accepted, M proposed, K deprecated/superseded] or "No ADRs"
+  - C4 Diagrams: [L1: present/missing, L2: present/missing, L3: N domain diagrams] or "No diagrams"
+  - Staleness: [N diagrams stale (>90 days)] or "All current"
 **Ready for:** [Suggested next command]
 ```
 
@@ -55,6 +64,8 @@ If spec coverage shows unspecified test suites, recommend:
 - docs/context/current_work.md
 - specs/**/*.md (recursive — scan all domains for `type: spec`)
 - docs/backlog/*.md (scan for active work items)
+- docs/decisions/ADR-*.md (scan for architecture decisions)
+- architecture/**/*.md (scan for C4 diagrams and staleness)
 - Test config files (package.json, pytest.ini, jest.config.*, vitest.config.*, etc.)
 
 **WRITE:**

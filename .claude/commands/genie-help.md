@@ -35,6 +35,10 @@ When invoked, display the following reference:
 │  ─────                                                          │
 │  /spec:init [scope]    Bootstrap specs from existing project    │
 │                                                                 │
+│  ARCHITECTURE                                                   │
+│  ────────────                                                   │
+│  /arch:init            Bootstrap ADRs and C4 diagrams           │
+│                                                                 │
 │  CONTEXT                                                        │
 │  ───────                                                        │
 │  /context:load         Initialize session with project context  │
