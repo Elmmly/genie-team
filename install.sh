@@ -36,6 +36,7 @@ Options:
   --schemas           Install schemas only
   --all               Install everything (default)
   --force             Overwrite existing files
+  --sync              Clean install: remove target dirs before copying (removes obsolete files)
   --dry-run           Show what would be done
 
 Examples:
@@ -45,6 +46,7 @@ Examples:
   $0 project                     # Full project install
   $0 project ~/code/myapp        # Install to specific project
   $0 project --force             # Re-install/upgrade
+  $0 project --sync              # Update existing install (removes obsolete files)
 EOF
 }
 
@@ -52,6 +54,22 @@ log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# Clean directory before sync (removes obsolete files)
+clean_dir() {
+    local dest="$1"
+    local label="$2"
+    local dry_run="$3"
+
+    if [[ -d "$dest" ]]; then
+        if [[ "$dry_run" == "true" ]]; then
+            log_info "[DRY RUN] Would remove $dest/ before sync"
+        else
+            rm -rf "$dest"
+            log_info "Cleaned $label for sync"
+        fi
+    fi
+}
 
 # Copy directory contents
 copy_dir() {
@@ -216,6 +234,7 @@ EOF
 # Global installation
 cmd_global() {
     local force="false"
+    local sync="false"
     local install_commands="false"
     local install_skills="false"
     local install_rules="false"
@@ -227,6 +246,7 @@ cmd_global() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force) force="true" ;;
+            --sync) sync="true"; force="true" ;;
             --commands) install_commands="true"; install_all="false" ;;
             --skills) install_skills="true"; install_all="false" ;;
             --rules) install_rules="true"; install_all="false" ;;
@@ -239,6 +259,7 @@ cmd_global() {
     done
 
     log_info "Installing Genie Team globally to $GLOBAL_CLAUDE_DIR/"
+    [[ "$sync" == "true" ]] && log_info "Sync mode: will remove obsolete files"
 
     if [[ "$dry_run" == "true" ]]; then
         [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
@@ -251,7 +272,23 @@ cmd_global() {
             log_info "[DRY RUN] Would install agents"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas"
+        [[ "$sync" == "true" ]] && \
+            log_info "[DRY RUN] Would clean directories before installing"
         return
+    fi
+
+    # Clean directories if sync mode
+    if [[ "$sync" == "true" ]]; then
+        [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
+            clean_dir "$GLOBAL_CLAUDE_DIR/commands" "commands" "$dry_run"
+        [[ "$install_all" == "true" || "$install_skills" == "true" ]] && \
+            clean_dir "$GLOBAL_CLAUDE_DIR/skills" "skills" "$dry_run"
+        [[ "$install_all" == "true" || "$install_rules" == "true" ]] && \
+            clean_dir "$GLOBAL_CLAUDE_DIR/rules" "rules" "$dry_run"
+        [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
+            clean_dir "$GLOBAL_CLAUDE_DIR/agents" "agents" "$dry_run"
+        [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
+            clean_dir "$GLOBAL_CLAUDE_DIR/schemas" "schemas" "$dry_run"
     fi
 
     [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
@@ -290,6 +327,7 @@ cmd_global() {
 cmd_project() {
     local project_path="."
     local force="false"
+    local sync="false"
     local install_commands="false"
     local install_skills="false"
     local install_rules="false"
@@ -302,6 +340,7 @@ cmd_project() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force) force="true" ;;
+            --sync) sync="true"; force="true" ;;
             --commands) install_commands="true"; install_all="false" ;;
             --skills) install_skills="true"; install_all="false" ;;
             --rules) install_rules="true"; install_all="false" ;;
@@ -323,6 +362,7 @@ cmd_project() {
     local claude_dir="$project_path/.claude"
 
     log_info "Installing Genie Team to $project_path/"
+    [[ "$sync" == "true" ]] && log_info "Sync mode: will remove obsolete files"
 
     if [[ "$dry_run" == "true" ]]; then
         [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
@@ -337,7 +377,25 @@ cmd_project() {
             log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas to $project_path/schemas/"
+        [[ "$sync" == "true" ]] && \
+            log_info "[DRY RUN] Would clean directories before installing"
         return
+    fi
+
+    # Clean directories if sync mode
+    if [[ "$sync" == "true" ]]; then
+        [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
+            clean_dir "$claude_dir/commands" "commands" "$dry_run"
+        [[ "$install_all" == "true" || "$install_skills" == "true" ]] && \
+            clean_dir "$claude_dir/skills" "skills" "$dry_run"
+        [[ "$install_all" == "true" || "$install_rules" == "true" ]] && \
+            clean_dir "$claude_dir/rules" "rules" "$dry_run"
+        [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
+            clean_dir "$claude_dir/agents" "agents" "$dry_run"
+        [[ "$install_all" == "true" || "$install_genies" == "true" ]] && \
+            clean_dir "$claude_dir/genies" "genies" "$dry_run"
+        [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
+            clean_dir "$project_path/schemas" "schemas" "$dry_run"
     fi
 
     [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
