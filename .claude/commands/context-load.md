@@ -21,7 +21,7 @@ Initialize session with project context. Run at the start of every session.
 
 3. Scan for architecture artifacts:
    - `docs/decisions/ADR-*.md` — Count ADRs by status: `proposed`, `accepted`, `deprecated`, `superseded`. If `docs/decisions/` does not exist, report "No ADRs — consider creating ADR-000 via /design"
-   - `architecture/**/*.md` — Check `updated` date in frontmatter against 90-day staleness threshold. List diagrams found and staleness status. If `architecture/` does not exist: if `specs/` exists, report "No C4 diagrams — run /arch:init to bootstrap architecture diagrams"; if `specs/` also does not exist, report "No C4 diagrams — run /spec:init to bootstrap specs and diagrams"
+   - `docs/architecture/**/*.md` — Check `updated` date in frontmatter against 90-day staleness threshold. List diagrams found and staleness status. If `docs/architecture/` does not exist: if `specs/` exists, report "No C4 diagrams — run /arch:init to bootstrap architecture diagrams"; if `specs/` also does not exist, report "No C4 diagrams — run /spec:init to bootstrap specs and diagrams"
    - Report architecture health: ADR count, diagram coverage, staleness warnings
 
 4. Summarize current state briefly
@@ -65,7 +65,7 @@ If spec coverage shows unspecified test suites, recommend:
 - specs/**/*.md (recursive — scan all domains for `type: spec`)
 - docs/backlog/*.md (scan for active work items)
 - docs/decisions/ADR-*.md (scan for architecture decisions)
-- architecture/**/*.md (scan for C4 diagrams and staleness)
+- docs/architecture/**/*.md (scan for C4 diagrams and staleness)
 - Test config files (package.json, pytest.ini, jest.config.*, vitest.config.*, etc.)
 
 **WRITE:**

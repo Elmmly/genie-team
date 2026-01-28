@@ -43,7 +43,7 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 4. Surface relevant decisions that constrain implementation:
    - Technology choices (e.g., "ADR-001 specifies JWT refresh tokens, not sessions")
    - Boundary constraints (e.g., "ADR-003 requires auth to stay in its own service")
-   - Read component diagram from `architecture/components/{domain}.md` (if exists) for dependency directions
+   - Read component diagram from `docs/architecture/components/{domain}.md` (if exists) for dependency directions
 5. If implementation would violate an accepted ADR: **Warn prominently**
 6. Note: `/deliver` reads ADRs and diagrams but does NOT create or modify them
 

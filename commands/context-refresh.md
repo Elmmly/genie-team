@@ -11,7 +11,7 @@ Update context documents from current codebase state. Use when context docs are 
 3. Check for new patterns or conventions
 4. Flag any drift from documented architecture
 5. Detect C4 diagram drift:
-   - Load `architecture/**/*.md` diagrams (if they exist)
+   - Load `docs/architecture/**/*.md` diagrams (if they exist)
    - Compare diagram containers/components against actual project structure
    - Flag: containers/components in diagram but not in code, code structures not reflected in diagrams
    - Report drift findings with recommended updates
@@ -42,7 +42,7 @@ Update context documents from current codebase state. Use when context docs are 
 - Source code directories
 - docs/context/system_architecture.md
 - docs/context/codebase_structure.md
-- architecture/**/*.md (C4 diagrams for drift detection)
+- docs/architecture/**/*.md (C4 diagrams for drift detection)
 
 **WRITE:**
 - docs/context/codebase_structure.md

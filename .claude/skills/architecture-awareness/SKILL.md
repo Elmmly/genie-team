@@ -77,7 +77,7 @@ C4 Mermaid diagrams provide the contextual map — how everything relates struct
 ### Directory Structure
 
 ```
-architecture/
+docs/architecture/
   system-context.md          # Level 1: System and external actors
   containers.md              # Level 2: High-level containers/services
   components/                # Level 3: Per-domain component diagrams
@@ -95,9 +95,9 @@ Optional: `domain` (L3 only), `backlog_ref`, `adr_refs`, `tags`
 
 | Level | File | Scope |
 |-------|------|-------|
-| 1 — System Context | `architecture/system-context.md` | System and external actors |
-| 2 — Container | `architecture/containers.md` | High-level containers/services |
-| 3 — Component | `architecture/components/{domain}.md` | Per-domain components |
+| 1 — System Context | `docs/architecture/system-context.md` | System and external actors |
+| 2 — Container | `docs/architecture/containers.md` | High-level containers/services |
+| 3 — Component | `docs/architecture/components/{domain}.md` | Per-domain components |
 
 Level 4 (Code) is NOT supported. Source code is the code-level diagram.
 
@@ -144,7 +144,7 @@ All commands that read ADRs follow this pattern:
 
 All commands that read C4 diagrams follow this pattern:
 
-1. Check for `architecture/` directory
+1. Check for `docs/architecture/` directory
 2. If present: Read relevant diagram files based on scope (L1-L2 for broad context, L3 for domain-specific)
 3. If missing: **Warn** and continue:
    > No architecture directory found. C4 diagrams are not being maintained.
@@ -189,8 +189,8 @@ Creates accepted ADRs and updates C4 diagrams:
    d. Update frontmatter: `updated` date, `updated_by: "/design"`, `backlog_ref`
 3. If no structural changes: Leave diagrams unchanged
 
-**Reads:** `docs/decisions/ADR-*.md`, `architecture/**/*.md`
-**Writes:** `docs/decisions/ADR-{NNN}-{slug}.md`, `architecture/**/*.md` frontmatter and body
+**Reads:** `docs/decisions/ADR-*.md`, `docs/architecture/**/*.md`
+**Writes:** `docs/decisions/ADR-{NNN}-{slug}.md`, `docs/architecture/**/*.md` frontmatter and body
 
 ### During /deliver (AC-4)
 
@@ -203,7 +203,7 @@ Reads ADRs for implementation context — does NOT create or modify them:
 3. Reference ADR ids in implementation notes when decisions guide choices
 4. If an implementation approach would violate an accepted ADR: **Warn** prominently
 
-**Reads:** `docs/decisions/ADR-*.md`, `architecture/components/{domain}.md`
+**Reads:** `docs/decisions/ADR-*.md`, `docs/architecture/components/{domain}.md`
 **Writes:** Nothing (read-only for architecture artifacts)
 
 ### During /discern (AC-4)
@@ -225,7 +225,7 @@ Verifies ADR compliance and checks for boundary violations:
 | ADR-003 | Auth service boundary | VIOLATION | Direct DB access bypasses service |
 ```
 
-**Reads:** `docs/decisions/ADR-*.md`, `architecture/components/{domain}.md`
+**Reads:** `docs/decisions/ADR-*.md`, `docs/architecture/components/{domain}.md`
 **Writes:** Nothing (compliance output goes in the review document, not in ADRs)
 
 ### During /diagnose (AC-8)
@@ -233,7 +233,7 @@ Verifies ADR compliance and checks for boundary violations:
 Primary consumer of architecture artifacts for health analysis:
 
 **Coupling Analysis:**
-1. Load container diagram (`architecture/containers.md`) and component diagrams
+1. Load container diagram (`docs/architecture/containers.md`) and component diagrams
 2. Parse `Rel()` arrows from Mermaid diagrams to build declared dependency graph
 3. Scan source code for actual import/dependency patterns (heuristic: directory + import scanning)
 4. Compare: Flag undocumented dependencies (code imports not in diagram) and stale dependencies (diagram arrows with no code evidence)
@@ -251,7 +251,7 @@ Primary consumer of architecture artifacts for health analysis:
 1. Check `updated` field in each diagram's frontmatter
 2. Flag diagrams not updated within 90 days as potentially stale
 
-**Reads:** `docs/decisions/ADR-*.md`, `architecture/**/*.md`, source code imports
+**Reads:** `docs/decisions/ADR-*.md`, `docs/architecture/**/*.md`, source code imports
 **Writes:** Nothing (findings go in the diagnose report)
 
 ### During /spec:init (AC-6)
@@ -259,15 +259,15 @@ Primary consumer of architecture artifacts for health analysis:
 Generates initial C4 diagrams from discovered domains:
 
 1. After domain discovery and spec creation, generate C4 diagrams:
-   a. **Level 1** — `architecture/system-context.md`: System and discovered external actors
-   b. **Level 2** — `architecture/containers.md`: High-level containers inferred from project structure
-   c. **Level 3 directory** — `mkdir architecture/components/` (files created later by `/design`)
+   a. **Level 1** — `docs/architecture/system-context.md`: System and discovered external actors
+   b. **Level 2** — `docs/architecture/containers.md`: High-level containers inferred from project structure
+   c. **Level 3 directory** — `mkdir docs/architecture/components/` (files created later by `/design`)
 2. Set frontmatter: `updated_by: "/spec:init"`, current date
 3. Include `## Coupling Notes` with initial observations from project structure
 4. These are initial diagrams — `/design` refines them as architecture evolves
 
 **Reads:** Project structure, discovered domains
-**Writes:** `architecture/system-context.md`, `architecture/containers.md`, `architecture/components/` directory
+**Writes:** `docs/architecture/system-context.md`, `docs/architecture/containers.md`, `docs/architecture/components/` directory
 
 ### During /arch:init
 
@@ -277,11 +277,11 @@ Bootstraps architecture artifacts for existing projects:
 2. Read project structure and `specs/{domain}/` for domain awareness
 3. Create ADR-000 bootstrapping record if missing
 4. Generate Level 1 (System Context) and Level 2 (Container) diagrams with user confirmation
-5. Create `architecture/components/` directory
+5. Create `docs/architecture/components/` directory
 6. Does NOT touch specs — reads domain structure only
 
 **Reads:** CLAUDE.md, README.md, source directories, config files, `specs/{domain}/` (directory names only)
-**Writes:** `docs/decisions/ADR-000-*.md`, `architecture/system-context.md`, `architecture/containers.md`, `architecture/components/` directory
+**Writes:** `docs/decisions/ADR-000-*.md`, `docs/architecture/system-context.md`, `docs/architecture/containers.md`, `docs/architecture/components/` directory
 
 ### During /discover
 
@@ -299,13 +299,13 @@ Surfaces existing ADRs as context for exploration:
 Reports architecture artifact status:
 
 1. Scan `docs/decisions/ADR-*.md` — count by status (proposed, accepted, deprecated, superseded)
-2. Scan `architecture/**/*.md` — check `updated` dates against 90-day threshold
+2. Scan `docs/architecture/**/*.md` — check `updated` dates against 90-day threshold
 3. Report in Architecture section of output:
    - ADR count by status
    - Diagram staleness warnings
    - Recommendations: "No ADRs found — consider creating ADR-000 via /design"
 
-**Reads:** `docs/decisions/ADR-*.md`, `architecture/**/*.md`
+**Reads:** `docs/decisions/ADR-*.md`, `docs/architecture/**/*.md`
 **Writes:** Nothing (read-only)
 
 ### During /context:refresh (AC-9)
@@ -320,7 +320,7 @@ Detects drift between diagrams and code structure:
    - Code structures not reflected in diagrams
    - Recommended updates
 
-**Reads:** `architecture/**/*.md`, project directory structure
+**Reads:** `docs/architecture/**/*.md`, project directory structure
 **Writes:** Nothing (read-only — drift is reported, humans and `/design` fix it)
 
 ## Architecture Update Rules (All Commands)

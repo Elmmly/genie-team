@@ -38,7 +38,7 @@ Activate Critic genie to review implementation against acceptance criteria.
 **ADR LOADING:**
 1. Check for `adr_refs` in the backlog item or design section frontmatter
 2. If present: Read each referenced ADR from `docs/decisions/`
-3. Load component diagram for the domain (if exists in `architecture/components/`)
+3. Load component diagram for the domain (if exists in `docs/architecture/components/`)
 4. If `docs/decisions/` does not exist: Note and continue. ADR compliance check is skipped.
 
 **SPEC LOADING:**

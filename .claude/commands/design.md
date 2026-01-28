@@ -45,8 +45,8 @@ Activate Architect genie to create technical design within shaped boundaries.
    > No ADRs directory found. Architecture decisions are not being tracked.
 
 **C4 DIAGRAM LOADING:**
-1. Check for `architecture/` directory
-2. If present: Read `architecture/containers.md` for structural context and `architecture/components/{domain}.md` if domain is known
+1. Check for `docs/architecture/` directory
+2. If present: Read `docs/architecture/containers.md` for structural context and `docs/architecture/components/{domain}.md` if domain is known
 3. If missing: **Warn** and continue without diagram context:
    > No architecture directory found. C4 diagrams are not being maintained.
 
@@ -68,7 +68,7 @@ Activate Architect genie to create technical design within shaped boundaries.
 - Backlog frontmatter: add `adr_refs` array if ADRs were created or accepted
 - docs/context/system_architecture.md (if architecture changes)
 - docs/decisions/ADR-{NNN}-{slug}.md (create accepted ADRs, complete proposed ADRs — see ADR Behavior below)
-- architecture/*.md (update C4 diagrams when boundaries change — see C4 Diagram Updates below)
+- docs/architecture/*.md (update C4 diagrams when boundaries change — see C4 Diagram Updates below)
 - **Spec (if spec_ref exists):** Append or update "## Design Constraints" section in the spec body (see below)
 
 > **Note:** Design content is appended directly to the backlog item rather than creating a separate analysis file. This keeps all work context in one living document.
@@ -217,8 +217,8 @@ Do NOT update diagrams for: internal implementation changes, code refactoring wi
 > - ADR-016-refresh-token-storage.md (accepted — new)
 >
 > Diagram Updates:
-> - architecture/containers.md — Added Auth Service container
-> - architecture/components/identity.md — Added TokenService, RefreshController
+> - docs/architecture/containers.md — Added Auth Service container
+> - docs/architecture/components/identity.md — Added TokenService, RefreshController
 >
 > Next: /deliver docs/backlog/P2-auth-improvements.md
 

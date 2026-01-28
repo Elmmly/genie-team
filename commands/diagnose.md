@@ -28,7 +28,7 @@ Activate Architect genie to perform codebase health scan and identify cleanup ne
 - Target code files
 - Test files
 - docs/decisions/ADR-*.md (all ADRs for health analysis)
-- architecture/**/*.md (all C4 diagrams for coupling/cohesion analysis)
+- docs/architecture/**/*.md (all C4 diagrams for coupling/cohesion analysis)
 
 ---
 
@@ -98,11 +98,11 @@ Produces a **Diagnose Report** containing:
 
 ## Architecture Analysis
 
-When `architecture/` and/or `docs/decisions/` directories exist, `/diagnose` performs architecture health checks. If neither directory exists, skip architecture analysis entirely and **warn**:
+When `docs/architecture/` and/or `docs/decisions/` directories exist, `/diagnose` performs architecture health checks. If neither directory exists, skip architecture analysis entirely and **warn**:
 > No architecture artifacts found. Architecture health analysis skipped.
 
 ### Coupling Analysis
-1. Load container diagram (`architecture/containers.md`) and component diagrams (`architecture/components/*.md`)
+1. Load container diagram (`docs/architecture/containers.md`) and component diagrams (`docs/architecture/components/*.md`)
 2. Parse `Rel()` arrows from Mermaid diagrams to build the declared dependency graph
 3. Scan source code for actual import/dependency patterns (heuristic: directory structure + import scanning)
 4. Flag:

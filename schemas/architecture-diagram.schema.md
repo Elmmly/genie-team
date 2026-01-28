@@ -36,16 +36,16 @@ created: 2026-01-27
 
 | Level | File | Scope | Created By |
 |-------|------|-------|------------|
-| 1 — System Context | `architecture/system-context.md` | System and external actors | `/spec:init` or `/design` |
-| 2 — Container | `architecture/containers.md` | High-level containers/services | `/spec:init` or `/design` |
-| 3 — Component | `architecture/components/{domain}.md` | Per-domain components | `/design` |
+| 1 — System Context | `docs/architecture/system-context.md` | System and external actors | `/spec:init` or `/design` |
+| 2 — Container | `docs/architecture/containers.md` | High-level containers/services | `/spec:init` or `/design` |
+| 3 — Component | `docs/architecture/components/{domain}.md` | Per-domain components | `/design` |
 
 Level 4 (Code) is NOT supported. Source code is the code-level diagram.
 
 ## Directory Structure
 
 ```
-architecture/
+docs/architecture/
   system-context.md          # Level 1
   containers.md              # Level 2
   components/                # Level 3
