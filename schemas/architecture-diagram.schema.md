@@ -1,16 +1,17 @@
 ---
 schema_name: architecture-diagram
-schema_version: "1.0"
+schema_version: "2.0"
 type: schema
-description: Defines the frontmatter contract for C4 architecture diagram documents
+description: Defines the frontmatter contract for C4 architecture diagram documents using Neon Dark flowchart style
 created: 2026-01-27
+updated: 2026-01-28
 ---
 
-# Architecture Diagram Schema v1.0
+# Architecture Diagram Schema v2.0
 
 > All structured data lives in YAML frontmatter. The markdown body contains
-> Mermaid C4 diagrams and human-written architecture notes. Machines parse
-> frontmatter only; the body is for humans and Mermaid renderers.
+> Mermaid flowchart diagrams styled with neon colors and human-written architecture notes.
+> Machines parse frontmatter only; the body is for humans and Mermaid renderers.
 
 ## Required Frontmatter Fields
 
@@ -20,8 +21,8 @@ created: 2026-01-27
 | `type` | string | `"architecture-diagram"` | Document type discriminator |
 | `level` | integer | enum: `1`, `2`, `3` | C4 level (1=System Context, 2=Container, 3=Component) |
 | `title` | string | max 100 chars | Human-readable diagram title |
-| `updated` | string | ISO 8601 date, e.g. `"2026-01-27"` | Date of last update |
-| `updated_by` | string | Command that last updated, e.g. `"/design"`, `"/spec:init"` | Provenance tracking |
+| `updated` | string | ISO 8601 date, e.g. `"2026-01-28"` | Date of last update |
+| `updated_by` | string | Command that last updated, e.g. `"/design"`, `"/arch:init"` | Provenance tracking |
 
 ## Optional Frontmatter Fields
 
@@ -36,8 +37,8 @@ created: 2026-01-27
 
 | Level | File | Scope | Created By |
 |-------|------|-------|------------|
-| 1 — System Context | `docs/architecture/system-context.md` | System and external actors | `/spec:init` or `/design` |
-| 2 — Container | `docs/architecture/containers.md` | High-level containers/services | `/spec:init` or `/design` |
+| 1 — System Context | `docs/architecture/system-context.md` | System and external actors | `/arch:init` or `/design` |
+| 2 — Container | `docs/architecture/containers.md` | High-level containers/services | `/arch:init` or `/design` |
 | 3 — Component | `docs/architecture/components/{domain}.md` | Per-domain components | `/design` |
 
 Level 4 (Code) is NOT supported. Source code is the code-level diagram.
@@ -52,12 +53,51 @@ docs/architecture/
     {domain}.md              # One per domain, parallels specs/{domain}/
 ```
 
+## Neon Dark Style
+
+All diagrams use the **Neon Dark** flowchart style with infrastructure context subgraphs.
+
+### Color Palette
+
+| Role | Stroke | Fill | Hex Pair |
+|------|--------|------|----------|
+| Actor/Person | Hot Pink | Dark Rose | `#ff2e97` / `#2a0f1e` |
+| System Core | Cyan | Deep Teal | `#00fff5` / `#0d2a2a` |
+| Commands/APIs | Sky Blue | Dark Teal | `#01cdfe` / `#0a2830` |
+| Services/Agents | Purple | Grape | `#b967ff` / `#1f0d2e` |
+| External | Violet | Dark Purple | `#9d4edd` / `#1a0d24` |
+| Output/Success | Neon Green | Forest | `#39ff14` / `#0d1f0d` |
+| Data/Storage | Mint | Dark Green | `#05ffa1` / `#0a2418` |
+| Warning/Input | Coral | Burgundy | `#ff3864` / `#24101a` |
+| Artifact | Gold | Amber | `#ffd700` / `#2a2208` |
+
+### Node Format
+
+Each node includes bold title with padding, responsibility, and tech stack:
+
+```
+["<b>Title</b><br/> <br/><span>Responsibility description</span><br/><span>Technology stack</span>"]
+```
+
+### Infrastructure Contexts (Subgraphs)
+
+Use subgraphs to show runtime/deployment boundaries:
+
+| Context | Description |
+|---------|-------------|
+| USERS | External actors interacting with the system |
+| SYSTEM NAME | Main system boundary |
+| FRONTEND | Client-side containers |
+| BACKEND | Server-side containers |
+| DATA | Databases and storage |
+| EXTERNAL | Third-party APIs and services |
+
 ## Markdown Body Structure
 
 Each diagram file contains:
 
 1. **Title heading** — `# {Level Name}: {Title}`
-2. **Mermaid C4 diagram** — in a fenced code block using C4 extension syntax
+2. **Mermaid flowchart diagram** — in a fenced code block with neon styling
 3. **Coupling Notes section** — documents runtime, build-time, and data dependencies
 4. **Cohesion Assessment section** — rates domain cohesion (Level 3 only)
 
@@ -69,15 +109,38 @@ Each diagram file contains:
 ## Diagram
 
 ```mermaid
-C4Context
-    title {Diagram Title}
+%%{init: {"theme": "base", "themeVariables": {
+  "fontFamily": "system-ui, sans-serif",
+  "lineColor": "#ff2e97",
+  "primaryColor": "#0d2a2a",
+  "primaryTextColor": "#ffffff",
+  "primaryBorderColor": "#00fff5",
+  "secondaryColor": "#120a18",
+  "secondaryTextColor": "#ff2e97",
+  "secondaryBorderColor": "#ff2e97",
+  "tertiaryColor": "#0a1215",
+  "tertiaryTextColor": "#9d4edd",
+  "tertiaryBorderColor": "#9d4edd"
+}}}%%
+flowchart TB
+    classDef actor fill:#2a0f1e,stroke:#ff2e97,stroke-width:2px,color:#ff2e97
+    classDef core fill:#0d2a2a,stroke:#00fff5,stroke-width:3px,color:#00fff5
+    classDef external fill:#1a0d24,stroke:#9d4edd,stroke-width:2px,color:#9d4edd
 
-    Person(user, "User", "Description")
-    System(system, "System Name", "Description")
-    System_Ext(ext, "External System", "Description")
+    subgraph users ["USERS"]
+        user["<b>User</b><br/> <br/><span>Role description</span><br/><span>Interface</span>"]:::actor
+    end
 
-    Rel(user, system, "Uses")
-    Rel(system, ext, "Calls")
+    subgraph system ["SYSTEM"]
+        main["<b>System</b><br/> <br/><span>Responsibility</span><br/><span>Technology</span>"]:::core
+    end
+
+    subgraph external_boundary ["EXTERNAL"]
+        ext["<b>External</b><br/> <br/><span>Purpose</span><br/><span>Protocol</span>"]:::external
+    end
+
+    user --> main
+    main --> ext
 ```
 
 ## Coupling Notes
@@ -97,47 +160,70 @@ C4Context
 **Justification:** {Why this rating}
 ````
 
-### Mermaid C4 Syntax Reference
+### Level 1 (System Context) Theme
 
-Level 1 (System Context):
-```
-C4Context
-    title System Context
-    Person(alias, "Label", "Description")
-    System(alias, "Label", "Description")
-    System_Ext(alias, "Label", "Description")
-    Rel(from, to, "Label")
-```
-
-Level 2 (Container):
-```
-C4Container
-    title Container Diagram
-    Container(alias, "Label", "Technology", "Description")
-    ContainerDb(alias, "Label", "Technology", "Description")
-    Container_Ext(alias, "Label", "Technology", "Description")
-    Rel(from, to, "Label", "Protocol")
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "fontFamily": "system-ui, sans-serif",
+  "lineColor": "#ff2e97",
+  "primaryColor": "#0d2a2a",
+  "primaryTextColor": "#ffffff",
+  "primaryBorderColor": "#00fff5",
+  "secondaryColor": "#120a18",
+  "secondaryTextColor": "#ff2e97",
+  "secondaryBorderColor": "#ff2e97",
+  "tertiaryColor": "#0a1215",
+  "tertiaryTextColor": "#9d4edd",
+  "tertiaryBorderColor": "#9d4edd"
+}}}%%
 ```
 
-Level 3 (Component):
+### Level 2 (Container) Theme
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "fontFamily": "system-ui, sans-serif",
+  "lineColor": "#01cdfe",
+  "primaryColor": "#1f0d2e",
+  "primaryTextColor": "#ffffff",
+  "primaryBorderColor": "#b967ff",
+  "secondaryColor": "#0f1a1e",
+  "secondaryTextColor": "#01cdfe",
+  "secondaryBorderColor": "#01cdfe",
+  "tertiaryColor": "#0a1612",
+  "tertiaryTextColor": "#05ffa1",
+  "tertiaryBorderColor": "#05ffa1"
+}}}%%
 ```
-C4Component
-    title Component Diagram - {Domain}
-    Component(alias, "Label", "Technology", "Description")
-    Component_Ext(alias, "Label", "Technology", "Description")
-    Rel(from, to, "Label")
+
+### Level 3 (Component) Theme
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {
+  "fontFamily": "system-ui, sans-serif",
+  "lineColor": "#39ff14",
+  "primaryColor": "#0d1f0d",
+  "primaryTextColor": "#39ff14",
+  "primaryBorderColor": "#39ff14",
+  "secondaryColor": "#0d120d",
+  "secondaryTextColor": "#39ff14",
+  "secondaryBorderColor": "#39ff14",
+  "tertiaryColor": "#180d12",
+  "tertiaryTextColor": "#ff3864",
+  "tertiaryBorderColor": "#ff3864"
+}}}%%
 ```
 
 ## Complete Example (Level 2 — Container)
 
 ```yaml
 ---
-diagram_version: "1.0"
+diagram_version: "2.0"
 type: architecture-diagram
 level: 2
 title: "Container Diagram"
-updated: 2026-01-27
-updated_by: "/spec:init"
+updated: 2026-01-28
+updated_by: "/arch:init"
 backlog_ref: docs/backlog/P2-auth-improvements.md
 adr_refs: [ADR-001]
 tags: [overview]
@@ -150,25 +236,54 @@ tags: [overview]
 ## Diagram
 
 ```mermaid
-C4Container
-    title MyApp Containers
+%%{init: {"theme": "base", "themeVariables": {
+  "fontFamily": "system-ui, sans-serif",
+  "lineColor": "#01cdfe",
+  "primaryColor": "#1f0d2e",
+  "primaryTextColor": "#ffffff",
+  "primaryBorderColor": "#b967ff",
+  "secondaryColor": "#0f1a1e",
+  "secondaryTextColor": "#01cdfe",
+  "secondaryBorderColor": "#01cdfe",
+  "tertiaryColor": "#0a1612",
+  "tertiaryTextColor": "#05ffa1",
+  "tertiaryBorderColor": "#05ffa1"
+}}}%%
+flowchart TB
+    classDef person fill:#2d1028,stroke:#ff71ce,stroke-width:2px,color:#ff71ce
+    classDef container fill:#0a2830,stroke:#01cdfe,stroke-width:2px,color:#01cdfe
+    classDef service fill:#1f0d2e,stroke:#b967ff,stroke-width:2px,color:#b967ff
+    classDef datastore fill:#0a2418,stroke:#05ffa1,stroke-width:2px,color:#05ffa1
+    classDef external fill:#2a2810,stroke:#fffb96,stroke-width:2px,color:#fffb96
 
-    Person(customer, "Customer", "End user")
+    subgraph users ["USERS"]
+        customer["<b>Customer</b><br/> <br/><span>End user</span><br/><span>Browser</span>"]:::person
+    end
 
-    System_Boundary(app, "MyApp") {
-        Container(web, "Web App", "React", "Single-page application")
-        Container(api, "API Server", "Node.js", "REST endpoints")
-        Container(auth, "Auth Service", "Node.js", "Token management")
-        ContainerDb(db, "Database", "PostgreSQL", "Persistent storage")
-    }
+    subgraph myapp ["MYAPP"]
+        subgraph frontend ["FRONTEND"]
+            web["<b>Web App</b><br/> <br/><span>Single-page application</span><br/><span>React</span>"]:::container
+        end
 
-    System_Ext(email, "Email Service", "SendGrid")
+        subgraph backend ["BACKEND"]
+            api["<b>API Server</b><br/> <br/><span>REST endpoints</span><br/><span>Node.js</span>"]:::service
+            auth["<b>Auth Service</b><br/> <br/><span>Token management</span><br/><span>Node.js</span>"]:::service
+        end
 
-    Rel(customer, web, "Uses", "HTTPS")
-    Rel(web, api, "Calls", "HTTPS/JSON")
-    Rel(api, auth, "Validates tokens")
-    Rel(auth, db, "Reads/writes sessions")
-    Rel(api, email, "Sends notifications", "SMTP")
+        subgraph data ["DATA"]
+            db["<b>Database</b><br/> <br/><span>Persistent storage</span><br/><span>PostgreSQL</span>"]:::datastore
+        end
+    end
+
+    subgraph external ["EXTERNAL"]
+        email["<b>Email Service</b><br/> <br/><span>Notifications</span><br/><span>SendGrid / SMTP</span>"]:::external
+    end
+
+    customer --> web
+    web --> api
+    api --> auth
+    auth --> db
+    api --> email
 ```
 
 ## Coupling Notes
