@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: shaped-work
 id: GT-5
 title: "Specs as Living Source of Truth Through the 7 D's"
-status: reviewed
+status: done
 created: 2026-01-27
 appetite: medium
 priority: P0
@@ -13,25 +13,25 @@ tags: [spec-driven, specs, lifecycle]
 acceptance_criteria:
   - id: AC-1
     description: "/define promotes drafts from docs/specs/_drafts/ into docs/specs/{domain}/{capability}.md with status: active, and sets spec_ref on the backlog item"
-    status: pending
+    status: met
   - id: AC-2
     description: "/define can also be invoked standalone to promote existing drafts (e.g. /define docs/specs/_drafts/session-management.md) for projects that already have bootstrapped drafts"
-    status: pending
+    status: met
   - id: AC-3
     description: "/design reads spec_ref from backlog, loads the linked spec for context, and updates the spec with any new architectural constraints or refined ACs"
-    status: pending
+    status: met
   - id: AC-4
     description: "/deliver reads spec_ref from backlog, uses spec ACs to drive TDD tests, and updates spec with implementation evidence (test file paths, coverage notes)"
-    status: pending
+    status: met
   - id: AC-5
     description: "/discern reads spec_ref from backlog, verifies implementation against spec ACs, and updates spec AC statuses (pending → met/unmet) based on review verdict"
-    status: pending
+    status: met
   - id: AC-6
     description: "/done archives the backlog item but leaves the spec in place; if spec is still draft, promotes it to active in docs/specs/{domain}/"
-    status: pending
+    status: met
   - id: AC-7
     description: "spec-awareness SKILL.md updated to reflect the full lifecycle read/write behaviors across all commands"
-    status: pending
+    status: met
 ---
 
 # GT-5: Specs as Living Source of Truth Through the 7 D's
