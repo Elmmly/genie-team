@@ -21,7 +21,7 @@ created: 2026-01-27
 | `title` | string | Must match parent spec | Human-readable title |
 | `status` | string | enum: `complete`, `partial`, `failed`, `blocked` | Execution outcome |
 | `created` | string | ISO 8601 datetime, e.g. `"2026-01-27T14:30:00Z"` | Execution start time |
-| `spec_ref` | string | Relative path | Path to parent spec (`specs/`) or shaped work contract (`docs/backlog/`) |
+| `spec_ref` | string | Relative path | Path to parent spec (`docs/specs/`) or shaped work contract (`docs/backlog/`) |
 | `design_ref` | string | Relative path | Path to design document |
 | `execution_mode` | string | enum: `interactive`, `headless` | How execution was invoked |
 | `exit_code` | integer | `0`=success, `1`=partial, `2`=failed, `3`=blocked | Process exit code |

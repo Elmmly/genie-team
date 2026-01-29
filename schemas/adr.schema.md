@@ -28,7 +28,7 @@ created: 2026-01-27
 | Field | Type | Description |
 |-------|------|-------------|
 | `updated` | string (ISO date) | Date of last status change |
-| `domain` | string | Product domain this decision relates to (matches `specs/{domain}/`) |
+| `domain` | string | Product domain this decision relates to (matches `docs/specs/{domain}/`) |
 | `spec_refs` | array of strings | Paths to specs this decision affects |
 | `backlog_ref` | string | Path to the backlog item that triggered this ADR |
 | `superseded_by` | string | ADR id (e.g. `"ADR-005"`) if this ADR has been superseded |
@@ -180,7 +180,7 @@ updated: 2026-01-27
 deciders: [architect]
 domain: identity
 spec_refs:
-  - specs/identity/token-authentication.md
+  - docs/specs/identity/token-authentication.md
 backlog_ref: docs/backlog/P2-auth-improvements.md
 tags: [auth, security, tokens]
 ---

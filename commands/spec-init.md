@@ -36,24 +36,24 @@ Activate Scout genie to produce rich capability specifications from an existing 
 - Test files (*.test.ts, *.test.js, *.spec.ts, *_test.py, test_*.py, etc.)
 - Test config files (package.json, pytest.ini, jest.config.*, vitest.config.*, etc.)
 - Config files (for understanding system boundaries)
-- specs/**/*.md (to avoid duplicating existing specs)
+- docs/specs/**/*.md (to avoid duplicating existing specs)
 - docs/backlog/*.md (to cross-reference with capabilities)
 
 **RECALL:**
 - Past discovery on related topics
-- Existing domain structure in specs/
+- Existing domain structure in docs/specs/
 
 ---
 
 ## Context Writing
 
 **WRITE:**
-- specs/{domain}/{capability}.md (one per capability, status: active)
+- docs/specs/{domain}/{capability}.md (one per capability, status: active)
 - docs/architecture/system-context.md (Level 1 C4 diagram — system and external actors)
 - docs/architecture/containers.md (Level 2 C4 diagram — high-level containers)
 
 **CREATE (if needed):**
-- specs/{domain}/ directories (one per domain assigned by user)
+- docs/specs/{domain}/ directories (one per domain assigned by user)
 - docs/architecture/components/ directory (Level 3 files created later by `/design`)
 
 ---
@@ -62,13 +62,13 @@ Activate Scout genie to produce rich capability specifications from an existing 
 
 1. **Deep scan:** Read source code, test files, project docs (README, CLAUDE.md), config files, and directory structure to understand what the system does
 2. **Identify capabilities:** Group by behavioral capability — what the system does, not by file or directory boundaries. One top-level behavior = one capability.
-3. **Check for existing specs:** Scan `specs/**/*.md` for `type: spec` in frontmatter. If a spec already exists for a capability (matching by id or clear behavioral overlap), skip it and report as "already specified"
+3. **Check for existing specs:** Scan `docs/specs/**/*.md` for `type: spec` in frontmatter. If a spec already exists for a capability (matching by id or clear behavioral overlap), skip it and report as "already specified"
 4. **Present capabilities in batches:** Show the user a batch of discovered capabilities (up to 5 at a time) with:
    - Proposed capability name
    - Brief description of what it does
    - Key evidence (source files, test files)
    - Suggested acceptance criteria
-5. **Ask for domain assignment per batch:** For each batch, present existing domains found in `specs/` subdirectories and ask:
+5. **Ask for domain assignment per batch:** For each batch, present existing domains found in `docs/specs/` subdirectories and ask:
    > Which domain do these capabilities belong to? Existing domains: [{list}]. Or enter a new domain name. You can also assign different domains per capability by number.
 6. **Allow user adjustments:** The user can:
    - **Merge** capabilities ("combine 2 and 3")
@@ -76,7 +76,7 @@ Activate Scout genie to produce rich capability specifications from an existing 
    - **Rename** capabilities ("rename 1 to session-management")
    - **Adjust descriptions** ("update the description for 2")
    - **Accept as-is** ("looks good" or just provide the domain name)
-7. **Write specs:** After user confirms each batch, write spec files directly to `specs/{domain}/{capability}.md` with `status: active`
+7. **Write specs:** After user confirms each batch, write spec files directly to `docs/specs/{domain}/{capability}.md` with `status: active`
 8. **Generate C4 diagrams:** After all spec batches are processed:
    a. **Level 1 — System Context** (`docs/architecture/system-context.md`): Create diagram showing the system and discovered external actors (from imports, configs, API integrations). Set `updated_by: "/spec:init"`
    b. **Level 2 — Containers** (`docs/architecture/containers.md`): Create diagram showing high-level containers inferred from project structure (e.g., web app, API server, database, background workers). Include initial `## Coupling Notes` from observed dependencies. Set `updated_by: "/spec:init"`
@@ -162,7 +162,7 @@ acceptance_criteria:
 
 **Project scanned:** {project name}
 **Capabilities discovered:** {N total}
-**Specs written:** {M} (to specs/{domain}/)
+**Specs written:** {M} (to docs/specs/{domain}/)
 **Already specified:** {K} (skipped)
 **Skipped by user:** {J}
 
@@ -182,7 +182,7 @@ acceptance_criteria:
 | 3 — Component | docs/architecture/components/ | Directory created (populated by /design) |
 
 ### Recommended Next Steps
-1. Review specs in specs/{domain}/ for accuracy
+1. Review specs in docs/specs/{domain}/ for accuracy
 2. Review C4 diagrams in docs/architecture/ for completeness
 3. Use /define to shape work that changes these capabilities
 4. Use /design to create component diagrams and refine containers
@@ -227,16 +227,16 @@ acceptance_criteria:
 > **Which domain for this batch?**
 > > identity
 >
-> Writing specs/identity/token-authentication.md
-> Writing specs/identity/session-management.md
+> Writing docs/specs/identity/token-authentication.md
+> Writing docs/specs/identity/session-management.md
 >
 > ## Discovered Capabilities (Batch 2 of 3)
 > ...
 
 /spec:init src/payments --domain billing
 > [Scout scans src/payments/ only, assigns all to "billing" domain]
-> Writing specs/billing/payment-processing.md
-> Writing specs/billing/refund-handling.md
+> Writing docs/specs/billing/payment-processing.md
+> Writing docs/specs/billing/refund-handling.md
 
 /spec:init --dry-run
 > [Scout lists capabilities without writing]
@@ -271,6 +271,6 @@ After /spec:init:
 - Produces rich specs — not thin test inventories
 - Reads source code, tests, AND docs for complete understanding
 - Interactive — user controls domain assignment, merging, and skipping
-- Writes directly to `specs/{domain}/` with `status: active` — no staging area
+- Writes directly to `docs/specs/{domain}/` with `status: active` — no staging area
 - Idempotent — skips capabilities that already have specs
 - Does not require specs before work starts — incremental adoption is fine

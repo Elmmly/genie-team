@@ -5,7 +5,7 @@ id: "{ID}"
 title: "{Title}"
 verdict: "{APPROVED|CHANGES_REQUESTED|BLOCKED}"
 created: "{YYYY-MM-DD}"
-spec_ref: "{specs/domain/capability.md or docs/backlog/Pn-topic.md}"
+spec_ref: "{docs/specs/domain/capability.md or docs/backlog/Pn-topic.md}"
 execution_ref: "{docs/backlog/Pn-topic.md}"
 confidence: "{high|medium|low}"
 author: critic

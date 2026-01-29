@@ -28,7 +28,7 @@ updated: 2026-01-28
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `domain` | string | Product domain (Level 3 only, matches `specs/{domain}/`) |
+| `domain` | string | Product domain (Level 3 only, matches `docs/specs/{domain}/`) |
 | `backlog_ref` | string | Path to the backlog item that last updated this diagram |
 | `adr_refs` | array of strings | ADR ids that established boundaries in this diagram |
 | `tags` | array of strings | Categorization tags |
@@ -50,7 +50,7 @@ docs/architecture/
   system-context.md          # Level 1
   containers.md              # Level 2
   components/                # Level 3
-    {domain}.md              # One per domain, parallels specs/{domain}/
+    {domain}.md              # One per domain, parallels docs/specs/{domain}/
 ```
 
 ## Neon Dark Style

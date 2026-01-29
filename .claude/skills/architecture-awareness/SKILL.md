@@ -81,7 +81,7 @@ docs/architecture/
   system-context.md          # Level 1: System and external actors
   containers.md              # Level 2: High-level containers/services
   components/                # Level 3: Per-domain component diagrams
-    {domain}.md              # One per domain, parallels specs/{domain}/
+    {domain}.md              # One per domain, parallels docs/specs/{domain}/
 ```
 
 ### Frontmatter Schema
@@ -105,9 +105,26 @@ Level 4 (Code) is NOT supported. Source code is the code-level diagram.
 
 Each diagram file contains:
 - YAML frontmatter with `type: architecture-diagram`
-- Mermaid C4 diagram in a fenced code block (`C4Context`, `C4Container`, `C4Component`)
+- Mermaid flowchart diagram with **Neon Dark** styling (dark backgrounds, neon accent colors)
+- Infrastructure context subgraphs (USERS, SYSTEM, EXTERNAL, etc.)
+- Nodes with bold titles, responsibility descriptions, and tech stack
 - `## Coupling Notes` section — runtime, build-time, and data dependencies
 - `## Cohesion Assessment` section — rates domain cohesion (HIGH/MEDIUM/LOW) with justification (Level 3 only)
+
+### Diagram Style Reference
+
+See `schemas/architecture-diagram.schema.md` for full color palette and node format.
+
+**Node format:**
+```
+["<b>Title</b><br/> <br/><span>Responsibility</span><br/><span>Technology</span>"]
+```
+
+**Key colors:**
+- Actors: `#ff2e97` (hot pink) on `#2a0f1e`
+- Core system: `#00fff5` (cyan) on `#0d2a2a`
+- Services: `#b967ff` (purple) on `#1f0d2e`
+- External: `#9d4edd` (violet) on `#1a0d24`
 
 ### Staleness Threshold
 
@@ -184,7 +201,7 @@ Creates accepted ADRs and updates C4 diagrams:
 1. Load existing diagrams via common pattern
 2. If design changes structural boundaries (new containers, new components, changed relationships):
    a. Update the affected diagram file(s)
-   b. Update `Rel()` arrows to reflect new dependencies
+   b. Update flowchart arrows (`-->`) to reflect new dependencies
    c. Update `## Coupling Notes` section
    d. Update frontmatter: `updated` date, `updated_by: "/design"`, `backlog_ref`
 3. If no structural changes: Leave diagrams unchanged
@@ -234,7 +251,7 @@ Primary consumer of architecture artifacts for health analysis:
 
 **Coupling Analysis:**
 1. Load container diagram (`docs/architecture/containers.md`) and component diagrams
-2. Parse `Rel()` arrows from Mermaid diagrams to build declared dependency graph
+2. Parse flowchart arrows (`-->`) from Mermaid diagrams to build declared dependency graph
 3. Scan source code for actual import/dependency patterns (heuristic: directory + import scanning)
 4. Compare: Flag undocumented dependencies (code imports not in diagram) and stale dependencies (diagram arrows with no code evidence)
 
@@ -274,13 +291,13 @@ Generates initial C4 diagrams from discovered domains:
 Bootstraps architecture artifacts for existing projects:
 
 1. Pre-check for existing architecture artifacts (ADR-000, L1, L2, components/)
-2. Read project structure and `specs/{domain}/` for domain awareness
+2. Read project structure and `docs/specs/{domain}/` for domain awareness
 3. Create ADR-000 bootstrapping record if missing
 4. Generate Level 1 (System Context) and Level 2 (Container) diagrams with user confirmation
 5. Create `docs/architecture/components/` directory
 6. Does NOT touch specs — reads domain structure only
 
-**Reads:** CLAUDE.md, README.md, source directories, config files, `specs/{domain}/` (directory names only)
+**Reads:** CLAUDE.md, README.md, source directories, config files, `docs/specs/{domain}/` (directory names only)
 **Writes:** `docs/decisions/ADR-000-*.md`, `docs/architecture/system-context.md`, `docs/architecture/containers.md`, `docs/architecture/components/` directory
 
 ### During /discover

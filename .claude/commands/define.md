@@ -31,7 +31,7 @@ Activate Shaper genie to define problem boundaries and create a shaped work cont
 - docs/context/recent_decisions.md
 - Product principles (if defined)
 - Strategic goals (if defined)
-- specs/{domain}/ directories (to discover existing specs and domains)
+- docs/specs/{domain}/ directories (to discover existing specs and domains)
 - docs/decisions/ADR-*.md (scan for existing ADRs relevant to the domain or topic)
 
 **RECALL:**
@@ -48,7 +48,7 @@ Activate Shaper genie to define problem boundaries and create a shaped work cont
 
 **UPDATE:**
 - docs/context/current_work.md
-- Backlog frontmatter: add `spec_ref: specs/{domain}/{capability}.md`
+- Backlog frontmatter: add `spec_ref: docs/specs/{domain}/{capability}.md`
 - Backlog frontmatter: add `adr_refs` array if proposed ADRs were created
 
 ---
@@ -76,14 +76,14 @@ When the work being shaped modifies an existing capability that has a spec:
 
 1. **Discover the existing spec:**
    - If `spec_ref` is provided in the input: Load that spec directly
-   - If no `spec_ref`: Search `specs/{domain}/` for a spec matching the capability. Present matches to the user for confirmation:
-     > Found spec that may cover this capability: specs/{domain}/{capability}.md — is this the right spec? [Y/n/other path]
+   - If no `spec_ref`: Search `docs/specs/{domain}/` for a spec matching the capability. Present matches to the user for confirmation:
+     > Found spec that may cover this capability: docs/specs/{domain}/{capability}.md — is this the right spec? [Y/n/other path]
    - If no matching spec found: Skip delta (this is new capability work)
 2. **Document the behavioral delta** in the shaped work contract as a dedicated section:
    ```markdown
    ## Behavioral Delta
 
-   **Spec:** specs/{domain}/{capability}.md
+   **Spec:** docs/specs/{domain}/{capability}.md
 
    ### Current Behavior
    - AC-{N}: {quote the current AC description from the spec}
@@ -104,11 +104,11 @@ When the work being shaped modifies an existing capability that has a spec:
 
 When shaping work for a capability that has no existing spec:
 
-1. **Ask the user for the domain:** Present the existing domains found in `specs/` subdirectories and ask:
+1. **Ask the user for the domain:** Present the existing domains found in `docs/specs/` subdirectories and ask:
    > Which domain does this capability belong to? Existing domains: [{list}]. Or enter a new domain name.
-2. **Create the spec** at `specs/{domain}/{capability}.md` with `status: active`, `domain: {domain}`, and acceptance_criteria from the shaped contract
-3. **Link the backlog item:** Add `spec_ref: specs/{domain}/{capability}.md` to the backlog item frontmatter
-4. **Create domain directory:** If `specs/{domain}/` does not exist, create it
+2. **Create the spec** at `docs/specs/{domain}/{capability}.md` with `status: active`, `domain: {domain}`, and acceptance_criteria from the shaped contract
+3. **Link the backlog item:** Add `spec_ref: docs/specs/{domain}/{capability}.md` to the backlog item frontmatter
+4. **Create domain directory:** If `docs/specs/{domain}/` does not exist, create it
 
 ---
 
@@ -173,10 +173,10 @@ When the threshold is met:
 > [Shaper produces Shaped Work Contract]
 > Saved to docs/backlog/P2-auth-improvements.md
 >
-> Found spec: specs/identity/token-authentication.md
+> Found spec: docs/specs/identity/token-authentication.md
 >
 > ## Behavioral Delta
-> **Spec:** specs/identity/token-authentication.md
+> **Spec:** docs/specs/identity/token-authentication.md
 > ### Current Behavior
 > - AC-2: Tokens expire after 15 minutes with no renewal mechanism
 > ### Proposed Changes
@@ -199,7 +199,7 @@ When the threshold is met:
 > Existing domains: identity, workflow
 > > billing
 >
-> Created: specs/billing/payment-processing.md (status: active)
+> Created: docs/specs/billing/payment-processing.md (status: active)
 > spec_ref set in backlog item
 > Saved to docs/backlog/P1-payment-processing.md
 

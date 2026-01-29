@@ -51,7 +51,7 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 1. Read `spec_ref` from backlog item frontmatter
 2. If `spec_ref` is present: Read the spec file. Use its acceptance_criteria as TDD test targets in the RED phase. Each spec AC with `status: pending` should map to at least one test case.
 3. If `spec_ref` is missing: Warn and continue:
-   > This backlog item has no spec_ref. Consider linking it to a persistent spec in specs/{domain}/. Proceeding with backlog ACs only.
+   > This backlog item has no spec_ref. Consider linking it to a persistent spec in docs/specs/{domain}/. Proceeding with backlog ACs only.
 4. If `spec_ref` points to a nonexistent file: Warn and continue:
    > spec_ref points to {path} but file not found. Proceeding with backlog ACs only.
 

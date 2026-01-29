@@ -12,10 +12,10 @@ depends_on: [GT-4]
 tags: [spec-driven, specs, lifecycle]
 acceptance_criteria:
   - id: AC-1
-    description: "/define promotes drafts from specs/_drafts/ into specs/{domain}/{capability}.md with status: active, and sets spec_ref on the backlog item"
+    description: "/define promotes drafts from docs/specs/_drafts/ into docs/specs/{domain}/{capability}.md with status: active, and sets spec_ref on the backlog item"
     status: pending
   - id: AC-2
-    description: "/define can also be invoked standalone to promote existing drafts (e.g. /define specs/_drafts/session-management.md) for projects that already have bootstrapped drafts"
+    description: "/define can also be invoked standalone to promote existing drafts (e.g. /define docs/specs/_drafts/session-management.md) for projects that already have bootstrapped drafts"
     status: pending
   - id: AC-3
     description: "/design reads spec_ref from backlog, loads the linked spec for context, and updates the spec with any new architectural constraints or refined ACs"
@@ -27,7 +27,7 @@ acceptance_criteria:
     description: "/discern reads spec_ref from backlog, verifies implementation against spec ACs, and updates spec AC statuses (pending → met/unmet) based on review verdict"
     status: pending
   - id: AC-6
-    description: "/done archives the backlog item but leaves the spec in place; if spec is still draft, promotes it to active in specs/{domain}/"
+    description: "/done archives the backlog item but leaves the spec in place; if spec is still draft, promotes it to active in docs/specs/{domain}/"
     status: pending
   - id: AC-7
     description: "spec-awareness SKILL.md updated to reflect the full lifecycle read/write behaviors across all commands"
@@ -38,13 +38,13 @@ acceptance_criteria:
 
 ## Problem
 
-GT-4 established `specs/` as a persistent location and `/context:refresh` bootstraps drafts into `specs/_drafts/`. But specs are currently write-once. No command in the 7 D's lifecycle reads from or writes back to specs after bootstrapping. The result:
+GT-4 established `docs/specs/` as a persistent location and `/context:refresh` bootstraps drafts into `docs/specs/_drafts/`. But specs are currently write-once. No command in the 7 D's lifecycle reads from or writes back to specs after bootstrapping. The result:
 
-1. **Drafts never get promoted.** There's no mechanism to move a draft from `specs/_drafts/` to `specs/{domain}/{capability}.md`. The SKILL.md says `/define` does this, but `/define` currently only writes to `docs/backlog/`.
+1. **Drafts never get promoted.** There's no mechanism to move a draft from `docs/specs/_drafts/` to `docs/specs/{domain}/{capability}.md`. The SKILL.md says `/define` does this, but `/define` currently only writes to `docs/backlog/`.
 
 2. **Specs don't accumulate knowledge.** `/design` doesn't read the spec for context. `/deliver` doesn't update the spec with implementation evidence. `/discern` doesn't mark spec ACs as met/unmet. The spec stays frozen at bootstrap state.
 
-3. **Existing projects have orphaned drafts.** Projects that ran `/context:refresh` now have `specs/_drafts/` full of bootstrapped drafts with no path to promote them into domain-organized active specs.
+3. **Existing projects have orphaned drafts.** Projects that ran `/context:refresh` now have `docs/specs/_drafts/` full of bootstrapped drafts with no path to promote them into domain-organized active specs.
 
 4. **Backlog items and specs are disconnected.** Even though `spec_ref` exists in the schema, no command sets it or reads it. The link between transient work (backlog) and persistent knowledge (spec) is theoretical.
 
@@ -60,11 +60,11 @@ Medium batch — 1 week. This touches 6 command files and 1 skill file, but each
 
 **New behavior:** When `/define` shapes work for a capability:
 
-- **If a draft exists** in `specs/_drafts/{capability}.md`: Move it to `specs/{domain}/{capability}.md`, update `status: draft` → `status: active`, refine ACs based on shaping.
-- **If no draft exists**: Create a new spec at `specs/{domain}/{capability}.md` with `status: active` and ACs from the shaped contract.
-- **Always**: Set `spec_ref: specs/{domain}/{capability}.md` in the backlog item frontmatter.
+- **If a draft exists** in `docs/specs/_drafts/{capability}.md`: Move it to `docs/specs/{domain}/{capability}.md`, update `status: draft` → `status: active`, refine ACs based on shaping.
+- **If no draft exists**: Create a new spec at `docs/specs/{domain}/{capability}.md` with `status: active` and ACs from the shaped contract.
+- **Always**: Set `spec_ref: docs/specs/{domain}/{capability}.md` in the backlog item frontmatter.
 
-**Standalone draft promotion:** `/define specs/_drafts/session-management.md` takes a draft path directly, asks the user for the target domain, and promotes it without creating a backlog item. This handles existing projects that already have bootstrapped drafts.
+**Standalone draft promotion:** `/define docs/specs/_drafts/session-management.md` takes a draft path directly, asks the user for the target domain, and promotes it without creating a backlog item. This handles existing projects that already have bootstrapped drafts.
 
 ### 2. `/design` — Spec-Informed Design
 
@@ -109,7 +109,7 @@ Update the skill to document the complete read/write behaviors for all commands,
 1. **Don't automate domain assignment.** Choosing which domain a capability belongs to is a human decision. `/define` should ask the user, not guess.
 2. **Don't modify ACs destructively.** Commands can add ACs and update statuses, but never remove or rewrite existing ACs. Specs accumulate.
 3. **Don't block on missing specs.** If `spec_ref` is missing, warn and continue — don't break the workflow. Specs are valuable but optional.
-4. **Don't create a promotion wizard.** The standalone `/define specs/_drafts/foo.md` flow should be simple: ask domain, move file, update status. No multi-step UI.
+4. **Don't create a promotion wizard.** The standalone `/define docs/specs/_drafts/foo.md` flow should be simple: ask domain, move file, update status. No multi-step UI.
 5. **Don't touch `/discover` or `/commit`.** Discovery is upstream of specs (finds opportunities, doesn't define capabilities). Commit is downstream (just git operations). Keep them out of scope.
 
 ## Acceptance Criteria
@@ -140,7 +140,7 @@ Make specs a living document that accumulates knowledge through the full 7 D's l
 
 | File | Reads From Spec | Writes To Spec |
 |------|----------------|----------------|
-| `commands/define.md` | `specs/_drafts/`, `specs/` domains | Creates/promotes `specs/{domain}/{capability}.md`, sets `spec_ref` on backlog |
+| `commands/define.md` | `docs/specs/_drafts/`, `docs/specs/` domains | Creates/promotes `docs/specs/{domain}/{capability}.md`, sets `spec_ref` on backlog |
 | `commands/design.md` | `spec_ref` → spec ACs, evidence | Appends "## Design Constraints" to spec body; may append new ACs |
 | `commands/deliver.md` | `spec_ref` → spec ACs as TDD targets | Appends "## Implementation Evidence" to spec body |
 | `commands/deliver-tests.md` | `spec_ref` → spec ACs as test targets | Nothing (test phase only) |
@@ -160,7 +160,7 @@ All commands that read specs follow the same three-step pattern:
 3. If missing or file not found: **warn** and continue — never block
 
 Warning messages:
-- Missing: `This backlog item has no spec_ref. Consider linking it to a persistent spec in specs/{domain}/.`
+- Missing: `This backlog item has no spec_ref. Consider linking it to a persistent spec in docs/specs/{domain}/.`
 - Not found: `spec_ref points to {path} but file not found. Proceeding without spec context.`
 
 ## Interface Design: Spec Body Sections
@@ -193,15 +193,15 @@ Each command appends a specific section to the spec body. Sections use dated com
 `/define` has two modes:
 
 **Standard mode** (shaping work): After producing the shaped contract:
-1. Check `specs/_drafts/` for a matching draft
-2. Ask the user which domain (present existing domains from `specs/` subdirectories)
-3. Promote or create spec at `specs/{domain}/{capability}.md` with `status: active`
+1. Check `docs/specs/_drafts/` for a matching draft
+2. Ask the user which domain (present existing domains from `docs/specs/` subdirectories)
+3. Promote or create spec at `docs/specs/{domain}/{capability}.md` with `status: active`
 4. Set `spec_ref` in backlog frontmatter
 
-**Standalone mode** (`/define specs/_drafts/foo.md`): Input is a draft path:
+**Standalone mode** (`/define docs/specs/_drafts/foo.md`): Input is a draft path:
 1. Read the draft spec
 2. Ask the user for the domain
-3. Move to `specs/{domain}/{capability}.md`, update `status: active`, add `domain` field
+3. Move to `docs/specs/{domain}/{capability}.md`, update `status: active`, add `domain` field
 4. No backlog item created
 
 ## Key Design Decisions
@@ -221,7 +221,7 @@ Each command appends a specific section to the spec body. Sections use dated com
 |------|-----------|
 | LLM doesn't ask for domain | Clear imperative language ("Ask the user") + example output showing the prompt |
 | Spec body grows large over multiple cycles | Dated comment markers allow future cleanup; each section is replaceable |
-| Standalone /define confused with standard mode | Argument pattern matching: `specs/_drafts/*.md` triggers standalone |
+| Standalone /define confused with standard mode | Argument pattern matching: `docs/specs/_drafts/*.md` triggers standalone |
 
 ## Implementation Guidance
 
@@ -245,7 +245,7 @@ Each command appends a specific section to the spec body. Sections use dated com
 - Frontmatter is machine-readable (AC statuses, structural fields)
 - Body is human-readable (narrative sections with dated markers)
 - Domain is a human decision — always ask, never infer
-- Specs persist — never archive, delete, or move out of `specs/`
+- Specs persist — never archive, delete, or move out of `docs/specs/`
 
 # Implementation
 
@@ -267,8 +267,8 @@ All 7 ACs implemented across 10 files + 7 synced copies. No application code cha
 ### AC-1 + AC-2: define.md (draft promotion + standalone mode)
 - **File:** `commands/define.md`
 - Arguments: Added draft spec path as valid input, standalone mode trigger
-- Context Loading: Added `specs/_drafts/` and `specs/{domain}/` directories
-- Context Writing: Added `specs/{domain}/{capability}.md` write, `spec_ref` update, MOVE for draft promotion
+- Context Loading: Added `docs/specs/_drafts/` and `docs/specs/{domain}/` directories
+- Context Writing: Added `docs/specs/{domain}/{capability}.md` write, `spec_ref` update, MOVE for draft promotion
 - New section: "Spec Lifecycle Behavior" with Standard Mode (5 steps) and Standalone Draft Promotion Mode (5 steps)
 - Usage Examples: Added spec promotion output and standalone promotion example
 
@@ -332,8 +332,8 @@ Initial review returned **CHANGES REQUESTED** with 1 major issue. Issue was fixe
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-1 | **met** | `commands/define.md` "Spec Lifecycle Behavior" section: Standard Mode (5 steps) — check draft, ask domain, promote/create at `specs/{domain}/{capability}.md` with `status: active`, set `spec_ref`, create domain dir |
-| AC-2 | **met** | `commands/define.md` "Standalone Draft Promotion Mode" (5 steps) — input matching `specs/_drafts/*.md`, ask domain, promote, no backlog item. Arguments section declares trigger. Usage example shows standalone invocation. |
+| AC-1 | **met** | `commands/define.md` "Spec Lifecycle Behavior" section: Standard Mode (5 steps) — check draft, ask domain, promote/create at `docs/specs/{domain}/{capability}.md` with `status: active`, set `spec_ref`, create domain dir |
+| AC-2 | **met** | `commands/define.md` "Standalone Draft Promotion Mode" (5 steps) — input matching `docs/specs/_drafts/*.md`, ask domain, promote, no backlog item. Arguments section declares trigger. Usage example shows standalone invocation. |
 | AC-3 | **met** | `commands/design.md` Context Loading reads `spec_ref`, SPEC LOADING (4 steps). SPEC UPDATE appends "## Design Constraints" with dated marker, appends new ACs (never removes), does not change spec status. |
 | AC-4 | **met** | `commands/deliver.md` reads `spec_ref`, uses ACs as TDD targets, "Spec-Driven Test Targets" in Phase 1, appends "## Implementation Evidence". `deliver-tests.md` reads spec ACs as test targets. `deliver-implement.md` reads spec, writes Implementation Evidence after GREEN. |
 | AC-5 | **met** | `commands/discern.md` reads `spec_ref`, SPEC UPDATE updates AC statuses (`pending` → `met`/`unmet`), appends "## Review Verdict" with verdict table. Checklist item #2 "Spec ACs verified?" |

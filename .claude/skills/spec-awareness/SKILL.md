@@ -7,7 +7,7 @@ allowed-tools: Read, Glob, Grep
 # Spec Awareness
 
 Spec-driven development is the standard. Every capability should have a persistent
-specification in `specs/` (with `type: spec` YAML frontmatter) before implementation begins.
+specification in `docs/specs/` (with `type: spec` YAML frontmatter) before implementation begins.
 Specs are the persistent source of truth for what the system does. Backlog items in
 `docs/backlog/` describe changes to make — they are transient and get archived when done.
 
@@ -20,7 +20,7 @@ that domain).
 ### Hierarchy
 
 ```
-specs/
+docs/specs/
   {domain}/
     {capability}.md         # active or deprecated spec
 ```
@@ -31,19 +31,19 @@ specs/
 |------|-----------|-----------|---------|
 | **Domain** | A product-level bounded context — a coherent area of functionality. Domains change on a product-strategy timescale (years). | Very stable | `identity`, `workflow`, `execution` |
 | **Capability** | A specific behavior the system provides within a domain. The unit of specification. | Stable | `authentication`, `headless-mode`, `tdd-discipline` |
-| **Spec** | A file describing one capability: `specs/{domain}/{capability}.md` | Persistent | `specs/execution/headless-mode.md` |
+| **Spec** | A file describing one capability: `docs/specs/{domain}/{capability}.md` | Persistent | `docs/specs/execution/headless-mode.md` |
 
 ### Naming Convention
 
 - **Domain names:** lowercase kebab-case, product-oriented (not code-oriented). Examples: `identity`, `workflow`, `data-pipeline` — NOT `src-services`, `api`, `frontend`
 - **Capability names:** lowercase kebab-case, behavior-oriented. Examples: `authentication`, `headless-mode`, `spec-bootstrapping`
-- **Spec files:** `specs/{domain}/{capability}.md`
+- **Spec files:** `docs/specs/{domain}/{capability}.md`
 
 ### Spec Lifecycle
 
 ```
-/spec:init → specs/{domain}/{capability}.md (status: active)   [bulk — existing project]
-/define    → specs/{domain}/{capability}.md (status: active)   [incremental — new capability]
+/spec:init → docs/specs/{domain}/{capability}.md (status: active)   [bulk — existing project]
+/define    → docs/specs/{domain}/{capability}.md (status: active)   [incremental — new capability]
        ↓
 deprecation → status: deprecated (stays in place, never deleted)
 ```
@@ -79,7 +79,7 @@ All commands that read specs follow this pattern:
 1. Read `spec_ref` from backlog item frontmatter
 2. If `spec_ref` is present: Read the referenced spec file
 3. If `spec_ref` is missing: **Warn** and continue without spec context:
-   > This backlog item has no spec_ref. Consider linking it to a persistent spec in specs/{domain}/.
+   > This backlog item has no spec_ref. Consider linking it to a persistent spec in docs/specs/{domain}/.
 4. If `spec_ref` points to a nonexistent file: **Warn** and continue:
    > spec_ref points to {path} but file not found. Proceeding without spec context.
 5. **Never block** — specs are valuable but optional. All commands warn and continue.
@@ -90,22 +90,22 @@ Bootstraps rich specs from an existing project:
 
 1. Deep scan source code, test files, project docs (README, CLAUDE.md), config files, and directory structure
 2. Identify behavioral capabilities — grouped by what the system does, not by file or directory boundaries
-3. Check for existing specs in `specs/**/*.md` — skip capabilities that already have specs
+3. Check for existing specs in `docs/specs/**/*.md` — skip capabilities that already have specs
 4. Present capabilities in batches (up to 5) with: name, description, evidence, proposed ACs
 5. Ask the user for domain assignment per batch (present existing domains, allow new ones)
 6. User can merge, skip, rename, or accept capabilities
-7. Write directly to `specs/{domain}/{capability}.md` with `status: active`
+7. Write directly to `docs/specs/{domain}/{capability}.md` with `status: active`
 8. Output summary of everything created
 
-**Reads:** Source code, test files, project docs, config files, `specs/**/*.md`
-**Writes:** `specs/{domain}/{capability}.md`
+**Reads:** Source code, test files, project docs, config files, `docs/specs/**/*.md`
+**Writes:** `docs/specs/{domain}/{capability}.md`
 
 ### During /define
 
 Links to existing specs with behavioral delta, or creates new specs:
 
 **When changing an existing capability:**
-1. Discover the existing spec via `spec_ref` or by searching `specs/` with user confirmation
+1. Discover the existing spec via `spec_ref` or by searching `docs/specs/` with user confirmation
 2. Document the **behavioral delta** in the shaped work contract:
    - **Current Behavior:** Quote the affected spec ACs as they exist today
    - **Proposed Changes:** What each AC will change to, plus any new ACs being added
@@ -114,11 +114,11 @@ Links to existing specs with behavioral delta, or creates new specs:
 
 **When creating a new capability:**
 1. Ask the user which domain the capability belongs to (present existing domains)
-2. Create new spec at `specs/{domain}/{capability}.md` with `status: active`
-3. Set `spec_ref: specs/{domain}/{capability}.md` in the backlog item frontmatter
+2. Create new spec at `docs/specs/{domain}/{capability}.md` with `status: active`
+3. Set `spec_ref: docs/specs/{domain}/{capability}.md` in the backlog item frontmatter
 
-**Reads:** `specs/` domain directories, existing spec ACs
-**Writes:** `specs/{domain}/{capability}.md` (new capability only), backlog frontmatter `spec_ref`
+**Reads:** `docs/specs/` domain directories, existing spec ACs
+**Writes:** `docs/specs/{domain}/{capability}.md` (new capability only), backlog frontmatter `spec_ref`
 
 ### During /design
 
@@ -177,27 +177,27 @@ Surface test-based insights about the project:
 2. Count test files, describe blocks, and test cases
 3. Report: "This project has N tests across M files. K capabilities have tests but no specs."
 
-**Reads:** Test files, specs/
+**Reads:** Test files, docs/specs/
 **Writes:** Nothing (read-only)
 
 ### During /context:load
 
 Include spec coverage in the context summary:
 
-1. Scan `specs/**/*.md` recursively for `type: spec` in frontmatter
+1. Scan `docs/specs/**/*.md` recursively for `type: spec` in frontmatter
 2. Count specs by status: `active`, `deprecated`
-3. List domains found (subdirectories of `specs/`)
+3. List domains found (subdirectories of `docs/specs/`)
 4. Scan `docs/backlog/*.md` for active work items (separately)
 5. Report coverage in the context loaded output
 
-**Reads:** `specs/**/*.md`, `docs/backlog/*.md`
+**Reads:** `docs/specs/**/*.md`, `docs/backlog/*.md`
 **Writes:** Nothing (read-only)
 
 ### General
 
 When discussing any feature or component:
 
-1. Check if a spec exists for it in `specs/{domain}/`
+1. Check if a spec exists for it in `docs/specs/{domain}/`
 2. If not specified anywhere, note that the capability is unspecified
 3. If tests exist but no spec, note the gap
 
@@ -210,7 +210,7 @@ These rules apply to ALL commands that write to specs:
 3. **Body is human-readable** — Narrative sections (Design Constraints, Implementation Evidence, Review Verdict) go in the markdown body
 4. **Warn, never block** — Missing or broken spec_ref is a warning, not a workflow blocker
 5. **Domain is a human decision** — Always ask the user; never guess or infer the domain
-6. **Specs persist** — Never archive, delete, or move specs out of `specs/`. Only backlog items are transient.
+6. **Specs persist** — Never archive, delete, or move specs out of `docs/specs/`. Only backlog items are transient.
 
 ## What This Skill Does NOT Do
 

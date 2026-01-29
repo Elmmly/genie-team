@@ -28,7 +28,7 @@ Activate Architect genie to bootstrap architecture artifacts (ADR-000 and C4 dia
 - README.md
 - Source code directories (for container/service inference)
 - Config files (for external system detection — database configs, API keys, service URLs)
-- specs/{domain}/ directories (for domain structure — does NOT read spec content for capability discovery)
+- docs/specs/{domain}/ directories (for domain structure — does NOT read spec content for capability discovery)
 - docs/decisions/ADR-*.md (to check for existing ADRs)
 - docs/architecture/**/*.md (to check for existing diagrams)
 
@@ -173,7 +173,7 @@ For CLI tools or prompt-based systems, specify the execution model:
    - CLAUDE.md and README.md for project overview
    - Source code top-level directories for container inference
    - Config files for external system detection (database connections, API URLs, third-party services)
-   - `specs/{domain}/` subdirectory names for domain awareness (does NOT read spec file contents for capability discovery)
+   - `docs/specs/{domain}/` subdirectory names for domain awareness (does NOT read spec file contents for capability discovery)
 
 3. **Create ADR-000** (if `docs/decisions/ADR-000*.md` does not exist):
    - Create `docs/decisions/` directory if needed
@@ -231,7 +231,7 @@ For CLI tools or prompt-based systems, specify the execution model:
    - If exists: Report "docs/architecture/system-context.md already exists — skipped"
 
 5. **Generate Level 2 — Containers** (if `docs/architecture/containers.md` does not exist):
-   - Infer containers from: project directory structure, package.json workspaces, Dockerfile/docker-compose, config files, `specs/{domain}/` groupings
+   - Infer containers from: project directory structure, package.json workspaces, Dockerfile/docker-compose, config files, `docs/specs/{domain}/` groupings
    - **IMPORTANT:** Use specific technology versions, specific deployment targets, and labeled edges
    - Present proposed diagram to user:
 
@@ -432,5 +432,5 @@ After /arch:init:
 - Bootstrapping only — does NOT evolve existing diagrams (that is /design's job)
 - Interactive — user confirms each diagram before writing
 - Idempotent — safe to run multiple times, skips existing artifacts
-- Read-only for specs — never touches specs/ directory
+- Read-only for specs — never touches docs/specs/ directory
 - Does not require specs to exist — infers from project structure alone

@@ -5,7 +5,7 @@ id: "{ID}"
 title: "{Title}"
 status: designed
 created: "{YYYY-MM-DD}"
-spec_ref: "{specs/domain/capability.md or docs/backlog/Pn-topic.md}"
+spec_ref: "{docs/specs/domain/capability.md or docs/backlog/Pn-topic.md}"
 appetite: "{small|medium|big}"
 complexity: "{simple|moderate|complex}"
 author: architect

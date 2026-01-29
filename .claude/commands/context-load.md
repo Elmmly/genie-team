@@ -13,7 +13,7 @@ Initialize session with project context. Run at the start of every session.
    - docs/context/current_work.md (if exists)
 
 2. Scan for spec coverage:
-   - `specs/**/*.md` — Recursively scan all domain subdirectories for `type: spec` frontmatter. Count by status: `active`, `deprecated`. List domains found. If `specs/` does not exist, report "No specs directory — run /spec:init to bootstrap specs from source code and tests"
+   - `docs/specs/**/*.md` — Recursively scan all domain subdirectories for `type: spec` frontmatter. Count by status: `active`, `deprecated`. List domains found. If `docs/specs/` does not exist, report "No specs directory — run /spec:init to bootstrap specs from source code and tests"
    - `docs/backlog/*.md` — Count backlog items (work in progress, separate from specs)
    - Detect test framework (look for `package.json` test scripts, `pytest.ini`, `jest.config.*`, `vitest.config.*`, etc.)
    - Count test files and describe/it blocks
@@ -21,7 +21,7 @@ Initialize session with project context. Run at the start of every session.
 
 3. Scan for architecture artifacts:
    - `docs/decisions/ADR-*.md` — Count ADRs by status: `proposed`, `accepted`, `deprecated`, `superseded`. If `docs/decisions/` does not exist, report "No ADRs — consider creating ADR-000 via /design"
-   - `docs/architecture/**/*.md` — Check `updated` date in frontmatter against 90-day staleness threshold. List diagrams found and staleness status. If `docs/architecture/` does not exist: if `specs/` exists, report "No C4 diagrams — run /arch:init to bootstrap architecture diagrams"; if `specs/` also does not exist, report "No C4 diagrams — run /spec:init to bootstrap specs and diagrams"
+   - `docs/architecture/**/*.md` — Check `updated` date in frontmatter against 90-day staleness threshold. List diagrams found and staleness status. If `docs/architecture/` does not exist: if `docs/specs/` exists, report "No C4 diagrams — run /arch:init to bootstrap architecture diagrams"; if `docs/specs/` also does not exist, report "No C4 diagrams — run /spec:init to bootstrap specs and diagrams"
    - Report architecture health: ADR count, diagram coverage, staleness warnings
 
 4. Summarize current state briefly
@@ -39,7 +39,7 @@ Initialize session with project context. Run at the start of every session.
 **Current work:** [In-progress item or "None"]
 **Recent decisions:** [Last 3 decisions, one-line each]
 **Spec coverage:**
-  - Specs: [N active, K deprecated] across [D] domains (from specs/)
+  - Specs: [N active, K deprecated] across [D] domains (from docs/specs/)
   - Backlog: [N items] (from docs/backlog/)
   - Test suites: [N describe blocks, M test cases]
   - Unspecified: [N test suites have no matching spec]
@@ -62,7 +62,7 @@ If spec coverage shows unspecified test suites, recommend:
 - docs/context/system_architecture.md
 - docs/context/recent_decisions.md
 - docs/context/current_work.md
-- specs/**/*.md (recursive — scan all domains for `type: spec`)
+- docs/specs/**/*.md (recursive — scan all domains for `type: spec`)
 - docs/backlog/*.md (scan for active work items)
 - docs/decisions/ADR-*.md (scan for architecture decisions)
 - docs/architecture/**/*.md (scan for C4 diagrams and staleness)

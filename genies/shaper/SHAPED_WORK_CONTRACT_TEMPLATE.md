@@ -11,7 +11,7 @@ target_project: "{project-name}"
 author: shaper
 depends_on: []
 tags: []
-spec_ref: "specs/{domain}/{capability}.md"
+spec_ref: "docs/specs/{domain}/{capability}.md"
 acceptance_criteria:
   - id: AC-1
     description: "{First acceptance criterion}"

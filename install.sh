@@ -439,7 +439,7 @@ cmd_project() {
     echo "  docs/analysis/       — Discovery and design documents"
     echo "  docs/decisions/      — Architecture Decision Records (ADRs)"
     echo "  docs/architecture/   — C4 diagrams (system-context, containers, components)"
-    echo "  specs/               — Product specifications by domain"
+    echo "  docs/specs/          — Product specifications by domain"
     echo ""
     echo "Available:"
     echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /commit, /done"
