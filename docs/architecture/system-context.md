@@ -1,11 +1,11 @@
 ---
-diagram_version: "2.0"
+diagram_version: "2.1"
 type: architecture-diagram
 level: 1
 title: "System Context - Genie Team"
-updated: 2026-01-29
-updated_by: "/arch:init"
-tags: [overview, context]
+updated: 2026-02-04
+updated_by: "ADR-001 implementation"
+tags: [overview, context, cataliva]
 ---
 
 # System Context: Genie Team
@@ -35,6 +35,10 @@ flowchart TB
         developer["<b>Developer</b><br/> <br/><span>Software engineer using Claude Code</span><br/><span>macOS/Linux Terminal or VS Code</span>"]:::actor
     end
 
+    subgraph orchestrators ["ORCHESTRATORS"]
+        cataliva["<b>Cataliva</b><br/> <br/><span>Multi-product orchestration dashboard</span><br/><span>Web app (spawns CLI processes)</span>"]:::external
+    end
+
     subgraph system ["GENIE TEAM"]
         genie_team["<b>Genie Team</b><br/> <br/><span>Workflow extensions for structured AI collaboration</span><br/><span>Markdown prompts + Bash installer</span>"]:::core
     end
@@ -46,10 +50,12 @@ flowchart TB
     end
 
     developer -->|"invokes slash commands"| genie_team
+    cataliva -->|"spawns CLI processes (--worker mode)"| genie_team
     genie_team -->|"extends via .claude/ directories"| claude_code
     claude_code -->|"sends prompts, receives completions"| anthropic_api
     genie_team -->|"writes specs, backlog, ADRs, diagrams"| target_project
     claude_code -->|"reads/writes code"| target_project
+    cataliva -->|"creates PRs, tracks progress"| target_project
 ```
 
 ## Coupling Notes
@@ -58,6 +64,7 @@ flowchart TB
 - Genie Team requires Claude Code CLI as the execution environment
 - Claude Code CLI requires Anthropic API for LLM inference
 - All genie commands execute within Claude Code's conversation context
+- Cataliva (optional) spawns CLI processes for multi-product orchestration
 
 ### Build-time Dependencies
 - `install.sh` copies commands, skills, rules, and agents to `.claude/` directories
@@ -67,3 +74,17 @@ flowchart TB
 - Document trail (specs, backlog, ADRs, diagrams) persists in target project's `docs/` directory
 - Claude Code manages ephemeral conversation context and tool state
 - Target project's git repository provides version control for all artifacts
+
+### Orchestration (Cataliva)
+
+Per ADR-001 (Thin Orchestrator architecture):
+- Cataliva treats genie-team CLI as a black box
+- Spawns CLI processes with `--worker` flag for repository operations
+- Captures stdout/stderr for progress streaming
+- No shared runtime state between orchestrator and genies
+
+```
+Cataliva → spawns → genie-team --worker → operates on → Repository
+    ↑                     ↓
+    └── streams stdout ←──┘
+```
