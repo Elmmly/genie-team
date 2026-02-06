@@ -2,7 +2,7 @@
 type: opportunity-snapshot
 topic: UI/UX Design Agent and Skills
 created: 2026-02-03
-status: discovered
+status: completed
 genie: scout
 ---
 

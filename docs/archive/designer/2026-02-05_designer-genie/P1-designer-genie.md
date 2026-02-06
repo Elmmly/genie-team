@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: shaped-work
 id: designer-genie
 title: "Designer Genie for Brand-Consistent Asset Generation"
-status: reviewed
+status: done
 created: 2026-02-04
 reshaped: 2026-02-05
 appetite: medium
