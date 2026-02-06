@@ -150,7 +150,15 @@ All three use `model: "gemini-2.5-flash-image"`. Generate ALL three images befor
 
 If image generation is not available, fall back to writing `docs/brand/assets/imagery-moodboard.html` with reference images from the web or detailed visual descriptions with color blocks showing the style direction.
 
-Present all three to user. Allow the user to pick a direction and refine the mood. If refinement is requested, generate a NEW image with the adjusted style.
+**Iteration loop (MANDATORY):**
+
+1. Present all three generated images to user
+2. Use AskUserQuestion: "Which style direction?" with options for each style plus "Mix / refine"
+3. Based on user feedback:
+   - If user picks a style but wants refinement (e.g., "photography but warmer", "illustration but more playful") → generate a NEW image incorporating the feedback, show it, and ask again
+   - If user wants to mix styles (e.g., "illustrated but with photographic textures") → generate a NEW image with the hybrid direction
+   - If user is happy → lock in the style and move to Phase 5
+4. **Keep iterating until the user explicitly approves.** There is no limit on rounds. Each round generates a new image with the adjusted prompt. Number the iterations in filenames: `style-photography-v2`, `style-photography-v3`, etc.
 
 Output: Imagery guidelines with style, mood descriptors, preferred subjects, and things to avoid.
 
@@ -170,7 +178,18 @@ Each prompt MUST include brand context: colors (hex values), mood, style, and "N
 
 If image generation is not available, output the brand-augmented prompts and suggest free tools to paste them into.
 
-Save each to `docs/brand/assets/` and log to `docs/brand/assets/manifest.md`.
+**Iteration loop (MANDATORY):**
+
+After generating each target example:
+1. Show the generated image to user
+2. Ask: "Does this capture the brand? What would you change?"
+3. If user wants adjustments → regenerate with updated prompt, show it, ask again. Number iterations: `target-hero-v2`, `target-hero-v3`, etc.
+4. If user approves → save final version and move to next target (or Phase 6 if all targets are done)
+5. User can also request `--pro` for any specific image to regenerate at premium quality
+
+**Do NOT rush through target examples.** These define the visual standard for all future brand work. Iterate until each one feels right.
+
+Save approved versions to `docs/brand/assets/` and log to `docs/brand/assets/manifest.md`.
 
 Output: Target examples saved with provenance.
 
