@@ -351,3 +351,5 @@ Write the standard Shaped Work Contract using all decisions captured in Phases 1
 5. **Report completion** as in batch mode
 
 **Output:** Standard Shaped Work Contract — identical format to batch mode.
+
+ARGUMENTS: $ARGUMENTS

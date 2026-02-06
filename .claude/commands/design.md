@@ -379,3 +379,5 @@ Write the standard Design Document using all decisions captured in Phases 1-4.
 6. **Report completion** as in batch mode
 
 **Output:** Standard Design Document — identical format to batch mode.
+
+ARGUMENTS: $ARGUMENTS
