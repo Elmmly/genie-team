@@ -14,28 +14,28 @@ tags: [shaper, architect, workshop, interactive, decisions]
 acceptance_criteria:
   - id: AC-1
     description: "/define produces an HTML appetite explorer showing what fits in small/medium/big batches with concrete scope tradeoffs the user can see and adjust"
-    status: pending
+    status: met
   - id: AC-2
     description: "/define walks through option generation interactively — presenting 2-3 solution sketches with tradeoff summaries, user picks direction before full contract is written"
-    status: pending
+    status: met
   - id: AC-3
     description: "/define --workshop flag activates full interactive mode; without flag, batch mode is preserved as default"
-    status: pending
+    status: met
   - id: AC-4
     description: "/design produces an HTML architecture comparison showing 2-3 approaches with pros/cons/complexity/risk before committing to one"
-    status: pending
+    status: met
   - id: AC-5
     description: "/design walks through technical decisions interactively — each decision in the decisions table is presented as options before the choice is locked in"
-    status: pending
+    status: met
   - id: AC-6
     description: "/design --workshop flag activates full interactive mode; without flag, batch mode is preserved as default"
-    status: pending
+    status: met
   - id: AC-7
     description: "Workshop phases use HTML artifacts (like Designer Phase 2-3) for decisions that benefit from visual comparison, and AskUserQuestion for simpler choices"
-    status: pending
+    status: met
   - id: AC-8
     description: "Existing batch-mode behavior is fully preserved — workshop mode is additive, not replacing"
-    status: pending
+    status: met
 ---
 
 # Shaped Work Contract: Interactive Workshop Mode for Shaper and Architect

@@ -89,7 +89,7 @@ get_mcp_scope() {
 # Detect which image generation API keys are set in the environment
 detect_api_keys() {
     local found=""
-    [[ -n "${GOOGLE_GENERATIVE_AI_API_KEY:-}" ]] && found="${found}GOOGLE "
+    [[ -n "${GOOGLE_API_KEY:-}" ]] && found="${found}GOOGLE "
     [[ -n "${OPENAI_API_KEY:-}" ]] && found="${found}OPENAI "
     [[ -n "${REPLICATE_API_TOKEN:-}" ]] && found="${found}REPLICATE "
     echo "$found"
@@ -104,9 +104,9 @@ print_api_key_guidance() {
     echo ""
 
     if echo "$found_keys" | grep -q "GOOGLE"; then
-        log_success "GOOGLE_GENERATIVE_AI_API_KEY detected (Gemini Flash + Pro)"
+        log_success "GOOGLE_API_KEY detected (Gemini Flash + Pro)"
     else
-        echo "  GOOGLE_GENERATIVE_AI_API_KEY — not found"
+        echo "  GOOGLE_API_KEY — not found"
         echo "    Enables: Gemini 2.5 Flash (default) + Gemini 3 Pro (--pro)"
         echo "    Get key: https://aistudio.google.com/apikey"
     fi
@@ -121,7 +121,7 @@ print_api_key_guidance() {
 
     echo ""
     echo "  To configure, add to your shell profile (~/.bashrc or ~/.zshrc):"
-    echo "    export GOOGLE_GENERATIVE_AI_API_KEY='your-key-here'"
+    echo "    export GOOGLE_API_KEY='your-key-here'"
     echo ""
     echo "  Without API keys, the Designer genie works in prompt-only mode"
     echo "  (crafts optimized prompts you can paste into free tools)."
@@ -165,13 +165,21 @@ install_mcp_server() {
         return 0
     fi
 
+    # Build --env flags from detected API keys in the current environment
+    local env_flags=()
+    [[ -n "${GOOGLE_API_KEY:-}" ]] && env_flags+=(-e "GOOGLE_API_KEY=${GOOGLE_API_KEY}")
+    [[ -n "${OPENAI_API_KEY:-}" ]] && env_flags+=(-e "OPENAI_API_KEY=${OPENAI_API_KEY}")
+    [[ -n "${REPLICATE_API_TOKEN:-}" ]] && env_flags+=(-e "REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN}")
+
     # Install the MCP server
     log_info "Installing MCP server '$MCP_SERVER_NAME' (scope: $scope)..."
-    if claude mcp add -s "$scope" "$MCP_SERVER_NAME" -- npx -y "$MCP_SERVER_PKG" &>/dev/null 2>&1; then
+    local add_output
+    if add_output=$(claude mcp add "$MCP_SERVER_NAME" -s "$scope" "${env_flags[@]}" -- npx -y "$MCP_SERVER_PKG" 2>&1); then
         log_success "Installed MCP server: $MCP_SERVER_NAME"
     else
         log_error "Failed to install MCP server '$MCP_SERVER_NAME'"
-        log_info "Install manually: claude mcp add -s $scope $MCP_SERVER_NAME -- npx -y $MCP_SERVER_PKG"
+        log_info "Output: $add_output"
+        log_info "Install manually: claude mcp add -s $scope -e GOOGLE_API_KEY=\$GOOGLE_API_KEY $MCP_SERVER_NAME -- npx -y $MCP_SERVER_PKG"
         return 0
     fi
 
@@ -184,7 +192,7 @@ install_mcp_server() {
         echo ""
         log_info "API key status:"
         echo "$found_keys" | grep -q "GOOGLE" && \
-            log_success "  GOOGLE_GENERATIVE_AI_API_KEY (Gemini Flash + Pro)"
+            log_success "  GOOGLE_API_KEY (Gemini Flash + Pro)"
         echo "$found_keys" | grep -q "OPENAI" && \
             log_success "  OPENAI_API_KEY (DALL-E, gpt-image-1)"
         echo "$found_keys" | grep -q "REPLICATE" && \
