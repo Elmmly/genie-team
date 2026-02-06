@@ -10,7 +10,8 @@ Activate Designer genie to create, evolve, or activate a brand guide via an inte
 - Optional flags:
   - `--activate` - Promote an existing brand guide from `draft` → `active`
   - `--evolve "reason"` - Re-enter specific workshop phases to update an existing brand guide
-  - No flags - Start a new brand interview workshop
+  - `--workshop` - Force a fresh full workshop even when an existing brand guide exists
+  - No flags - Review existing brand (if found) or start new workshop (if none found)
 
 ---
 
@@ -45,14 +46,28 @@ Activate Designer genie to create, evolve, or activate a brand guide via an inte
 
 ---
 
+## Mode Selection
+
+When `/brand` is invoked, determine the mode:
+
+1. **`--activate` flag present** → Mode 4: Activate
+2. **`--evolve "reason"` flag present** → Mode 3: Evolve
+3. **`--workshop` flag present** → Mode 1: New Brand Workshop (fresh start, even if existing guide found)
+4. **No flags + existing brand guide found in `docs/brand/`** → Mode 2: Review & Affirm
+5. **No flags + no existing brand guide** → Mode 1: New Brand Workshop
+
+---
+
 ## Modes
 
-### Mode 1: New Brand Workshop (default)
+### Mode 1: New Brand Workshop (`--workshop` or no existing guide)
 
-When no flags are provided and no existing brand guide matches the input:
+When `--workshop` is provided, OR no flags are provided and no existing brand guide matches the input:
 
 Run the **6-phase interactive design workshop**. Each phase builds on the previous.
 Use AskUserQuestion between phases for user decisions.
+
+**If `--workshop` is used and an existing guide exists:** Warn the user that this will create a new brand guide alongside the existing one, then proceed with the full workshop.
 
 #### Phase 1: Brand Identity
 
@@ -224,19 +239,65 @@ Write the complete brand guide:
    > Review the guide. When ready: /brand docs/brand/{name}.md --activate
    ```
 
-### Mode 2: Activate (`--activate`)
+### Mode 2: Review & Affirm (existing guide found, no flags)
 
-Promote an existing brand guide from `draft` → `active`:
+When an existing brand guide is found in `docs/brand/` and no flags are provided:
 
-1. Read the specified brand guide (or auto-detect from `docs/brand/`)
-2. Verify it has `status: draft`
-3. Update frontmatter: `status: draft` → `status: active`, add `updated: {today}`
-4. Confirm:
-   ```
-   > Brand guide activated: docs/brand/{name}.md
-   > Status: draft → active
-   > This is now the source of truth for brand identity.
-   ```
+Present the existing brand assets phase-by-phase for affirmation. The user confirms what's still right and flags what needs revision. Only flagged phases enter the workshop.
+
+#### Review Phase 1: Identity Affirmation
+
+1. **Read** the existing brand guide's identity section (name, mission, audience, personality, positioning)
+2. **Present** the current identity as a summary
+3. **Use AskUserQuestion:** "Is the brand identity still accurate?" with options:
+   - "Yes, keep as-is"
+   - "Needs updates"
+4. If "Needs updates": Enter Phase 1 (Brand Identity) from Mode 1 workshop, pre-populated with current values
+
+#### Review Phase 2: Color Affirmation
+
+1. **Write** `docs/brand/assets/palette-review.html` showing the **current** color palette using the same Section A (swatches) + Section B (colors in context) format from Mode 1 Phase 2
+2. **Tell the user** to open: `open docs/brand/assets/palette-review.html`
+3. **Use AskUserQuestion:** "Are these colors still working?" with options:
+   - "Yes, keep as-is"
+   - "Needs refinement" (minor tweaks)
+   - "Needs rethinking" (explore new palettes)
+4. If "Needs refinement": Enter Phase 2 from Mode 1, starting from the current palette as a baseline
+5. If "Needs rethinking": Enter Phase 2 from Mode 1 as a fresh exploration
+
+#### Review Phase 3: Typography Affirmation
+
+1. **Write** `docs/brand/assets/typography-review.html` showing the **current** font pairings using the same 5-scenario format from Mode 1 Phase 3
+2. **Tell the user** to open: `open docs/brand/assets/typography-review.html`
+3. **Use AskUserQuestion:** "Are the fonts still right?" with options:
+   - "Yes, keep as-is"
+   - "Needs refinement"
+   - "Needs rethinking"
+4. If refinement or rethinking: Enter Phase 3 from Mode 1, starting from current fonts or fresh
+
+#### Review Phase 4: Imagery Affirmation
+
+1. **Check** if target example images exist in `docs/brand/assets/` (from the manifest)
+2. If images exist: **Show** them to the user and ask: "Does this imagery style still represent the brand?"
+3. If no images exist: Note that and ask if imagery exploration is needed
+4. **Use AskUserQuestion:** with options:
+   - "Yes, keep as-is"
+   - "Needs a new direction"
+5. If "Needs a new direction": Enter Phase 4 (Imagery Style) + Phase 5 (Target Examples) from Mode 1
+
+#### Review Phase 5: Consolidation
+
+1. If ANY phase was flagged for revision:
+   - **Update** the brand guide with revised sections
+   - **Preserve** unchanged sections verbatim
+   - Update frontmatter: `updated: {today}`
+   - Regenerate `docs/brand/tokens.json` if visual values changed
+   - Report what changed and what was affirmed
+2. If ALL phases affirmed:
+   - Report: "Brand guide reviewed and affirmed. No changes needed."
+   - If status is `draft`, ask if user wants to activate it
+
+---
 
 ### Mode 3: Evolve (`--evolve "reason"`)
 
@@ -251,6 +312,20 @@ Re-enter specific workshop phases to update an existing brand guide:
 3. Run the relevant phases, preserving unchanged sections
 4. Update the brand guide frontmatter (`updated: {today}`)
 5. Regenerate `docs/brand/tokens.json` if visual values changed
+
+### Mode 4: Activate (`--activate`)
+
+Promote an existing brand guide from `draft` → `active`:
+
+1. Read the specified brand guide (or auto-detect from `docs/brand/`)
+2. Verify it has `status: draft`
+3. Update frontmatter: `status: draft` → `status: active`, add `updated: {today}`
+4. Confirm:
+   ```
+   > Brand guide activated: docs/brand/{name}.md
+   > Status: draft → active
+   > This is now the source of truth for brand identity.
+   ```
 
 ---
 
@@ -280,7 +355,16 @@ The workshop uses two output strategies:
 
 ```
 /brand
-> No brand guide found. Let's build one together.
+> Found existing brand guide: docs/brand/acme.md
+> Starting brand review...
+>
+> === Review Phase 1: Identity ===
+> Current: Acme — developer tools that just work
+> Is the brand identity still accurate?
+> ...
+
+/brand --workshop
+> Starting fresh brand workshop...
 >
 > === Phase 1: Brand Identity ===
 > What's the brand name?
@@ -296,6 +380,7 @@ The workshop uses two output strategies:
 > ...
 
 /brand "Acme - developer tools that just work"
+> No existing brand guide found.
 > Starting brand workshop for "Acme"...
 > === Phase 1: Brand Identity ===
 > I'll use "developer tools that just work" as a starting point.

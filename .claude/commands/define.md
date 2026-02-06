@@ -226,3 +226,128 @@ After defining:
 - Creates clear contract between discovery and delivery
 - Anti-pattern: defining as detailed specification
 - Behavioral delta makes change proposals explicit and traceable
+
+---
+
+## Workshop Mode (`--workshop`)
+
+**MANDATORY: When `$ARGUMENTS` contains `--workshop`, you MUST follow the interactive workshop phases below instead of producing a batch Shaped Work Contract. The final output is identical — a Shaped Work Contract — but the user participates in key tradeoff decisions along the way.**
+
+When `$ARGUMENTS` does NOT contain `--workshop`, ignore this entire section and follow the standard batch flow above.
+
+---
+
+### Workshop Phase 1: Problem Framing
+
+Present 2-3 reframings of the problem and let the user pick the direction.
+
+1. **Read** the input (discovery document, backlog item, or problem statement)
+2. **Generate 2-3 problem reframings** — each should be solution-free and articulate a different angle on the underlying problem
+3. **Use AskUserQuestion** to present the options:
+   - Each option is a 1-sentence problem statement
+   - Include a brief note on what this framing emphasizes (e.g., "Emphasizes user friction" vs "Emphasizes operational cost")
+4. **Capture** the user's choice — this becomes the Problem/Opportunity Statement in the final contract
+
+**Output:** Locked problem framing for the contract.
+
+---
+
+### Workshop Phase 2: Appetite Explorer
+
+**MANDATORY: You MUST produce a viewable HTML artifact. Do NOT describe appetite tiers in a text table.**
+
+1. **Analyze** the problem framing and generate concrete scope items that could fit in each appetite tier
+2. **Write** an HTML file to the scratchpad directory using the Write tool:
+
+   **File path:** `{scratchpad}/workshop/appetite-explorer.html`
+
+   The HTML file MUST be self-contained (inline CSS, no external dependencies) and include:
+
+   **Three-column layout: Small Batch (1-2 days) | Medium Batch (3-5 days) | Big Batch (1-2 weeks)**
+
+   Each column contains:
+   - **Tier header** with time budget
+   - **Scope items** as a list — each item is a concrete capability or change (not vague categories)
+   - **Color coding per item:**
+     - Green (`#22c55e`) — Included in this tier
+     - Yellow (`#eab308`) — Stretch / maybe fits
+     - Red (`#ef4444`) — Excluded from this tier
+   - **Risk indicator** at column footer: Low / Medium / High risk for this tier
+   - **Tradeoff summary** at bottom: "You get X but not Y"
+
+   Layout: Clean card-based grid with clear tier headers. Minimum 300px per column. White or light gray background. Each scope item as a pill or row with its color indicator.
+
+3. **Tell the user** to open the file: `open {scratchpad}/workshop/appetite-explorer.html`
+4. **Use AskUserQuestion:** "Which appetite tier fits this work?" with options for each tier plus "Adjust scope" to remix
+5. If user selects "Adjust scope" or uses "Other": **Regenerate the HTML** with adjusted items and tell user to refresh
+
+**Output:** Locked appetite tier and scope items for the contract.
+
+---
+
+### Workshop Phase 3: Option Exploration
+
+**MANDATORY: You MUST produce a viewable HTML artifact. Do NOT describe options in a text table.**
+
+1. **Generate 2-3 solution directions** — each is a rough approach (not detailed spec), scoped to the chosen appetite tier
+2. **Write** an HTML file to the scratchpad directory using the Write tool:
+
+   **File path:** `{scratchpad}/workshop/option-comparison.html`
+
+   The HTML file MUST be self-contained (inline CSS) and show **cards side-by-side**, one per option:
+
+   Each option card includes:
+   - **Option name** and 1-sentence description
+   - **Evaluation bars** (visual, not text) for these dimensions:
+     - Effort — Low / Medium / High (green → yellow → red bar)
+     - Risk — Low / Medium / High
+     - Strategic Alignment — Low / Medium / High
+     - Dependencies — None / Few / Many
+     - Reversibility — Easy / Moderate / Hard
+   - Each bar is a horizontal colored bar showing the rating visually
+   - **Bottom line:** 1-sentence tradeoff summary (e.g., "Fast to build but harder to extend later")
+
+   Layout: Cards sit side-by-side for direct visual comparison. Minimum 280px per card.
+
+3. **Tell the user** to open the file: `open {scratchpad}/workshop/option-comparison.html`
+4. **Use AskUserQuestion:** "Which direction?" with options for each approach plus "Remix"
+5. If user wants a remix: **Regenerate the HTML** with refined options
+
+**Output:** Locked solution direction for the contract.
+
+---
+
+### Workshop Phase 4: Scope Negotiation
+
+Present the in/out boundary proposals and let the user adjust.
+
+1. **Based on** the chosen appetite and solution direction, generate:
+   - **In scope** — concrete list of what's included
+   - **No-gos** — explicitly excluded items
+   - **Fixed elements** — things that cannot change
+   - **Rabbit holes** — risks to avoid
+2. **Use AskUserQuestion:** "Do these boundaries look right?" with options:
+   - "Yes, proceed to contract"
+   - "Adjust in-scope items"
+   - "Adjust no-gos"
+   - "Adjust both"
+3. If user wants adjustments: Discuss adjustments, then re-present boundaries via AskUserQuestion until confirmed
+
+**Output:** Locked boundaries for the contract.
+
+---
+
+### Workshop Phase 5: Consolidation
+
+Write the standard Shaped Work Contract using all decisions captured in Phases 1-4.
+
+1. **Write** the Shaped Work Contract to `docs/backlog/{priority}-{topic}.md` using the same template and format as batch mode
+2. The contract MUST include all standard sections (Problem, Evidence, Appetite, Goals, Risks, Options, Dependencies, Routing)
+3. **Additionally**, note in the contract narrative which decisions were made interactively:
+   - "Problem framing chosen from 3 alternatives in workshop"
+   - "Appetite set to {tier} after reviewing scope explorer"
+   - "Solution direction chosen from {N} options"
+4. Follow all standard Spec Lifecycle Behavior and Architectural Decision Detection from the batch flow
+5. **Report completion** as in batch mode
+
+**Output:** Standard Shaped Work Contract — identical format to batch mode.
