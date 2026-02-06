@@ -24,16 +24,20 @@
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | **Commands** | Slash commands (`/discover`, `/deliver`, etc.) | `.claude/commands/` |
-| **Skills** | Automatic behaviors (TDD, code quality) | `.claude/skills/` |
+| **Skills** | Automatic behaviors (TDD, code quality, brand) | `.claude/skills/` |
 | **Rules** | Always-on constraints | `.claude/rules/` |
 | **Agents** | Subagent definitions | `.claude/agents/` |
 | **Genies** | Genie specifications (project only) | `.claude/genies/` |
+| **Schemas** | Document format definitions | `schemas/` |
+| **MCP** | Image generation server (Designer genie) | Via `claude mcp add` |
 
 ### Install Options
 
 ```bash
 ./install.sh global --commands    # Commands only
 ./install.sh global --skills      # Skills only (automatic behaviors)
+./install.sh global --mcp         # MCP server only (imagegen)
+./install.sh project --skip-mcp   # Everything except MCP
 ./install.sh project --force      # Re-install/upgrade
 ./install.sh project --dry-run    # Preview changes
 ```
@@ -48,6 +52,7 @@
 | **Crafter** | `/deliver` | TDD implementation, code quality |
 | **Critic** | `/discern` | Review, acceptance criteria, risks |
 | **Tidier** | `/tidy` | Refactoring, cleanup, tech debt |
+| **Designer** | `/brand`, `/brand:image` | Brand identity, visual assets, design tokens |
 
 ## Commands
 
@@ -57,6 +62,8 @@
 - `/design [contract]` - Create technical design
 - `/deliver [design]` - Implement with TDD
 - `/discern [impl]` - Review and validate
+- `/commit [item]` - Create conventional commit
+- `/done [item]` - Archive completed work
 
 ### Workflows
 - `/feature [topic]` - Full lifecycle delivery
@@ -64,24 +71,50 @@
 - `/spike [question]` - Technical investigation
 - `/cleanup [scope]` - Debt reduction
 
+### Brand
+- `/brand [input]` - Interactive brand workshop
+- `/brand:image [prompt]` - Generate brand-consistent image
+- `/brand:tokens [guide]` - Extract W3C design tokens
+
+### Maintenance
+- `/diagnose [scope]` - Scan codebase health
+- `/tidy [report]` - Execute safe cleanup
+
+### Bootstrap
+- `/spec:init [scope]` - Bootstrap specs from source code
+- `/arch:init` - Bootstrap architecture diagrams
+
 ### Context
 - `/context:load` - Initialize session
 - `/context:summary` - End-of-session handoff
 - `/context:recall [topic]` - Find past work
 - `/context:refresh` - Update from codebase
+- `/handoff [from] [to]` - Phase transition with context
+
+### Help
+- `/genie:help` - Show all commands
+- `/genie:status` - Show current work status
 
 ## Structure
 
 ```
 genie-team/
+├── .claude/
+│   ├── commands/     # Slash command definitions
+│   ├── skills/       # Automatic behavior skills
+│   └── rules/        # Always-on constraints
+├── agents/           # Subagent definitions (scout, architect, critic, tidier, designer)
 ├── genies/           # Genie specs, prompts, and templates
 │   ├── scout/
 │   ├── shaper/
 │   ├── architect/
 │   ├── crafter/
 │   ├── critic/
-│   └── tidier/
-├── commands/         # Command definitions (16 files)
+│   ├── tidier/
+│   └── designer/
+├── schemas/          # Document format schemas
+├── templates/        # Project templates (CLAUDE.md)
+├── tests/            # Test suite
 └── install.sh        # Installation script
 ```
 
@@ -137,4 +170,4 @@ The "genie" framing for AI coding assistants comes from Beck's writing on his [T
 
 ---
 
-Last updated: 2025-12-05
+Last updated: 2026-02-05
