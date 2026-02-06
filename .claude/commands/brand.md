@@ -69,17 +69,28 @@ Output: Brand identity section for the brand guide.
 
 #### Phase 2: Color Exploration
 
-Generate 2-3 color palette options as visual swatches based on the brand personality.
+**MANDATORY: You MUST produce a viewable artifact for each palette option. Do NOT describe palettes in text tables.**
 
-For each option:
-- Use `mcp__imagegen__image_generate_gemini` with `model: "gemini-2.5-flash-image"` to generate a palette swatch image
-- Explain the color theory rationale (e.g., "blue conveys trust, amber adds energy")
-- Show hex values for primary, secondary, accent, background, foreground
+For each of 2-3 palette options, write an HTML file the user can open in their browser:
 
-Present options to user via AskUserQuestion. Allow remixing ("A, but warmer").
-Refine until user is satisfied.
+1. **Write** `docs/brand/assets/palette-options.html` using the Write tool. The HTML file MUST:
+   - Be a self-contained HTML file (inline CSS, no external dependencies)
+   - Show each palette option as a row of large color swatches (minimum 100px tall rectangles)
+   - Label each swatch with its role (Primary, Secondary, Accent, Background, Foreground) and hex value
+   - Set the text color on each swatch to ensure readability (white text on dark colors, dark text on light colors)
+   - Include the palette name and mood keywords as a heading above each option
+   - Show a sample text block for each palette: heading on background color, body text, a button in primary color with accent hover
+   - Include semantic colors (success, warning, error, info) as a smaller row beneath each palette
 
-Output: Color palette with hex values and rationale.
+2. **Tell the user** to open the file: `open docs/brand/assets/palette-options.html`
+
+3. **Then** briefly explain the color theory rationale for each palette
+
+4. Present options to user via AskUserQuestion. Allow remixing ("A, but warmer").
+
+5. If user requests a remix: **regenerate the HTML file** with the refined palette and tell user to refresh.
+
+Output: Color palette with hex values, rationale, and viewable HTML swatch file.
 
 #### Phase 3: Typography & Style
 
@@ -88,36 +99,56 @@ Suggest font pairings appropriate to the brand personality and audience:
 - **Body:** Font family + weight (optimize for readability)
 - **Monospace:** Font family (if developer audience)
 
-Generate a UI mockup with the chosen colors and fonts using `mcp__imagegen__image_generate_gemini` with `model: "gemini-2.5-flash-image"`.
+**MANDATORY: You MUST produce a viewable artifact.** Write `docs/brand/assets/typography-preview.html` using the Write tool. The HTML file MUST:
+- Be a self-contained HTML file using Google Fonts CDN (`<link>` tags) for the proposed fonts
+- Use the chosen color palette as background/foreground/accent colors
+- Show a sample page layout with: H1, H2, H3 headings, body paragraph, blockquote, button, code block (if mono font)
+- Label each element with the font family, weight, and size being used
+- Show the full type scale if one was proposed
+- Include a side-by-side comparison if multiple font pairing options are offered
 
-Present to user for confirmation or adjustment.
+Tell the user to open: `open docs/brand/assets/typography-preview.html`
 
-Output: Typography section with font families, weights, and fallback stacks.
+Present to user for confirmation or adjustment. If user requests changes, **regenerate the HTML file** with updated fonts/colors.
+
+Output: Typography section with font families, weights, fallback stacks, and viewable HTML preview.
 
 #### Phase 4: Imagery Style
 
-Generate the same concept prompt in 3 different styles:
-1. **Photography** — realistic, photographic style
-2. **Flat illustration** — vector, minimal, clean lines
-3. **Abstract/geometric** — patterns, shapes, artistic
+**MANDATORY: You MUST generate 3 images — one per style. Do NOT describe styles in text — show them.**
 
-Use `mcp__imagegen__image_generate_gemini` with `model: "gemini-2.5-flash-image"` for each.
+This phase requires actual image generation. Generate the same concept (relevant to the brand) in 3 different styles by calling `mcp__imagegen__image_generate_gemini` three times:
 
-Present all three to user. Allow the user to pick a direction and refine the mood.
+1. **Photography** — `prompt`: A realistic photograph relevant to the brand's mission, using the brand color palette as environmental colors. Specify lighting, composition, mood.
+   - `filenameHint`: `"style-photography"`
+2. **Flat illustration** — `prompt`: A flat vector illustration of the same concept, using the exact brand colors ({primary}, {secondary}, {accent}). Clean lines, minimal style.
+   - `filenameHint`: `"style-illustration"`
+3. **Abstract/geometric** — `prompt`: An abstract geometric composition using the brand colors, conveying the brand mood. Patterns, shapes, gradients.
+   - `filenameHint`: `"style-abstract"`
+
+All three use `model: "gemini-2.5-flash-image"`. Generate ALL three images before presenting choices.
+
+If image generation is not available, fall back to writing `docs/brand/assets/imagery-moodboard.html` with reference images from the web or detailed visual descriptions with color blocks showing the style direction.
+
+Present all three to user. Allow the user to pick a direction and refine the mood. If refinement is requested, generate a NEW image with the adjusted style.
 
 Output: Imagery guidelines with style, mood descriptors, preferred subjects, and things to avoid.
 
 #### Phase 5: Target Examples
 
-Generate 2-3 reference images using the finalized brand identity (colors, typography mood, imagery style). These are the brand's **visual north star**.
+**MANDATORY: You MUST generate each target example image.** These are the brand's **visual north star**.
 
-Default tier: Gemini 2.5 Flash (`gemini-2.5-flash-image`).
-User can request `--pro` for any specific example to get premium quality.
+Generate 2-3 reference images using the finalized brand identity (colors, typography mood, imagery style) by calling `mcp__imagegen__image_generate_gemini` for each:
 
-Suggested targets:
-- Hero image (landing page or marketing)
-- Social media banner
-- Logo concept or brand mark
+- `model`: `"gemini-2.5-flash-image"` (default) or `"gemini-3-pro-image-preview"` (if user requests `--pro`)
+- Suggested targets with brand-augmented prompts:
+  1. **Hero image** (landing page or marketing) — `filenameHint`: `"target-hero"`
+  2. **Social media banner** — `filenameHint`: `"target-social"`
+  3. **Logo concept or brand mark** — `filenameHint`: `"target-logo"`
+
+Each prompt MUST include brand context: colors (hex values), mood, style, and "No text overlay unless explicitly requested."
+
+If image generation is not available, output the brand-augmented prompts and suggest free tools to paste them into.
 
 Save each to `docs/brand/assets/` and log to `docs/brand/assets/manifest.md`.
 
@@ -184,13 +215,25 @@ Re-enter specific workshop phases to update an existing brand guide:
 
 ---
 
-## Graceful Degradation
+## Visual Output Rule
 
-If image generation is unavailable during the workshop:
+**CRITICAL: Every visual phase (2-5) MUST produce a viewable artifact. Text-only tables and descriptions are NEVER acceptable for visual decisions.**
 
-- **Phases 2-5:** Describe visual options in text instead of generating images. Offer to generate later when MCP is available.
-- **Phase 6:** Write brand guide normally — image generation is not required for the guide itself.
-- Note: The workshop provides value even without image generation. The brand identity, color choices, and typography decisions are captured regardless.
+The workshop uses two output strategies:
+
+| Phase | Output Method | Rationale |
+|-------|--------------|-----------|
+| Phase 2: Colors | **HTML file** (Write tool) | Exact hex rendering, instant, no API needed |
+| Phase 3: Typography | **HTML file** (Write tool, Google Fonts CDN) | Real fonts rendered in browser, exact colors |
+| Phase 4: Imagery | **Image generation** (MCP tool) | Can't show photo vs illustration vs abstract without AI |
+| Phase 5: Targets | **Image generation** (MCP tool) | Brand north star needs actual generated images |
+| Phase 6: Consolidation | **Markdown file** (Write tool) | Brand guide document, no visuals needed |
+
+**For Phases 2-3:** Always write an HTML file to `docs/brand/assets/` and tell the user to open it (`open docs/brand/assets/{file}.html`). HTML gives pixel-perfect color rendering and real font previews — better than any image generation for these use cases.
+
+**For Phases 4-5:** Check if `mcp__imagegen__image_generate_gemini` is available:
+- **If available:** Generate images. If a call fails, retry once, then fall back to prompt-only for that specific image.
+- **If NOT available:** Output optimized prompts and suggest free tools. Tell the user: "Image generation is not configured. To enable it: `claude mcp add imagegen -- npx -y @fastmcp-me/imagegen-mcp`"
 
 ---
 
@@ -234,8 +277,8 @@ After brand workshop:
 
 ## Notes
 
-- The workshop is collaborative — show visual options, don't just ask questions
-- Each phase allows iteration and refinement before moving on
+- **SHOW, don't describe.** Every visual phase (2-5) MUST produce generated images. Text-only palette tables, typography descriptions, or style explanations are NOT acceptable when image generation tools are available. The user needs to SEE and REACT to visuals, not read about them.
+- Each phase allows iteration — if the user wants changes, generate a NEW image with the adjustments
 - Flash tier is used for all workshop exploration (cost-efficient)
 - Target examples are the brand's visual north star — the standard future generations aim to match
 - Brand guide is written with `status: draft` — user must explicitly `--activate`
