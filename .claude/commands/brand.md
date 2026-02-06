@@ -75,12 +75,22 @@ For each of 2-3 palette options, write an HTML file the user can open in their b
 
 1. **Write** `docs/brand/assets/palette-options.html` using the Write tool. The HTML file MUST:
    - Be a self-contained HTML file (inline CSS, no external dependencies)
-   - Show each palette option as a row of large color swatches (minimum 100px tall rectangles)
+   - For each palette option, include TWO sections:
+
+   **Section A — Individual Swatches:**
+   - Show each color as a large swatch (minimum 100px tall rectangle)
    - Label each swatch with its role (Primary, Secondary, Accent, Background, Foreground) and hex value
    - Set the text color on each swatch to ensure readability (white text on dark colors, dark text on light colors)
    - Include the palette name and mood keywords as a heading above each option
-   - Show a sample text block for each palette: heading on background color, body text, a button in primary color with accent hover
-   - Include semantic colors (success, warning, error, info) as a smaller row beneath each palette
+   - Include semantic colors (success, warning, error, info) as a smaller row beneath
+
+   **Section B — Color Combinations In Context (this is the critical part):**
+   - A **hero banner** using primary as background with foreground text and an accent CTA button
+   - A **card component** on the background color with a secondary border/header, foreground body text, and a primary action link
+   - A **navigation bar** using secondary or primary as the background with foreground text and accent highlights for the active item
+   - A **form section** with background color, foreground labels, primary-colored input focus borders, and an accent submit button
+   - A **notification/alert strip** using each semantic color (success, warning, error, info) with appropriate text
+   - Each mini-composition should be at least 200px wide so the color relationships are clearly visible
 
 2. **Tell the user** to open the file: `open docs/brand/assets/palette-options.html`
 
@@ -102,10 +112,20 @@ Suggest font pairings appropriate to the brand personality and audience:
 **MANDATORY: You MUST produce a viewable artifact.** Write `docs/brand/assets/typography-preview.html` using the Write tool. The HTML file MUST:
 - Be a self-contained HTML file using Google Fonts CDN (`<link>` tags) for the proposed fonts
 - Use the chosen color palette as background/foreground/accent colors
-- Show a sample page layout with: H1, H2, H3 headings, body paragraph, blockquote, button, code block (if mono font)
-- Label each element with the font family, weight, and size being used
-- Show the full type scale if one was proposed
-- Include a side-by-side comparison if multiple font pairing options are offered
+- If multiple font pairing options are offered, show each option as a separate labeled section
+
+For EACH font pairing option, show these **real-world scenario blocks** so the user can see how the fonts work across different contexts:
+
+1. **Marketing hero** — Large H1 heading (heading font, bold), a subtitle in H3, body copy paragraph, and a CTA button. This shows the font at its most expressive scale.
+2. **Content/blog page** — H2 heading, two body paragraphs with a pull quote or blockquote between them. This shows readability at body size.
+3. **App UI / dashboard** — A card with a small H3 title, metadata line (date, category), body snippet, and action links. This shows the font at compact/functional sizes.
+4. **Form / input context** — Labels (heading font, small caps or semibold), placeholder text (body font, light), helper text below, and a submit button. This shows the font in utilitarian contexts.
+5. **Code / technical** (if mono font included) — A code snippet block using the mono font alongside body text explanations. This shows how mono integrates with the other fonts.
+
+Each scenario block should:
+- Be labeled with the scenario name
+- Show the font family, weight, and size used for each element as a subtle annotation
+- Use the chosen brand colors (background, foreground, primary, accent) so the user sees fonts AND colors working together
 
 Tell the user to open: `open docs/brand/assets/typography-preview.html`
 
