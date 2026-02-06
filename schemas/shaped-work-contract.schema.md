@@ -35,6 +35,8 @@ created: 2026-01-27
 | `author` | string | Producing genie or person |
 | `priority` | string (e.g. `"P0"`) | Priority level |
 | `spec_ref` | string | Path to persistent spec in `docs/specs/` that this work modifies |
+| `adr_refs` | array of strings | Paths to ADRs in `docs/decisions/` related to this work |
+| `brand_ref` | string | Path to brand guide in `docs/brand/` for brand-aware work |
 
 ## Acceptance Criteria Object
 

@@ -3,8 +3,11 @@ diagram_version: "2.0"
 type: architecture-diagram
 level: 2
 title: "Container Diagram - Genie Team"
-updated: 2026-01-29
-updated_by: "/arch:init"
+updated: 2026-02-05
+updated_by: "/design"
+backlog_ref: docs/backlog/P1-designer-genie.md
+adr_refs:
+  - docs/decisions/ADR-002-designer-integration-commands-plus-skill.md
 tags: [overview, containers]
 ---
 
@@ -44,6 +47,7 @@ flowchart TB
             lifecycle["<b>Lifecycle Commands</b><br/> <br/><span>/discover /define /design<br/>/deliver /discern /done</span><br/><span>Markdown prompt definitions</span>"]:::command
             workflow["<b>Workflow Commands</b><br/> <br/><span>/feature /bugfix /spike<br/>/cleanup /commit</span><br/><span>Markdown prompt definitions</span>"]:::command
             context["<b>Context Commands</b><br/> <br/><span>/context:load /context:summary<br/>/context:recall /context:refresh</span><br/><span>Markdown prompt definitions</span>"]:::command
+            brand_cmds["<b>Brand Commands</b><br/> <br/><span>/brand /brand:image<br/>/brand:tokens</span><br/><span>Markdown prompt definitions</span>"]:::command
         end
 
         subgraph genies ["GENIES (genies/*/)"]
@@ -53,6 +57,7 @@ flowchart TB
             crafter["<b>Crafter</b><br/> <br/><span>TDD implementation, code quality</span><br/><span>PROMPT.md + TEMPLATES/</span>"]:::genie
             critic["<b>Critic</b><br/> <br/><span>Review, acceptance criteria, risks</span><br/><span>PROMPT.md + TEMPLATES/</span>"]:::genie
             tidier["<b>Tidier</b><br/> <br/><span>Refactoring, cleanup, tech debt</span><br/><span>PROMPT.md + TEMPLATES/</span>"]:::genie
+            designer["<b>Designer</b><br/> <br/><span>Brand strategy, visual identity, image gen</span><br/><span>PROMPT.md + brand-spec schema</span>"]:::genie
         end
 
         subgraph agents_box ["AGENTS (agents/*.md)"]
@@ -60,12 +65,14 @@ flowchart TB
             architect_agent["<b>architect</b><br/> <br/><span>Design feasibility subagent</span><br/><span>Task tool + Read/Glob/Grep/Bash</span>"]:::agent
             critic_agent["<b>critic</b><br/> <br/><span>Code review subagent</span><br/><span>Task tool + Read/Glob/Grep/Bash</span>"]:::agent
             tidier_agent["<b>tidier</b><br/> <br/><span>Cleanup analysis subagent</span><br/><span>Task tool + Read/Glob/Grep/Bash</span>"]:::agent
+            designer_agent["<b>designer</b><br/> <br/><span>Brand analysis subagent</span><br/><span>Task tool + Read/Glob/Grep</span>"]:::agent
         end
 
         subgraph skills_box ["SKILLS (.claude/skills/)"]
             tdd["<b>TDD Discipline</b><br/> <br/><span>Enforces Red-Green-Refactor cycle</span><br/><span>Auto-activates on code changes</span>"]:::skill
             quality["<b>Code Quality</b><br/> <br/><span>No hardcoding, error handling, patterns</span><br/><span>Auto-activates on implementation</span>"]:::skill
             arch_aware["<b>Architecture Awareness</b><br/> <br/><span>ADR + C4 diagram behaviors</span><br/><span>Auto-activates on /design, /define</span>"]:::skill
+            brand_aware["<b>Brand Awareness</b><br/> <br/><span>Brand guide + token injection</span><br/><span>Auto-activates on /design, /deliver, /discern</span>"]:::skill
         end
 
         subgraph schemas_box ["SCHEMAS (schemas/*.md)"]
@@ -82,6 +89,7 @@ flowchart TB
     subgraph external ["EXTERNAL"]
         claude_code["<b>Claude Code CLI</b><br/> <br/><span>Loads .claude/ at startup</span><br/><span>Node.js 20+ CLI (Anthropic)</span>"]:::external
         anthropic_api["<b>Anthropic API</b><br/> <br/><span>Claude 3.5 Sonnet / Opus inference</span><br/><span>HTTPS REST (api.anthropic.com)</span>"]:::external
+        imagegen_mcp["<b>Image Gen MCP</b><br/> <br/><span>@fastmcp-me/imagegen-mcp</span><br/><span>Gemini 2.5 Flash / 3 Pro</span>"]:::external
     end
 
     dev -->|"types /command"| commands
@@ -94,6 +102,11 @@ flowchart TB
     claude_code -->|"executes commands from"| commands
     agents_box -->|"runs within"| claude_code
     claude_code -->|"calls"| anthropic_api
+    brand_cmds -->|"activates"| designer
+    designer -->|"generates via"| imagegen_mcp
+    brand_aware -.->|"injects brand context into"| architect
+    brand_aware -.->|"injects brand context into"| crafter
+    brand_aware -.->|"injects brand context into"| critic
 ```
 
 ## Coupling Notes
@@ -103,6 +116,8 @@ flowchart TB
 - Skills auto-trigger based on context keywords (e.g., "test" triggers TDD Discipline)
 - All execution happens within Claude Code CLI process on developer machine
 - Agents run as isolated subprocesses with forked conversation context
+- Brand Commands (`/brand:image`) invoke `@fastmcp-me/imagegen-mcp` MCP server for Gemini image generation (optional — degrades gracefully to prompt-only)
+- Brand Awareness skill injects brand context into Architect, Crafter, and Critic (opt-in — silent no-op when no brand guide exists)
 
 ### Build-time Dependencies
 - `install.sh` copies from `commands/`, `agents/`, `genies/` to target `.claude/` directories
@@ -128,7 +143,11 @@ flowchart TB
 | **Crafter** | `genies/crafter/` | TDD implementation | Working code with tests |
 | **Critic** | `genies/critic/` | Review and validation | Review verdicts (APPROVED/BLOCKED) |
 | **Tidier** | `genies/tidier/` | Refactoring and cleanup | Cleanup Reports, tidied code |
+| **Designer** | `genies/designer/` | Brand strategy and visual identity | Brand Guides, Design Tokens, Generated Images |
 | **Agents** | `agents/*.md` | Autonomous exploration | Structured findings for orchestrator |
 | **Skills** | `.claude/skills/` | Automatic behavior enforcement | Inline guidance and constraints |
 | **Schemas** | `schemas/*.md` | Document structure contracts | Validation rules for artifacts |
+| **Brand Commands** | `commands/brand*.md` | Brand creation, image gen, token extraction | Brand guides, images, tokens |
+| **Brand Awareness** | `.claude/skills/brand-awareness/` | Cross-cutting brand context injection | Inline brand constraints for other genies |
+| **Image Gen MCP** | `@fastmcp-me/imagegen-mcp` | External image generation service | Generated PNG/JPG images |
 | **Installer** | `install.sh` | Distribution to target projects | Populated `.claude/` directories |

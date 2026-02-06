@@ -12,43 +12,43 @@ tags: [genie, designer, brand, visual-design, mcp, gemini]
 acceptance_criteria:
   - id: AC-1
     description: "Designer genie directory exists at genies/designer/ with GENIE.md, DESIGNER_SPEC.md, DESIGNER_SYSTEM_PROMPT.md"
-    status: pending
+    status: met
   - id: AC-2
     description: "Designer outputs Brand Guide at docs/brand/{name}.md with YAML frontmatter per schemas/brand-spec.schema.md"
-    status: pending
+    status: met
   - id: AC-3
     description: "Designer outputs Design Tokens at docs/brand/tokens.json in W3C Design Tokens format"
-    status: pending
+    status: met
   - id: AC-4
     description: "/brand command runs interactive design workshop (identity → colors → typography → imagery → target examples → consolidation)"
-    status: pending
+    status: met
   - id: AC-5
     description: "/brand:tokens command generates Design Tokens JSON from existing brand guide"
-    status: pending
+    status: met
   - id: AC-6
     description: "/brand:image generates brand-consistent image via cost-tiered Gemini routing, logs to assets/manifest.md"
-    status: pending
+    status: met
   - id: AC-6a
     description: "/brand:image with no brand guide redirects user to /brand interview before proceeding"
-    status: pending
+    status: met
   - id: AC-7
     description: "/brand:image falls back to prompt-only output when no MCP or API key is configured"
-    status: pending
+    status: met
   - id: AC-8
     description: "Designer is opt-in in workflow; projects without brand guide skip it entirely"
-    status: pending
+    status: met
   - id: AC-9
     description: "brand-awareness skill activates during /design, /deliver, /discern to inject brand context via brand_ref"
-    status: pending
+    status: met
   - id: AC-10
     description: "designer agent available via Task tool for autonomous brand analysis"
-    status: pending
+    status: met
   - id: AC-11
     description: "Brand guide is a persistent artifact (never archived) with lifecycle: draft → active → deprecated"
-    status: pending
+    status: met
   - id: AC-12
     description: "Backlog items support brand_ref field linking to brand guide, parallel to spec_ref and adr_refs"
-    status: pending
+    status: met
 ---
 
 # Designer Genie Capability Specification
@@ -275,3 +275,28 @@ Pro is always opt-in. Flash handles everything by default. User upgrades specifi
 - Designer does NOT modify existing genie behavior
 - Brand-awareness skill is passive — adds no overhead when no brand guide exists
 - Brand guides are **never archived** — they persist as project knowledge
+
+## Design Constraints
+<!-- Updated by /design on 2026-02-05 from designer-genie -->
+- Designer genie has read-only tools (Read, Glob, Grep) when running as subagent; file writing is done by orchestrator
+- Prompt augmentation must include "No text overlay" default to suppress Gemini brand name hallucination (observed in spike T3/T6)
+- MCP detection uses tool listing (check for `mcp__imagegen__image_generate_gemini`), not environment variable checking
+- brand-awareness skill uses silent-skip (not warn) when no brand guide exists — distinguishes from spec-awareness which warns
+- Cost-tiered routing uses explicit `--pro` flag only — no heuristic-based model selection
+- Token regeneration is explicit via `/brand:tokens` only — not auto-triggered on brand guide changes
+- Multiple brand guides resolved by asking user to specify `--brand [path]` — no auto-selection heuristic
+- Integration mechanism: ADR-002 (commands + skill + agent, `/brand` namespace)
+
+## Implementation Evidence
+<!-- Updated by /deliver on 2026-02-05 from designer-genie -->
+
+### Implementation Files
+- `genies/designer/GENIE.md`: Designer genie identity, charter, core behaviors
+- `genies/designer/DESIGNER_SPEC.md`: Detailed specification with workshop process
+- `genies/designer/DESIGNER_SYSTEM_PROMPT.md`: System prompt with judgment rules
+- `.claude/commands/brand.md`: 6-phase interactive brand workshop command
+- `.claude/commands/brand-image.md`: Cost-tiered image generation command
+- `.claude/commands/brand-tokens.md`: W3C Design Token extraction command
+- `.claude/skills/brand-awareness/SKILL.md`: Cross-cutting brand context injection skill
+- `agents/designer.md`: Autonomous brand analysis subagent
+- `schemas/shaped-work-contract.schema.md`: Added brand_ref optional field

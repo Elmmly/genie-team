@@ -312,15 +312,17 @@ cmd_global() {
     echo "Available:"
     echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /commit, /done"
     echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
+    echo "  Brand:      /brand, /brand:image, /brand:tokens"
     echo "  Maintain:   /diagnose, /tidy"
     echo "  Bootstrap:  /spec:init, /arch:init"
     echo "  Context:    /context:load, /context:summary, /context:recall, /context:refresh"
     echo "  Help:       /genie:help, /genie:status"
     echo "  Skills:     tdd-discipline, code-quality, conventional-commits, problem-first,"
-    echo "              pattern-enforcement, spec-awareness, architecture-awareness"
-    echo "  Agents:     scout, architect, critic, tidier"
+    echo "              pattern-enforcement, spec-awareness, architecture-awareness,"
+    echo "              brand-awareness"
+    echo "  Agents:     scout, architect, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
-    echo "              adr, architecture-diagram"
+    echo "              adr, architecture-diagram, brand-spec"
 }
 
 # Project installation
@@ -444,6 +446,7 @@ cmd_project() {
     echo "Available:"
     echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /commit, /done"
     echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
+    echo "  Brand:      /brand, /brand:image, /brand:tokens"
     echo "  Maintain:   /diagnose, /tidy"
     echo "  Bootstrap:  /spec:init, /arch:init"
     echo "  Context:    /context:load, /context:summary, /context:recall, /context:refresh"
