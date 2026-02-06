@@ -6,7 +6,7 @@ title: "Spike: Native .claude/agents/ Format for Genie Definitions"
 status: shaped
 created: 2026-02-05
 appetite: small
-priority: P2
+priority: P0
 target_project: genie-team
 author: shaper
 depends_on: []
