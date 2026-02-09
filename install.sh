@@ -483,7 +483,7 @@ cmd_global() {
     echo "  Skills:     tdd-discipline, code-quality, conventional-commits, problem-first,"
     echo "              pattern-enforcement, spec-awareness, architecture-awareness,"
     echo "              brand-awareness"
-    echo "  Agents:     scout, architect, critic, tidier, designer"
+    echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
@@ -513,7 +513,7 @@ cmd_project() {
             --skills) install_skills="true"; install_all="false" ;;
             --rules) install_rules="true"; install_all="false" ;;
             --agents) install_agents="true"; install_all="false" ;;
-            --genies) install_genies="true"; install_all="false" ;;
+            --genies) install_genies="true"; install_all="false"; log_warn "DEPRECATED: --genies flag is deprecated. Genies are now consolidated into agents/. Use --agents instead." ;;
             --schemas) install_schemas="true"; install_all="false" ;;
             --mcp) install_mcp="true"; install_all="false" ;;
             --skip-mcp) skip_mcp="true" ;;
@@ -543,8 +543,8 @@ cmd_project() {
             log_info "[DRY RUN] Would install rules to $claude_dir/rules/"
         [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
             log_info "[DRY RUN] Would install agents to $claude_dir/agents/"
-        [[ "$install_all" == "true" || "$install_genies" == "true" ]] && \
-            log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/"
+        [[ "$install_genies" == "true" ]] && \
+            log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/ (DEPRECATED)"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas to $project_path/schemas/"
         if [[ "$skip_mcp" != "true" ]]; then
@@ -566,7 +566,7 @@ cmd_project() {
             clean_dir "$claude_dir/rules" "rules" "$dry_run"
         [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
             clean_dir "$claude_dir/agents" "agents" "$dry_run"
-        [[ "$install_all" == "true" || "$install_genies" == "true" ]] && \
+        [[ "$install_genies" == "true" ]] && \
             clean_dir "$claude_dir/genies" "genies" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_dir "$project_path/schemas" "schemas" "$dry_run"
@@ -584,7 +584,7 @@ cmd_project() {
     [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
         install_agents "$claude_dir/agents" "$force"
 
-    [[ "$install_all" == "true" || "$install_genies" == "true" ]] && \
+    [[ "$install_genies" == "true" ]] && \
         install_genies "$claude_dir/genies" "$force"
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
@@ -633,8 +633,7 @@ cmd_project() {
     echo "  Skills:     tdd-discipline, code-quality, conventional-commits, problem-first,"
     echo "              pattern-enforcement, spec-awareness, architecture-awareness,"
     echo "              brand-awareness"
-    echo "  Agents:     scout, architect, critic, tidier, designer"
-    echo "  Genies:     scout, shaper, architect, crafter, critic, tidier, designer"
+    echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"

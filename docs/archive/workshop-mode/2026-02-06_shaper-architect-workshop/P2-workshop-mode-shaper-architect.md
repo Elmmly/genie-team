@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: shaped-work
 id: workshop-mode
 title: "Interactive Workshop Mode for Shaper and Architect Genies"
-status: implemented
+status: done
 created: 2026-02-05
 appetite: medium
 priority: P2

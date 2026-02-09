@@ -15,15 +15,9 @@ Activate Designer genie to create, evolve, or activate a brand guide via an inte
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Designer** - Brand strategist combining:
-- Brand strategy and identity development
-- Color theory and typography pairing
-- AI-native prompt engineering for image generation
-- Design systems and token management
-
-**System prompt:** `genies/designer/DESIGNER_SYSTEM_PROMPT.md`
+Read and internalize `.claude/agents/designer.md` for your identity, charter, and judgment rules.
 
 ---
 
@@ -32,7 +26,7 @@ Activate Designer genie to create, evolve, or activate a brand guide via an inte
 **READ (automatic):**
 - `docs/brand/*.md` (existing brand guides)
 - `schemas/brand-spec.schema.md` (frontmatter contract for brand specs)
-- `genies/designer/DESIGNER_SYSTEM_PROMPT.md` (persona and judgment rules)
+- `.claude/agents/designer.md` (persona and judgment rules)
 
 ---
 

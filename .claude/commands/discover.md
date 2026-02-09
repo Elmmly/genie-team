@@ -14,12 +14,9 @@ Activate Scout genie to explore opportunities and surface assumptions.
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Scout** - Discovery specialist combining:
-- Teresa Torres (Continuous Discovery)
-- Jobs-to-be-Done framework
-- Assumption mapping
+Read and internalize `.claude/agents/scout.md` for your identity, charter, and judgment rules.
 
 ---
 

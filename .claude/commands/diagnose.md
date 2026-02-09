@@ -10,13 +10,9 @@ Activate Architect genie to perform codebase health scan and identify cleanup ne
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Architect** - In diagnostic mode, focusing on:
-- Code health metrics
-- Technical debt identification
-- Pattern violations
-- Dead code detection
+Read and internalize `.claude/agents/architect.md` for your identity, charter, and judgment rules. Operate in **diagnostic mode**.
 
 ---
 

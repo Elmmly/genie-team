@@ -13,12 +13,9 @@ Activate Tidier genie to execute cleanup in safe, tested batches.
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Tidier** - Cleanup executor combining:
-- Martin Fowler (Refactoring)
-- Boy Scout Rule
-- Safe, incremental changes
+Read and internalize `.claude/agents/tidier.md` for your identity, charter, and judgment rules.
 
 ---
 

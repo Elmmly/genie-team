@@ -14,12 +14,9 @@ Activate Shaper genie to define problem boundaries and create a shaped work cont
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Shaper** - Problem definer combining:
-- Ryan Singer (Shape Up)
-- Appetite-based scoping
-- Anti-pattern detection
+Read and internalize `.claude/agents/shaper.md` for your identity, charter, and judgment rules.
 
 ---
 

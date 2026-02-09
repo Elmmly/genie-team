@@ -10,13 +10,9 @@ Generate W3C Design Tokens JSON from an existing brand guide.
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Designer** - Token extraction combining:
-- Brand spec schema knowledge
-- W3C Design Tokens Community Group format
-
-**System prompt:** `genies/designer/DESIGNER_SYSTEM_PROMPT.md`
+Read and internalize `.claude/agents/designer.md` for your identity, charter, and judgment rules.
 
 ---
 

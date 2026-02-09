@@ -14,14 +14,9 @@ Generate a brand-consistent image using AI, with cost-tiered model routing and g
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Designer** - Visual identity specialist combining:
-- Brand strategy and visual consistency
-- AI prompt engineering for Gemini image generation
-- Cost-tiered model routing
-
-**System prompt:** `genies/designer/DESIGNER_SYSTEM_PROMPT.md`
+Read and internalize `.claude/agents/designer.md` for your identity, charter, and judgment rules.
 
 ---
 
@@ -37,7 +32,7 @@ Generate a brand-consistent image using AI, with cost-tiered model routing and g
 **READ (automatic):**
 - `docs/brand/{name}.md` (brand guide YAML frontmatter — colors, typography, imagery)
 - `schemas/brand-spec.schema.md` (for reference)
-- `genies/designer/DESIGNER_SYSTEM_PROMPT.md` (persona)
+- `.claude/agents/designer.md` (persona and judgment rules)
 
 ---
 

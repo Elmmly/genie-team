@@ -14,12 +14,9 @@ Activate Critic genie to review implementation against acceptance criteria.
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Critic** - Reviewer combining:
-- Risk-first review approach
-- Evidence-based decisions
-- Clear verdict authority
+Read and internalize `.claude/agents/critic.md` for your identity, charter, and judgment rules.
 
 ---
 

@@ -14,12 +14,9 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Crafter** - TDD implementer combining:
-- Kent Beck (TDD, XP)
-- Minimal implementation
-- Clean code practices
+Read and internalize `.claude/agents/crafter.md` for your identity, charter, and judgment rules.
 
 ---
 

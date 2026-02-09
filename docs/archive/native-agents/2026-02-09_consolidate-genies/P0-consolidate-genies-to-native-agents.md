@@ -3,8 +3,9 @@ spec_version: "1.0"
 type: shaped-work
 id: consolidate-genies
 title: "Consolidate Genie Definitions into .claude/agents/ Format"
-status: shaped
+status: done
 created: 2026-02-06
+completed: 2026-02-09
 appetite: medium
 priority: P0
 target_project: genie-team
@@ -16,28 +17,28 @@ tags: [architecture, agents, cost, optimization, consolidation]
 acceptance_criteria:
   - id: AC-1
     description: "Each genie (Scout, Shaper, Architect, Crafter, Critic, Tidier, Designer) has a single .claude/agents/{name}.md file that replaces the multi-file genies/ definition"
-    status: pending
+    status: met
   - id: AC-2
     description: "Tool restrictions are enforced via frontmatter (Critic can't Write/Edit, Scout can't Write/Edit)"
-    status: pending
+    status: met
   - id: AC-3
     description: "Model selection is specified per agent in frontmatter (haiku for Scout/Tidier, sonnet for others)"
-    status: pending
+    status: met
   - id: AC-4
     description: "Persistent memory is enabled per agent via memory: project"
-    status: pending
+    status: met
   - id: AC-5
     description: "Skills injection works via frontmatter (spec-awareness, architecture-awareness, brand-awareness)"
-    status: pending
+    status: met
   - id: AC-6
     description: "Command files invoke native agents instead of loading genies/ system prompts"
-    status: pending
+    status: met
   - id: AC-7
     description: "genies/ directory is deprecated — install.sh no longer copies it"
-    status: pending
+    status: met
   - id: AC-8
     description: "Output quality is equivalent to multi-file pattern (verified by running same inputs through both)"
-    status: pending
+    status: deferred
 ---
 
 # Shaped Work Contract: Consolidate Genie Definitions into .claude/agents/

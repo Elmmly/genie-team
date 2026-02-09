@@ -14,12 +14,9 @@ Activate Architect genie to create technical design within shaped boundaries.
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Architect** - Technical designer combining:
-- Clean Architecture principles
-- Interface-first design
-- Pattern enforcement
+Read and internalize `.claude/agents/architect.md` for your identity, charter, and judgment rules.
 
 ---
 
