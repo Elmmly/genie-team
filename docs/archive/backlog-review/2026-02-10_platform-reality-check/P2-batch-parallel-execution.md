@@ -3,8 +3,10 @@ spec_version: "1.0"
 type: shaped-work
 id: batch-parallel-execution
 title: "Batch and Parallel Genie Execution"
-status: shaped
+status: superseded
 created: 2026-02-04
+superseded: 2026-02-10
+superseded_reason: "Moved to Cataliva backlog — orchestration infrastructure does not belong in a prompt engineering project"
 appetite: medium
 priority: P2
 target_project: genie-team
@@ -245,3 +247,18 @@ interface AggregatedProgress {
 
 - **Contract saved to:** `docs/backlog/P2-batch-parallel-execution.md`
 - **Discovery referenced:** `docs/analysis/20260204_discover_multi_product_orchestration.md`
+
+---
+
+## Superseded — 2026-02-10
+
+**Reason:** Genie-team is a prompt engineering project — markdown prompts installed to `.claude/` directories. It has no runtime, no process manager, no job queue. The worker pool, concurrency limits, retry logic, and rate limiting described here are **Cataliva application features**, not prompt engineering.
+
+The solution sketch uses Go and TypeScript interfaces for a worker pool — this is application code for an orchestration platform. Parallelism in the genie-team model comes from spawning multiple `claude` CLI processes, which is Cataliva's responsibility per ADR-001 (Thin Orchestrator).
+
+Genie-team's contribution to parallel execution is:
+1. Streaming conventions (see `P1-autonomous-execution-readiness.md`)
+2. Safety rules for concurrent git operations
+3. Stateless commands that can be invoked by any number of concurrent processes
+
+**Action:** Move to Cataliva's backlog. Genie-team provides the CLI contract; Cataliva implements the orchestration.

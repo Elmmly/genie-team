@@ -6,7 +6,7 @@ title: "Spike: Agent Teams Council Pattern for /discern"
 status: shaped
 created: 2026-02-05
 appetite: small
-priority: P3
+priority: P2
 target_project: genie-team
 author: shaper
 depends_on: []
@@ -159,6 +159,20 @@ If Agent Teams is too unstable to complete the spike, document the blockers and 
 ## Appetite
 
 **Small batch (1 day).** 3 agent files, 2 review runs, comparison analysis. Slightly larger than other spikes due to Agent Teams setup, but the review itself is fast.
+
+---
+
+## Cataliva Value Context (added 2026-02-10)
+
+Multi-perspective review is directly relevant to Cataliva's autonomous PDLC. When Cataliva dispatches work across a product portfolio, the `/discern` gate determines whether implementation proceeds to merge. A council pattern could improve quality gate confidence for:
+
+- **High-stakes PRs** — Security-critical changes, public API modifications
+- **Unfamiliar codebases** — When the single Critic may lack domain context
+- **Pre-release audits** — Final review before production deployment
+
+If the spike shows the council pattern catches meaningfully more real issues, it becomes an opt-in `--council` flag on `/discern` that Cataliva can enable for specific review tiers.
+
+**Priority rationale (P3 → P2):** With the backlog simplified (5 items removed), this spike is now the second most valuable item after autonomous execution readiness. Agent Teams stability is the main risk.
 
 ---
 

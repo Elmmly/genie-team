@@ -3,8 +3,10 @@ spec_version: "1.0"
 type: shaped-work
 id: repo-aware-execution
 title: "Repo-Aware Execution with Git Integration"
-status: shaped
+status: superseded
 created: 2026-02-04
+superseded: 2026-02-10
+superseded_by: docs/backlog/P1-autonomous-execution-readiness.md
 appetite: big
 priority: P1
 target_project: genie-team
@@ -162,6 +164,20 @@ acceptance_criteria:
 - **Contract saved to:** `docs/backlog/P1-repo-aware-execution.md`
 - **Discovery referenced:** `docs/analysis/20260204_discover_worker_based_execution.md`
 - **Consolidates:** `P1-worker-execution.md` + `P1-crafter-repo-aware-execution.md`
+
+---
+
+## Superseded — 2026-02-10
+
+**Reason:** Claude Code natively supports full git workflow: clone repos, create branches, stage/commit/push changes, and create PRs with `Co-Authored-By` attribution. The Crafter genie already writes code directly to files — that's how Claude Code works. The proposed items (clone, branch, commit, push, PR creation) are all platform-native capabilities, not things genie-team needs to build.
+
+The remaining genie-team-specific work is safety constraints for autonomous execution:
+- Branch naming convention (`genie/{item}-{phase}`)
+- No force push, no push to main/master
+- Conventional commit format with genie attribution
+- Workspace isolation (Cataliva's responsibility, not genie-team's)
+
+These are `.claude/rules/` entries, not a big-batch implementation. Absorbed into `P1-autonomous-execution-readiness.md`.
 
 ---
 

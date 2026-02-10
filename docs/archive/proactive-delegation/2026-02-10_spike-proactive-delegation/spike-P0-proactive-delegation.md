@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: spike
 id: spike-proactive-delegation
 title: "Spike: Proactive Agent Delegation vs Explicit /commands"
-status: shaped
+status: done
 created: 2026-02-05
 appetite: small
 priority: P0

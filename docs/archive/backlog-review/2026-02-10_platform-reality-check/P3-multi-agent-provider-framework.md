@@ -2,9 +2,11 @@
 type: shaped-work
 concept: Multi-CLI Provider Framework
 enhancement: Host Abstraction
-status: designed
+status: superseded
 created: 2025-12-15
 revised: 2025-12-15
+superseded: 2026-02-10
+superseded_reason: "YAGNI — research spike invalidated core assumptions; no CLI convention convergence; genie-team is a Claude Code extension by design"
 ---
 
 # Shaped Work Contract: Multi-CLI Provider Framework
@@ -238,16 +240,22 @@ providers/
 - **Appetite fit:** No — **Big (2+ weeks)**, should be separate backlog item
 - **Status:** 📋 **DEFER to new backlog item: P1-gemini-python-adapter**
 
-### Ranked Recommendation — UPDATED
+### Ranked Recommendation — SUPERSEDED 2026-02-10
 
 | Rank | Option | For Claude Code | For Gemini | Action |
 |------|--------|-----------------|------------|--------|
-| 1 | Option 1: Host Abstraction | ✅ Full integration | ❌ N/A | **Implement now** |
-| 2 | Option 3: Documentation-Only | N/A | ⚠️ Manual workflow | **Implement now** |
-| 3 | Option 4: Python Adapter | N/A | ✅ Full integration | **Defer to P1** |
-| 4 | Option 2: Neutral Naming | Marginal benefit | ❌ Doesn't help | **Deprioritize** |
+| 1 | Option 1: Host Abstraction | ✅ Full integration | ❌ N/A | ~~Implement now~~ **REMOVED** |
+| 2 | Option 3: Documentation-Only | N/A | ⚠️ Manual workflow | ~~Implement now~~ **REMOVED** |
+| 3 | Option 4: Python Adapter | N/A | ✅ Full integration | ~~Defer to P1~~ **REMOVED** |
+| 4 | Option 2: Neutral Naming | Marginal benefit | ❌ Doesn't help | ~~Deprioritize~~ **REMOVED** |
 
-**Summary:** Proceed with Option 1 for Claude Code. Accept Option 3 (documentation) as interim Gemini solution. Create new backlog item for Option 4 if full Gemini integration is desired.
+**2026-02-10 Decision:** Remove all options. The research spike (Dec 2025) confirmed there is no convergence in CLI conventions across providers. Gemini CLI is fundamentally Python-native and incompatible with file-based approaches. No other file-based CLI has emerged that would benefit from a host abstraction layer.
+
+Genie-team is a Claude Code extension — the Claude Code conventions (`.claude/commands/`, `CLAUDE.md`, `Task(subagent_type=...)`) ARE genie-team's integration surface. Abstracting them away removes the value proposition without serving any current user.
+
+If a future file-based CLI emerges worth supporting, the abstraction can be built at that time. The 900-line design document here serves as valuable reference for that future work.
+
+**YAGNI applies.** This item is archived with the research spike findings as rationale.
 
 ---
 

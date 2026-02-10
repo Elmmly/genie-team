@@ -3,8 +3,10 @@ spec_version: "1.0"
 type: shaped-work
 id: progress-streaming-protocol
 title: "Progress Streaming Protocol for Genie Execution"
-status: shaped
+status: superseded
 created: 2026-02-04
+superseded: 2026-02-10
+superseded_by: docs/backlog/P1-autonomous-execution-readiness.md
 appetite: small
 priority: P1
 target_project: genie-team
@@ -201,3 +203,9 @@ genie crafter --input design.md --progress-json | jq
 
 - **Contract saved to:** `docs/backlog/P1-progress-streaming-protocol.md`
 - **Discovery referenced:** `docs/analysis/20260204_discover_multi_product_orchestration.md`
+
+---
+
+## Superseded — 2026-02-10
+
+**Reason:** Claude Code now provides native `--output-format stream-json` which emits NDJSON with every token, tool call, and turn. The custom event schema, callback plumbing, and CLI flags proposed here already exist in the platform. The remaining genie-team-specific work (mapping workflow phases to native stream events, backlog item correlation) is absorbed into `P1-autonomous-execution-readiness.md` as a documentation and prompt convention task, not an implementation task.

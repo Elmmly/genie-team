@@ -3,8 +3,11 @@ spec_version: "1.0"
 type: shaped-work
 id: cataliva-integration
 title: "Cataliva Integration — Multi-Product Orchestration Pilot"
-status: shaped
+status: superseded
 created: 2026-02-04
+superseded: 2026-02-10
+superseded_by: docs/backlog/P1-autonomous-execution-readiness.md
+superseded_reason: "Genie-team side absorbed into P1-autonomous-execution-readiness; Cataliva side belongs in Cataliva's backlog"
 appetite: big
 priority: P2
 target_project: genie-team
@@ -238,3 +241,25 @@ First integration target:
 - **Discovery referenced:** `docs/analysis/20260204_discover_multi_product_orchestration.md`
 - **ADR referenced:** `docs/decisions/ADR-001-thin-orchestrator.md`
 - **Depends on:** `docs/backlog/P1-worker-execution.md`
+
+---
+
+## Superseded — 2026-02-10
+
+**Reason:** Per ADR-001 (Thin Orchestrator), Cataliva spawns CLI processes. The job dispatcher, worker pool, progress monitor, batch approval UX, and dashboard described here are all **Cataliva application features** — they belong in Cataliva's codebase, not genie-team's.
+
+Genie-team's role in the Cataliva integration is to be a well-behaved CLI that produces structured, parseable output. This means:
+1. **Streaming conventions** — Map genie workflow phases to native `stream-json` events
+2. **Safety rules** — Branch naming, no force push, conventional commits for autonomous execution
+3. **Machine-readable document trail** — Already exists (YAML frontmatter on all artifacts)
+4. **CLI contract documentation** — How Cataliva invokes commands, what to parse, expected outputs
+
+These are absorbed into `P1-autonomous-execution-readiness.md`.
+
+**What moves to Cataliva's backlog:**
+- Job dispatcher spawning CLI processes
+- Progress streaming dashboard (consuming native stream-json)
+- Status tracking and job state management
+- Batch approval UX for multiple gates
+- Worker pool for parallel execution
+- Pilot with 2hearted product
