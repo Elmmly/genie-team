@@ -1,6 +1,6 @@
 #!/bin/bash
 # Genie Team Installer
-# Install genie-team commands, skills, rules, agents, schemas, genies, and MCP servers
+# Install genie-team commands, skills, rules, agents, schemas, and MCP servers
 
 set -e
 
@@ -654,10 +654,14 @@ cmd_status() {
             echo "  $dir: not installed"
         fi
     done
+    if [[ -d "$GLOBAL_CLAUDE_DIR/agent-memory" ]]; then
+        local mem_count=$(find "$GLOBAL_CLAUDE_DIR/agent-memory" -name "MEMORY.md" 2>/dev/null | wc -l | tr -d ' ')
+        echo "  agent-memory: $mem_count agents with memory"
+    fi
 
     echo ""
     echo "Project (./.claude/ and ./schemas/):"
-    for dir in commands skills rules agents genies; do
+    for dir in commands skills rules agents; do
         if [[ -d "./.claude/$dir" ]]; then
             local count=$(find "./.claude/$dir" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"
@@ -665,6 +669,10 @@ cmd_status() {
             echo "  $dir: not installed"
         fi
     done
+    if [[ -d "./.claude/agent-memory" ]]; then
+        local mem_count=$(find "./.claude/agent-memory" -name "MEMORY.md" 2>/dev/null | wc -l | tr -d ' ')
+        echo "  agent-memory: $mem_count agents with memory"
+    fi
     if [[ -d "./schemas" ]]; then
         local count=$(find "./schemas" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
         echo "  schemas: $count files"
@@ -701,7 +709,7 @@ cmd_uninstall() {
     case "$target" in
         global)
             log_info "Removing global installation..."
-            for dir in commands skills rules agents schemas; do
+            for dir in commands skills rules agents schemas agent-memory; do
                 if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
                     rm -rf "$GLOBAL_CLAUDE_DIR/$dir"
                     log_success "Removed $dir"

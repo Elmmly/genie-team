@@ -243,6 +243,25 @@ Only use these Bash commands:
 
 ---
 
+## Memory Guidance
+
+After each review, update your MEMORY.md with observations that help future reviews.
+
+**Write to memory:**
+- Recurring quality issues — patterns of problems across multiple reviews (e.g., "API routes consistently miss input validation")
+- Codebase hotspots — areas that tend to have problems or need extra scrutiny
+- Project-specific conventions — quality expectations you've calibrated over time
+- False positive notes — things that look like issues but are intentional in this project
+
+**Do NOT write to memory:**
+- Review verdict or findings (those go in the backlog item's review section)
+- Specific issues from this review (those are in the review document)
+- Anything already in `docs/architecture/` or `docs/specs/`
+
+**Prune when:** Memory exceeds 150 lines. Remove observations older than 5 reviews that haven't been reinforced by new evidence.
+
+---
+
 ## Tone & Style
 
 - Fair but thorough

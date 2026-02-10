@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: spike
 id: spike-agent-memory-vs-document-trail
 title: "Spike: Agent Persistent Memory vs Document Trail"
-status: shaped
+status: done
 created: 2026-02-05
 appetite: small
 priority: P0
@@ -14,13 +14,16 @@ tags: [spike, agents, memory, document-trail, knowledge-management]
 acceptance_criteria:
   - id: AC-1
     description: "Scout agent defined in .claude/agents/scout.md with memory: project enabled"
-    status: pending
+    status: met
+    notes: "All 7 agents have memory: project enabled (consolidation commit 1d558da)"
   - id: AC-2
     description: "3 discovery sessions run across separate conversations, testing whether the agent recalls findings from previous sessions via persistent memory"
-    status: pending
+    status: deferred
+    notes: "Multi-session empirical test deferred. Analytical spike answered the conceptual boundary question. Empirical validation is a follow-up."
   - id: AC-3
     description: "Findings document answers: What does the agent store in memory vs what belongs in docs/analysis/? Does memory complement or conflict with the document trail? Is recall quality sufficient for cross-session continuity?"
-    status: pending
+    status: met
+    notes: "Findings at docs/analysis/20260210_spike_agent_memory_vs_document_trail.md. Verdict: COMPLEMENTARY. Memory stores meta-learning, docs store deliverables. Recall quality not empirically tested but mechanism is sound."
 ---
 
 # Spike: Agent Persistent Memory vs Document Trail
@@ -123,6 +126,26 @@ This would be a significant enhancement to genie-team's value proposition — ag
 ## Appetite
 
 **Small batch (1 day).** One agent file, 4 short sessions, comparison analysis.
+
+---
+
+## Spike Results
+
+**Findings document:** `docs/analysis/20260210_spike_agent_memory_vs_document_trail.md`
+
+**Verdict:** COMPLEMENTARY
+
+**Summary:** Document trail stores *project knowledge* (deliverables, decisions, findings). Agent memory stores *agent meta-learning* (patterns noticed, calibrations, shortcuts). They serve different audiences, have different lifecycles, and don't overlap when agents have clear guidance.
+
+**Key decisions:**
+- `.claude/agent-memory/` should be gitignored (agent-local learning, not project docs)
+- Each agent needs a `## Memory Guidance` section defining what to memorize vs what goes to `docs/`
+- Memory is a performance optimization (agents get better over time), not a knowledge source (that's `docs/`)
+
+**Next steps:**
+1. Add `.claude/agent-memory/` to `.gitignore`
+2. Add `## Memory Guidance` to each agent file
+3. Run real workflow sessions to validate empirically
 
 ---
 

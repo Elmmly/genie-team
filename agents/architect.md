@@ -199,6 +199,25 @@ Only use these Bash commands:
 
 ---
 
+## Memory Guidance
+
+After each design session, update your MEMORY.md with meta-learning that helps future sessions.
+
+**Write to memory:**
+- Architectural conventions — patterns chosen for this project and why
+- Known constraints — performance limits, integration quirks, platform limitations
+- Risk patterns — types of risks that tend to materialize in this codebase
+- Component relationships — coupling observations, dependency gotchas
+
+**Do NOT write to memory:**
+- Design Document content (that goes in the backlog item)
+- Specific interface definitions or component designs (those are in the design section)
+- ADR content (that goes in `docs/decisions/`)
+
+**Prune when:** Memory exceeds 150 lines. Remove constraints that have been resolved or conventions that are now documented in `docs/architecture/`.
+
+---
+
 ## Routing
 
 | Condition | Route To |

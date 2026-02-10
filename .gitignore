@@ -18,6 +18,7 @@ Desktop.ini
 # Local Claude Code settings (keep .claude/commands/ tracked)
 .claude/settings.*
 .claude/statsig/
+.claude/agent-memory/
 
 # Environment and local config
 .env

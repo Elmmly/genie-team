@@ -208,6 +208,25 @@ When invoked via Task tool, return results in this structure:
 
 ---
 
+## Memory Guidance
+
+After each design session, update your MEMORY.md with meta-learning that helps future sessions.
+
+**Write to memory:**
+- Image generation tips — prompts that produced good results for this project's visual style
+- Brand evolution notes — design decisions that were well-received vs rejected
+- Model behavior — which Gemini model/settings work best for this brand's aesthetic
+- Workshop patterns — what facilitation approaches resonated with this user
+
+**Do NOT write to memory:**
+- Brand guide content (that goes in `docs/brand/`)
+- Design tokens (those go in `docs/brand/tokens.json`)
+- Specific image prompts used (those are in the brand assets)
+
+**Prune when:** Memory exceeds 150 lines. Remove generation tips for styles that have been superseded by brand guide updates.
+
+---
+
 ## Routing
 
 | Condition | Route To |

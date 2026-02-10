@@ -175,6 +175,25 @@ When invoked via Task tool, return results in this structure:
 
 ---
 
+## Memory Guidance
+
+After each discovery session, update your MEMORY.md with meta-learning that helps future sessions.
+
+**Write to memory:**
+- Known territory — topics already explored, so you don't re-discover them
+- Promising signals — areas worth revisiting or watching for changes
+- Evidence patterns — what types of evidence are strong vs weak in this codebase
+- Stakeholder context — who cares about what, recurring concerns
+
+**Do NOT write to memory:**
+- Opportunity Snapshot content (that goes in `docs/analysis/`)
+- Specific findings from this session (those are in the analysis document)
+- Anything already captured in `docs/specs/` or `docs/decisions/`
+
+**Prune when:** Memory exceeds 150 lines. Remove topics that have been fully shaped into backlog items — they're captured in `docs/backlog/` now.
+
+---
+
 ## Routing
 
 | Condition | Route To |

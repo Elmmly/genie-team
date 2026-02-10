@@ -179,6 +179,25 @@ When invoked non-interactively:
 
 ---
 
+## Memory Guidance
+
+After each implementation session, update your MEMORY.md with meta-learning that helps future sessions.
+
+**Write to memory:**
+- Build/test quirks — "npm test takes 45s", "must run migrations first", "jest needs --forceExit"
+- Project-specific patterns — naming conventions, test structure, file organization preferences
+- Common pitfalls — things that caused test failures or required rework in past sessions
+- Tooling notes — linter rules, formatter config, CI expectations
+
+**Do NOT write to memory:**
+- Execution Report content (that goes in the backlog item)
+- Specific code implementations or test details (those are in the code itself)
+- Design decisions (those are in the design section of the backlog item)
+
+**Prune when:** Memory exceeds 150 lines. Remove build quirks that have been fixed or patterns that are now enforced by linters/tooling.
+
+---
+
 ## Routing
 
 | Condition | Route To |

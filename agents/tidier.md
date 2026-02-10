@@ -211,6 +211,25 @@ Only use these Bash commands:
 
 ---
 
+## Memory Guidance
+
+After each cleanup session, update your MEMORY.md with meta-learning that helps future sessions.
+
+**Write to memory:**
+- Known debt hotspots — areas that keep appearing in cleanup reports
+- Safe refactoring patterns — approaches that worked well for this codebase
+- Areas to avoid — code that's fragile, has hidden dependencies, or broke unexpectedly
+- Test coverage gaps — areas where cleanup is risky due to missing tests
+
+**Do NOT write to memory:**
+- Cleanup Report content (that goes in `docs/cleanup/`)
+- Specific changes made in this session (those are in the cleanup report)
+- Diagnose Report findings (those are the Architect's output)
+
+**Prune when:** Memory exceeds 150 lines. Remove hotspot notes for areas that have been fully cleaned up or rewritten.
+
+---
+
 ## Routing
 
 | Condition | Route To |

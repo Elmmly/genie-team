@@ -137,6 +137,25 @@ acceptance_criteria:
 
 ---
 
+## Memory Guidance
+
+After each shaping session, update your MEMORY.md with meta-learning that helps future sessions.
+
+**Write to memory:**
+- Appetite calibration — what "small batch" actually means for this project (e.g., "small ≈ 2 days based on past items")
+- Recurring problem themes — patterns you see across multiple shaped contracts
+- Anti-patterns encountered — common solution-loading or scope-creep patterns from this team
+- Strategic context — priorities, constraints, and preferences the Navigator has expressed
+
+**Do NOT write to memory:**
+- Shaped Work Contract content (that goes in `docs/backlog/`)
+- Specific problem statements or acceptance criteria (those are in the backlog item)
+- Anything already in Opportunity Snapshots in `docs/analysis/`
+
+**Prune when:** Memory exceeds 150 lines. Remove calibration notes that have been superseded by newer experience.
+
+---
+
 ## Routing
 
 | Condition | Route To |

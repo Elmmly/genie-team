@@ -24,10 +24,9 @@
 | Component | Purpose | Location |
 |-----------|---------|----------|
 | **Commands** | Slash commands (`/discover`, `/deliver`, etc.) | `.claude/commands/` |
+| **Genies** | Genie definitions (native Claude Code agent format) with per-genie model, tools, and memory | `.claude/agents/` |
 | **Skills** | Automatic behaviors (TDD, code quality, brand) | `.claude/skills/` |
 | **Rules** | Always-on constraints | `.claude/rules/` |
-| **Agents** | Subagent definitions | `.claude/agents/` |
-| **Genies** | Genie specifications (project only) | `.claude/genies/` |
 | **Schemas** | Document format definitions | `schemas/` |
 | **MCP** | Image generation server (Designer genie) | Via `claude mcp add` |
 
@@ -44,15 +43,19 @@
 
 ## The Genies
 
-| Genie | Command | Purpose |
-|-------|---------|---------|
-| **Scout** | `/discover` | Discovery, research, opportunity mapping |
-| **Shaper** | `/define` | Problem framing, appetite, constraints |
-| **Architect** | `/design`, `/diagnose` | Technical design, patterns, health analysis |
-| **Crafter** | `/deliver` | TDD implementation, code quality |
-| **Critic** | `/discern` | Review, acceptance criteria, risks |
-| **Tidier** | `/tidy` | Refactoring, cleanup, tech debt |
-| **Designer** | `/brand`, `/brand:image` | Brand identity, visual assets, design tokens |
+Each genie is implemented as a native Claude Code agent (`.claude/agents/{name}.md`) with platform-enforced tool restrictions, per-genie model selection, and persistent memory.
+
+| Genie | Command | Model | Purpose |
+|-------|---------|-------|---------|
+| **Scout** | `/discover` | haiku | Discovery, research, opportunity mapping |
+| **Shaper** | `/define` | sonnet | Problem framing, appetite, constraints |
+| **Architect** | `/design`, `/diagnose` | sonnet | Technical design, patterns, health analysis |
+| **Crafter** | `/deliver` | sonnet | TDD implementation, code quality |
+| **Critic** | `/discern` | sonnet | Review, acceptance criteria, risks |
+| **Tidier** | `/tidy` | haiku | Refactoring, cleanup, tech debt |
+| **Designer** | `/brand`, `/brand:image` | sonnet | Brand identity, visual assets, design tokens |
+
+**Cost optimization:** Scout and Tidier run on haiku (10-20x cheaper) for research/analysis tasks. Crafter, Critic, Architect, Shaper, and Designer run on sonnet where judgment quality matters.
 
 ## Commands
 
@@ -100,23 +103,33 @@
 ```
 genie-team/
 ├── .claude/
-│   ├── commands/     # Slash command definitions
-│   ├── skills/       # Automatic behavior skills
-│   └── rules/        # Always-on constraints
-├── agents/           # Subagent definitions (scout, architect, critic, tidier, designer)
-├── genies/           # Genie specs, prompts, and templates
-│   ├── scout/
-│   ├── shaper/
-│   ├── architect/
-│   ├── crafter/
-│   ├── critic/
-│   ├── tidier/
-│   └── designer/
-├── schemas/          # Document format schemas
-├── templates/        # Project templates (CLAUDE.md)
-├── tests/            # Test suite
-└── install.sh        # Installation script
+│   ├── commands/        # Slash command definitions
+│   ├── skills/          # Automatic behavior skills
+│   └── rules/           # Always-on constraints
+├── agents/              # Genie definitions in native agent format (copied to .claude/agents/ on install)
+│   ├── scout.md         # Discovery specialist (haiku, read-only)
+│   ├── shaper.md        # Problem framer (sonnet, read-only)
+│   ├── architect.md     # Technical designer (sonnet, read-only)
+│   ├── crafter.md       # TDD implementer (sonnet, read-write)
+│   ├── critic.md        # Code reviewer (sonnet, read-only)
+│   ├── tidier.md        # Cleanup specialist (haiku, read-only)
+│   └── designer.md      # Brand strategist (sonnet, read-only)
+├── schemas/             # Document format schemas
+├── templates/           # Project templates (CLAUDE.md)
+├── tests/               # Test suite
+└── install.sh           # Installation script
 ```
+
+### Knowledge Architecture
+
+Genie Team uses two complementary persistence systems:
+
+| System | Purpose | Location | Lifecycle |
+|--------|---------|----------|-----------|
+| **Document trail** | Project knowledge — findings, designs, reviews, decisions | `docs/` (git-tracked) | Created → appended → archived |
+| **Genie memory** | Genie meta-learning — patterns, calibrations, shortcuts | `.claude/agent-memory/` (gitignored) | Curated continuously, 200-line cap |
+
+**Document trail** stores what the project knows. **Genie memory** stores what each genie has learned about working on this project. Genies get better at *your specific project* over time.
 
 ## Philosophy & Vision
 
@@ -130,11 +143,11 @@ Genie Team is a playground for discovering new ways of working. It's not a finis
 
 **Genies, not agents.** AI coding assistants work best when you think of them as genies; powerful entities that grant wishes, but benefit from clear, well-formed requests. A genie does exactly what you ask in the way that the genie interprets what you ask, which means the quality of output depends on the quality of input and some blend of context management of the AI context.
 
-**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization.
+**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization. Each genie has platform-enforced tool restrictions, its own model selection, and persistent memory that improves over time.
 
-**Context accumulates.** Structured outputs (Opportunity Snapshots, Design Documents, Implementation Reports) create a document trail that builds project memory over time.
+**Context accumulates.** Structured outputs (Opportunity Snapshots, Design Documents, Implementation Reports) create a document trail that builds project knowledge over time. Genie memory complements this with meta-learning — patterns noticed across sessions, calibrations, and shortcuts that help each genie work more effectively on *your* project.
 
-**Efficiency matters.** AI tokens cost money and time. Structured prompts with clear scope reduce wasted iterations, hallucinated features, and context drift. Specialization means smaller, focused contexts instead of bloated conversations. The goal is more value per interaction: less rework, fewer corrections, better outcomes.
+**Efficiency matters.** AI tokens cost money and time. Structured prompts with clear scope reduce wasted iterations, hallucinated features, and context drift. Per-genie model selection routes research tasks (Scout, Tidier) to cheaper models while keeping judgment-heavy work (Critic, Architect) on more capable ones.
 
 **Tinkering as practice.** This is exploratory work. Forking, adapting, and sharing configurations is part of our craft. The goal isn't to prescribe a workflow but to provide a starting point for your own experiments in augmented development.
 
@@ -170,4 +183,4 @@ The "genie" framing for AI coding assistants comes from Beck's writing on his [T
 
 ---
 
-Last updated: 2026-02-05
+Last updated: 2026-02-10
