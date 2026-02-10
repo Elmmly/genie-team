@@ -3,7 +3,9 @@ spec_version: "1.0"
 type: shaped-work
 id: trim-duplicated-rules
 title: "Trim Duplicated Rules from Genie System Prompts"
-status: shaped
+status: done
+completed: 2026-02-09
+completed_by: "consolidate-genies-to-native-agents (1d558da)"
 created: 2026-02-06
 appetite: small
 priority: P0
@@ -14,16 +16,16 @@ tags: [cost, optimization, prompts, rules]
 acceptance_criteria:
   - id: AC-1
     description: "Genie system prompts reference .claude/rules/ by name instead of restating their content"
-    status: pending
+    status: met
   - id: AC-2
     description: "Each system prompt is reduced by 30-40% in line count"
-    status: pending
+    status: met
   - id: AC-3
     description: "No behavioral change — genies produce identical output quality after trimming"
-    status: pending
+    status: met
   - id: AC-4
     description: "Cross-cutting concerns (TDD, code quality, pattern enforcement) appear ONCE in rules, not duplicated in each system prompt"
-    status: pending
+    status: met
 ---
 
 # Shaped Work Contract: Trim Duplicated Rules from Genie System Prompts

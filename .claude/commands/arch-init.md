@@ -12,12 +12,9 @@ Activate Architect genie to bootstrap architecture artifacts (ADR-000 and C4 dia
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Architect** - Structural analysis combining:
-- C4 model inference from project structure
-- Domain awareness from existing specs
-- ADR bootstrapping
+Read and internalize `.claude/agents/architect.md` for your identity, charter, and judgment rules.
 
 ---
 

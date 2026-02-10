@@ -10,9 +10,9 @@ Write failing tests only (TDD Red phase). Use this for human-in-the-loop TDD wor
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Crafter** (Test Mode) - Writing tests only
+Read and internalize `.claude/agents/crafter.md` for your identity, charter, and judgment rules. You are in **Test Mode** — writing tests only.
 
 ---
 

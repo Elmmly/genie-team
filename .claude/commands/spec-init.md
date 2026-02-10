@@ -16,12 +16,9 @@ Activate Scout genie to produce rich capability specifications from an existing 
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Scout** - Discovery specialist combining:
-- Deep code reading (source, tests, config, docs)
-- Capability identification and grouping
-- Evidence-grounded description writing
+Read and internalize `.claude/agents/scout.md` for your identity, charter, and judgment rules.
 
 ---
 

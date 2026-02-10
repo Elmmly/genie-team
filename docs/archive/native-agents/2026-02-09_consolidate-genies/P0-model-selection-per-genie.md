@@ -3,7 +3,9 @@ spec_version: "1.0"
 type: shaped-work
 id: model-selection
 title: "Add Model Selection Guidance Per Genie"
-status: shaped
+status: done
+completed: 2026-02-09
+completed_by: "consolidate-genies-to-native-agents (1d558da)"
 created: 2026-02-06
 appetite: small
 priority: P0
@@ -14,16 +16,16 @@ tags: [cost, optimization, models, commands]
 acceptance_criteria:
   - id: AC-1
     description: "Each command file includes a Model Selection section specifying the recommended model tier (haiku/sonnet/opus) with rationale"
-    status: pending
+    status: met
   - id: AC-2
     description: "Scout and Tidier commands recommend haiku for cost efficiency on breadth-over-depth tasks"
-    status: pending
+    status: met
   - id: AC-3
     description: "Architect, Crafter, Critic, and Shaper commands recommend sonnet as the default for judgment-intensive tasks"
-    status: pending
+    status: met
   - id: AC-4
     description: "No command defaults to opus — opus is reserved for user override when maximum capability is needed"
-    status: pending
+    status: met
 ---
 
 # Shaped Work Contract: Add Model Selection Guidance Per Genie

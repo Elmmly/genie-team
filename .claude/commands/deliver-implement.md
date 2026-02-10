@@ -10,9 +10,9 @@ Write implementation to pass existing tests (TDD Green phase). Tests must alread
 
 ---
 
-## Genie Invoked
+## Agent Identity
 
-**Crafter** (Implementation Mode) - Writing implementation only
+Read and internalize `.claude/agents/crafter.md` for your identity, charter, and judgment rules. You are in **Implementation Mode** — writing implementation only.
 
 ---
 
