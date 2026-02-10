@@ -162,15 +162,15 @@ If Agent Teams is too unstable to complete the spike, document the blockers and 
 
 ---
 
-## Cataliva Value Context (added 2026-02-10)
+## Portfolio Orchestration Value Context (added 2026-02-10)
 
-Multi-perspective review is directly relevant to Cataliva's autonomous PDLC. When Cataliva dispatches work across a product portfolio, the `/discern` gate determines whether implementation proceeds to merge. A council pattern could improve quality gate confidence for:
+Multi-perspective review is directly relevant to autonomous PDLC workflows. When an orchestrator dispatches work across a product portfolio, the `/discern` gate determines whether implementation proceeds to merge. A council pattern could improve quality gate confidence for:
 
 - **High-stakes PRs** — Security-critical changes, public API modifications
 - **Unfamiliar codebases** — When the single Critic may lack domain context
 - **Pre-release audits** — Final review before production deployment
 
-If the spike shows the council pattern catches meaningfully more real issues, it becomes an opt-in `--council` flag on `/discern` that Cataliva can enable for specific review tiers.
+If the spike shows the council pattern catches meaningfully more real issues, it becomes an opt-in `--council` flag on `/discern` that orchestrators can enable for specific review tiers.
 
 **Priority rationale (P3 → P2):** With the backlog simplified (5 items removed), this spike is now the second most valuable item after autonomous execution readiness. Agent Teams stability is the main risk.
 

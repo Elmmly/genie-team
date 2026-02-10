@@ -53,7 +53,7 @@ Boundary: docs store WHAT the project knows; memory stores what each genie has L
 ## Key Architecture Decisions
 
 - **ADR-000**: Use ADRs for architecture decisions
-- **ADR-001**: Thin Orchestrator for Cataliva integration (spawn CLI processes, no shared runtime)
+- **ADR-001**: Thin Orchestrator for external portfolio integration (spawn CLI processes, no shared runtime)
 - **ADR-002**: Designer integrates via `/brand` commands + `brand-awareness` skill + `designer` agent
 
 ## Development Conventions
