@@ -163,7 +163,7 @@ An ADR VIOLATION does not automatically BLOCK the review, but it MUST be flagged
 > | ADR-016 | Token storage | YES | Redis-backed as specified |
 >
 > Ready for deployment
-> Next: /commit then /done docs/backlog/P2-auth-improvements.md
+> Next: /done docs/backlog/P2-auth-improvements.md
 
 /discern docs/backlog/P2-auth-improvements.md
 > Verdict: CHANGES REQUESTED

@@ -27,7 +27,7 @@ This project uses **Genie Team** - specialized AI genies for product discovery a
                                               ↓
                               /diagnose → /tidy
 
-After /discern APPROVED: /commit → /done
+/commit — anytime there are changes worth committing
 ```
 
 ---

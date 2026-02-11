@@ -27,12 +27,27 @@ Activate Critic genie to review implementation against acceptance criteria.
 
 **READ (automatic):**
 - docs/backlog/{priority}-{topic}.md (contains shaped contract + design + implementation)
+- Backlog frontmatter field `spec_ref` → load the linked spec (ACs to verify)
 - Code changes (diff)
 - Test results
 
 **RECALL:**
 - Past review patterns
 - Common issues in this area
+
+**ADR LOADING:**
+1. Check for `adr_refs` in the backlog item or design section frontmatter
+2. If present: Read each referenced ADR from `docs/decisions/`
+3. Load component diagram for the domain (if exists in `docs/architecture/components/`)
+4. If `docs/decisions/` does not exist: Note and continue. ADR compliance check is skipped.
+
+**SPEC LOADING:**
+1. Read `spec_ref` from backlog item frontmatter
+2. If `spec_ref` is present: Read the spec file. Load acceptance_criteria for verification against implementation.
+3. If `spec_ref` is missing: Warn and continue:
+   > This backlog item has no spec_ref. Review will use backlog ACs only.
+4. If `spec_ref` points to a nonexistent file: Warn and continue:
+   > spec_ref points to {path} but file not found. Review will use backlog ACs only.
 
 ---
 
@@ -41,8 +56,32 @@ Activate Critic genie to review implementation against acceptance criteria.
 **UPDATE:**
 - Backlog item: Append "# Review" section before "# End of Shaped Work Contract"
 - Backlog frontmatter: `status: implemented` → `status: reviewed`
+- **Spec (if spec_ref exists):** Update spec AC statuses and append "## Review Verdict" section (see below)
 
 > **Note:** Review content is appended directly to the backlog item rather than creating a separate analysis file.
+
+**SPEC UPDATE (when spec_ref is present):**
+
+After completing the review, update the linked spec:
+
+1. **Update acceptance_criteria statuses in frontmatter:**
+   - For each spec AC, evaluate whether the implementation satisfies it
+   - Update `status: pending` → `status: met` (if satisfied) or `status: unmet` (if not satisfied)
+   - Never remove or rewrite AC descriptions — only change the status field
+2. **Append "## Review Verdict" section** to the spec body (or update if it already exists):
+   ```markdown
+   ## Review Verdict
+   <!-- Updated by /discern on {YYYY-MM-DD} from {backlog-item-id} -->
+
+   **Verdict:** {APPROVED | CHANGES REQUESTED | BLOCKED}
+   **ACs verified:** {N}/{M} met
+
+   | AC | Status | Evidence |
+   |----|--------|----------|
+   | AC-1 | met | {brief evidence} |
+   | AC-2 | unmet | {what's missing} |
+   ```
+3. **Do NOT change spec status** — the spec stays `active` regardless of verdict
 
 ---
 
@@ -68,13 +107,37 @@ Produces a **Review Document** with clear verdict:
 ## Review Checklist
 
 Critic evaluates:
-1. Acceptance criteria met?
-2. Code quality acceptable?
-3. Test coverage sufficient?
-4. Security concerns?
-5. Performance concerns?
-6. Error handling adequate?
-7. Risks identified and mitigated?
+1. Acceptance criteria met? (backlog ACs)
+2. **Spec ACs verified?** (if spec_ref exists — each spec AC checked against implementation)
+3. Code quality acceptable?
+4. Test coverage sufficient?
+5. Security concerns?
+6. Performance concerns?
+7. Error handling adequate?
+8. Risks identified and mitigated?
+9. **ADR compliance?** (if adr_refs exist — does implementation follow each accepted decision?)
+
+---
+
+## ADR Compliance Output
+
+When `adr_refs` exist, include an ADR Compliance table in the review:
+
+```
+## ADR Compliance
+
+| ADR | Decision | Compliant? | Notes |
+|-----|----------|------------|-------|
+| ADR-001 | JWT refresh tokens | YES | Implemented as specified |
+| ADR-003 | Auth service boundary | VIOLATION | Direct DB access bypasses service |
+```
+
+Compliance verdicts:
+- **YES** — Implementation follows the accepted decision
+- **VIOLATION** — Implementation contradicts the accepted decision (flag prominently)
+- **N/A** — ADR not relevant to this implementation
+
+An ADR VIOLATION does not automatically BLOCK the review, but it MUST be flagged prominently and the reviewer should consider whether it warrants CHANGES REQUESTED.
 
 ---
 
@@ -89,13 +152,18 @@ Critic evaluates:
 > Verdict: APPROVED
 >
 > Acceptance criteria: 5/5 met
+> Spec ACs: 3/3 met
 > Code quality: Good
 > Test coverage: 87%
 > Security: Pass
 > Performance: Pass
 >
+> ADR Compliance:
+> | ADR-015 | JWT refresh strategy | YES | Refresh tokens with rotation |
+> | ADR-016 | Token storage | YES | Redis-backed as specified |
+>
 > Ready for deployment
-> Next: /commit then /done docs/backlog/P2-auth-improvements.md
+> Next: /done docs/backlog/P2-auth-improvements.md
 
 /discern docs/backlog/P2-auth-improvements.md
 > Verdict: CHANGES REQUESTED

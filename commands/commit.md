@@ -128,14 +128,14 @@ feat(api)!: remove deprecated endpoints
 ## Workflow Position
 
 ```
-/discover → /define → /design → /deliver → /discern → /commit → /done
-                                              ↓           ↓
-                                          APPROVED    git commit
+/discover → /define → /design → /deliver → /discern → /done
+                                                ↑
+                                    /commit (anytime)
 ```
 
-The `/commit` command bridges the gap between review approval and archiving:
-- Run after `/discern` returns **APPROVED**
-- Run before `/done` archives the work
+The `/commit` command is a utility available at any point in the workflow:
+- Use whenever there are changes worth committing
+- Not tied to a fixed position — can run before or after `/done`
 
 ---
 

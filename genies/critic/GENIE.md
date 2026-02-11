@@ -145,7 +145,7 @@ APPROVED — Ready for `/commit`
 
 | Verdict | Route To |
 |---------|----------|
-| APPROVED | `/commit` → `/done` |
+| APPROVED | `/done` (and `/commit` when ready) |
 | CHANGES REQUESTED | Crafter (with specific feedback) |
 | BLOCKED | Architect or Navigator |
 

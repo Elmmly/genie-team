@@ -58,9 +58,9 @@ When invoked, display the following reference:
 │                                                                 │
 ╰─────────────────────────────────────────────────────────────────╯
 
-WORKFLOW:  /discover → /define → /design → /deliver → /discern
-                                                          ↓
-FINALIZE:                                    /commit → /done
+WORKFLOW:  /discover → /define → /design → /deliver → /discern → /done
+
+UTILITY:                                        /commit (anytime)
 
 MAINTAIN:                               /diagnose → /tidy
 ```

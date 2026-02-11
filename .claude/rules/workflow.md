@@ -3,9 +3,11 @@
 ## The 7 D's Lifecycle
 
 ```
-/discover → /define → /design → /deliver → /discern → /commit → /done
+/discover → /define → /design → /deliver → /discern → /done
                                               ↓
                               /diagnose → /tidy
+
+/commit — anytime there are changes worth committing
 ```
 
 ## Command Quick Reference

@@ -14,9 +14,12 @@ Activate Critic genie to review implementation against acceptance criteria.
 
 ---
 
-## Agent Identity
+## Genie Invoked
 
-Read and internalize `.claude/agents/critic.md` for your identity, charter, and judgment rules.
+**Critic** - Reviewer combining:
+- Risk-first review approach
+- Evidence-based decisions
+- Clear verdict authority
 
 ---
 
@@ -160,7 +163,7 @@ An ADR VIOLATION does not automatically BLOCK the review, but it MUST be flagged
 > | ADR-016 | Token storage | YES | Redis-backed as specified |
 >
 > Ready for deployment
-> Next: /commit then /done docs/backlog/P2-auth-improvements.md
+> Next: /done docs/backlog/P2-auth-improvements.md
 
 /discern docs/backlog/P2-auth-improvements.md
 > Verdict: CHANGES REQUESTED

@@ -465,7 +465,9 @@ create_claude_md() {
 
 ### The 7 D's Lifecycle
 ```
-/discover → /define → /design → /deliver → /discern → /commit → /done
+/discover → /define → /design → /deliver → /discern → /done
+
+/commit — anytime there are changes worth committing
 ```
 
 ## Git Workflow
@@ -593,7 +595,8 @@ cmd_global() {
     log_success "Global installation complete!"
     echo ""
     echo "Available:"
-    echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /commit, /done"
+    echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /done"
+    echo "  Utility:    /commit (anytime)"
     echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
     echo "  Brand:      /brand, /brand:image, /brand:tokens"
     echo "  Maintain:   /diagnose, /tidy"
@@ -754,7 +757,8 @@ cmd_project() {
     echo "  docs/specs/          — Product specifications by domain"
     echo ""
     echo "Available:"
-    echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /commit, /done"
+    echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /done"
+    echo "  Utility:    /commit (anytime)"
     echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
     echo "  Brand:      /brand, /brand:image, /brand:tokens"
     echo "  Maintain:   /diagnose, /tidy"

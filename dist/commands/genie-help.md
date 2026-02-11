@@ -31,6 +31,14 @@ When invoked, display the following reference:
 │  /spike [question]     Research: discover → feasibility         │
 │  /cleanup [scope]      Maintenance: diagnose → tidy             │
 │                                                                 │
+│  SPECS                                                          │
+│  ─────                                                          │
+│  /spec:init [scope]    Bootstrap specs from existing project    │
+│                                                                 │
+│  ARCHITECTURE                                                   │
+│  ────────────                                                   │
+│  /arch:init            Bootstrap ADRs and C4 diagrams           │
+│                                                                 │
 │  CONTEXT                                                        │
 │  ───────                                                        │
 │  /context:load         Initialize session with project context  │
@@ -50,9 +58,9 @@ When invoked, display the following reference:
 │                                                                 │
 ╰─────────────────────────────────────────────────────────────────╯
 
-WORKFLOW:  /discover → /define → /design → /deliver → /discern
-                                                          ↓
-FINALIZE:                                    /commit → /done
+WORKFLOW:  /discover → /define → /design → /deliver → /discern → /done
+
+UTILITY:                                        /commit (anytime)
 
 MAINTAIN:                               /diagnose → /tidy
 ```
