@@ -19,6 +19,7 @@ Desktop.ini
 .claude/settings.*
 .claude/statsig/
 .claude/agent-memory/
+.claude/session-state.md
 
 # Environment and local config
 .env

@@ -34,6 +34,7 @@ Options:
   --agents            Install agents only
   --genies            Install genie specs only (project only)
   --schemas           Install schemas only
+  --hooks             Install hooks only (context re-injection)
   --mcp               Install MCP server only (imagegen for Designer genie)
   --all               Install everything (default, includes MCP)
   --skip-mcp          Skip MCP server installation
@@ -338,6 +339,109 @@ install_genies() {
     fi
 }
 
+# Merge hook configuration into a settings file
+merge_hook_config() {
+    local settings_file="$1"
+    local cmd_prefix="$2"
+
+    local hook_config
+    hook_config=$(cat << HOOKJSON
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${cmd_prefix}/track-command.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${cmd_prefix}/track-artifacts.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${cmd_prefix}/reinject-context.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+HOOKJSON
+)
+
+    if ! command -v jq &>/dev/null; then
+        log_warn "jq not found — cannot merge hook configuration"
+        log_info "Add hooks configuration manually to $settings_file"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$settings_file")"
+
+    if [[ -f "$settings_file" ]]; then
+        local merged
+        merged=$(jq --argjson hooks "$(echo "$hook_config" | jq '.hooks')" \
+            '.hooks = (.hooks // {}) * $hooks' "$settings_file")
+        echo "$merged" > "$settings_file"
+        log_success "Merged hook config into $(basename "$settings_file")"
+    else
+        echo "$hook_config" | jq '.' > "$settings_file"
+        log_success "Created $(basename "$settings_file") with hook config"
+    fi
+}
+
+# Install hooks (scripts + settings configuration)
+install_hooks() {
+    local hooks_dest="$1"
+    local settings_file="$2"
+    local cmd_prefix="$3"
+    local force="$4"
+
+    if [[ ! -d "$SCRIPT_DIR/.claude/hooks" ]]; then
+        log_warn "Source hooks not found: $SCRIPT_DIR/.claude/hooks"
+        return 1
+    fi
+
+    mkdir -p "$hooks_dest"
+    local count=0
+
+    for script in "$SCRIPT_DIR/.claude/hooks"/*.sh; do
+        if [[ -f "$script" ]]; then
+            local filename=$(basename "$script")
+            local target_file="$hooks_dest/$filename"
+
+            if [[ -f "$target_file" && "$force" != "true" ]]; then
+                log_warn "Skipping hooks/$filename (exists)"
+            else
+                cp "$script" "$target_file"
+                chmod +x "$target_file"
+                ((count++))
+            fi
+        fi
+    done
+
+    if [[ $count -gt 0 ]]; then
+        log_success "Installed $count hook scripts"
+    fi
+
+    merge_hook_config "$settings_file" "$cmd_prefix"
+}
+
 # Create CLAUDE.md template
 create_claude_md() {
     local target="$1"
@@ -395,6 +499,7 @@ cmd_global() {
     local install_rules="false"
     local install_agents="false"
     local install_schemas="false"
+    local install_hooks_flag="false"
     local install_mcp="false"
     local skip_mcp="false"
     local install_all="true"
@@ -409,6 +514,7 @@ cmd_global() {
             --rules) install_rules="true"; install_all="false" ;;
             --agents) install_agents="true"; install_all="false" ;;
             --schemas) install_schemas="true"; install_all="false" ;;
+            --hooks) install_hooks_flag="true"; install_all="false" ;;
             --mcp) install_mcp="true"; install_all="false" ;;
             --skip-mcp) skip_mcp="true" ;;
             --all) install_all="true" ;;
@@ -431,6 +537,8 @@ cmd_global() {
             log_info "[DRY RUN] Would install agents"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas"
+        [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
+            log_info "[DRY RUN] Would install hooks"
         if [[ "$skip_mcp" != "true" ]]; then
             [[ "$install_all" == "true" || "$install_mcp" == "true" ]] && \
                 install_mcp_server "user" "$force" "true"
@@ -452,6 +560,8 @@ cmd_global() {
             clean_dir "$GLOBAL_CLAUDE_DIR/agents" "agents" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_dir "$GLOBAL_CLAUDE_DIR/schemas" "schemas" "$dry_run"
+        [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
+            clean_dir "$GLOBAL_CLAUDE_DIR/hooks" "hooks" "$dry_run"
     fi
 
     [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
@@ -468,6 +578,10 @@ cmd_global() {
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$GLOBAL_CLAUDE_DIR/schemas" "$force"
+
+    # Hooks installation (scripts + settings merge)
+    [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
+        install_hooks "$GLOBAL_CLAUDE_DIR/hooks" "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/hooks" "$force"
 
     # MCP server installation (scope: user = available to all projects)
     if [[ "$skip_mcp" != "true" ]]; then
@@ -493,6 +607,7 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
+    echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }
 
@@ -507,6 +622,7 @@ cmd_project() {
     local install_agents="false"
     local install_genies="false"
     local install_schemas="false"
+    local install_hooks_flag="false"
     local install_mcp="false"
     local skip_mcp="false"
     local install_all="true"
@@ -522,6 +638,7 @@ cmd_project() {
             --agents) install_agents="true"; install_all="false" ;;
             --genies) install_genies="true"; install_all="false"; log_warn "DEPRECATED: --genies flag is deprecated. Genies are now consolidated into agents/. Use --agents instead." ;;
             --schemas) install_schemas="true"; install_all="false" ;;
+            --hooks) install_hooks_flag="true"; install_all="false" ;;
             --mcp) install_mcp="true"; install_all="false" ;;
             --skip-mcp) skip_mcp="true" ;;
             --all) install_all="true" ;;
@@ -554,6 +671,8 @@ cmd_project() {
             log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/ (DEPRECATED)"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas to $project_path/schemas/"
+        [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
+            log_info "[DRY RUN] Would install hooks to $claude_dir/hooks/"
         if [[ "$skip_mcp" != "true" ]]; then
             [[ "$install_all" == "true" || "$install_mcp" == "true" ]] && \
                 install_mcp_server "local" "$force" "true"
@@ -577,6 +696,8 @@ cmd_project() {
             clean_dir "$claude_dir/genies" "genies" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_dir "$project_path/schemas" "schemas" "$dry_run"
+        [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
+            clean_dir "$claude_dir/hooks" "hooks" "$dry_run"
     fi
 
     [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
@@ -596,6 +717,10 @@ cmd_project() {
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$project_path/schemas" "$force"
+
+    # Hooks installation (scripts + settings merge)
+    [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
+        install_hooks "$claude_dir/hooks" "$claude_dir/settings.local.json" ".claude/hooks" "$force"
 
     # MCP server installation (scope: local = project-private)
     if [[ "$skip_mcp" != "true" ]]; then
@@ -643,6 +768,7 @@ cmd_project() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
+    echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }
 
@@ -653,9 +779,9 @@ cmd_status() {
     echo ""
 
     echo "Global (~/.claude/):"
-    for dir in commands skills rules agents schemas; do
+    for dir in commands skills rules agents schemas hooks; do
         if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
-            local count=$(find "$GLOBAL_CLAUDE_DIR/$dir" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+            local count=$(find "$GLOBAL_CLAUDE_DIR/$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"
         else
             echo "  $dir: not installed"
@@ -668,9 +794,9 @@ cmd_status() {
 
     echo ""
     echo "Project (./.claude/ and ./schemas/):"
-    for dir in commands skills rules agents; do
+    for dir in commands skills rules agents hooks; do
         if [[ -d "./.claude/$dir" ]]; then
-            local count=$(find "./.claude/$dir" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
+            local count=$(find "./.claude/$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"
         else
             echo "  $dir: not installed"
@@ -716,7 +842,7 @@ cmd_uninstall() {
     case "$target" in
         global)
             log_info "Removing global installation..."
-            for dir in commands skills rules agents schemas agent-memory; do
+            for dir in commands skills rules agents schemas hooks agent-memory; do
                 if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
                     rm -rf "$GLOBAL_CLAUDE_DIR/$dir"
                     log_success "Removed $dir"
@@ -735,7 +861,7 @@ cmd_uninstall() {
             ;;
         project)
             log_info "Removing project installation..."
-            for dir in commands skills rules agents genies; do
+            for dir in commands skills rules agents hooks genies; do
                 if [[ -d "./.claude/$dir" ]]; then
                     rm -rf "./.claude/$dir"
                     log_success "Removed $dir"
