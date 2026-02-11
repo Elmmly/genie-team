@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: shaped-work
 id: autonomous-execution-readiness
 title: "Autonomous Execution Readiness for Portfolio Orchestration"
-status: designed
+status: implemented
 created: 2026-02-10
 appetite: small
 priority: P1
@@ -536,6 +536,34 @@ After implementation:
 ## 9. Diagram Updates
 
 **No C4 diagram changes.** This design adds rules and documentation — it does not introduce new containers, components, or relationships. The existing L1 (system-context) and L2 (containers) diagrams already show the orchestrator → genie-team → target repo flow per ADR-001.
+
+---
+
+# Implementation
+
+## Deliverables Created
+
+| # | Artifact | Location | AC |
+|---|----------|----------|-----|
+| 1 | Autonomous Execution Rules | `.claude/rules/autonomous-execution.md` | AC-1 |
+| 2 | CLI Contract | `docs/architecture/cli-contract.md` | AC-2, AC-3, AC-4 |
+
+## Implementation Notes
+
+- **No TDD phase:** Both deliverables are pure markdown documentation — no code to test.
+- **Rules source location:** `.claude/rules/autonomous-execution.md` (not a separate `rules/` directory). The design referenced `rules/autonomous-execution.md` as source, but the actual project pattern keeps rules in `.claude/rules/` directly. `install.sh` copies from `$SCRIPT_DIR/.claude/rules` to destination.
+- **Design change applied:** Streaming conventions and completion signal convention merged into CLI contract per design section 2.2.
+- **CLI contract frontmatter:** Added standard architecture doc frontmatter (`type`, `adr_refs`, `backlog_ref`, `tags`) consistent with existing `system-context.md` and `containers.md`.
+- **Content faithfulness:** Both files follow the design specification in section 2. No additions or omissions beyond formatting for readability (tables instead of inline text where appropriate).
+
+## Files Created
+
+- `.claude/rules/autonomous-execution.md` — Branch naming, PR convention, commit attribution, workspace boundaries
+- `docs/architecture/cli-contract.md` — Invocation patterns (batch/streaming/session), streaming conventions, tool allowlisting, cost controls, exit codes, output parsing, artifact locations, completion detection, full lifecycle example
+
+## Verification
+
+- `./install.sh project --rules --dry-run` confirms the new rules file is detected for installation.
 
 ---
 

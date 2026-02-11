@@ -105,6 +105,15 @@ The `/deliver` command enforces TDD:
 
 ---
 
+## Git Workflow
+
+<!-- Genie-team defaults to PR mode: feature branches + pull requests.
+     To use trunk-based development instead, uncomment the line below. -->
+
+<!-- trunk-based -->
+
+---
+
 ## Project Context
 
 ### Overview
