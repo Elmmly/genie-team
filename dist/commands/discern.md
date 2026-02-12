@@ -180,7 +180,7 @@ An ADR VIOLATION does not automatically BLOCK the review, but it MUST be flagged
 ## Routing
 
 After review:
-- **APPROVED**: Run `/commit` to commit, then `/done` to archive
+- **APPROVED**: `/done` to archive (use `/commit` anytime for checkpoints)
 - **CHANGES REQUESTED**: Route to Crafter, schedule re-review
 - **BLOCKED**: Escalate to Architect or Navigator
 

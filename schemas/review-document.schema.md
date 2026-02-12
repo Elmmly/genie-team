@@ -59,7 +59,7 @@ Each item in `acceptance_criteria`:
 
 | Verdict | Meaning | Routing |
 |---------|---------|---------|
-| `APPROVED` | All critical issues resolved, ACs met | `/commit` then `/done` |
+| `APPROVED` | All critical issues resolved, ACs met | `/done` to archive |
 | `CHANGES_REQUESTED` | Non-blocking issues need fixes | Back to Crafter |
 | `BLOCKED` | Critical issue prevents merge | Escalate to Architect/Navigator |
 

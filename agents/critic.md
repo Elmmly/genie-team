@@ -276,7 +276,7 @@ After each review, update your MEMORY.md with observations that help future revi
 
 | Verdict | Route To |
 |---------|----------|
-| APPROVED | `/commit` then `/done` |
+| APPROVED | `/done` to archive |
 | CHANGES REQUESTED | Crafter (with specific feedback) |
 | BLOCKED | Architect or Navigator |
 
