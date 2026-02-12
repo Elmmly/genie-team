@@ -18,4 +18,3 @@ components:
 ---
 
 # No spec_version — should fail design validation
-

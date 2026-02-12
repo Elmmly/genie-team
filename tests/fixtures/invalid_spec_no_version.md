@@ -12,4 +12,3 @@ acceptance_criteria:
 ---
 
 # No spec_version — should fail validation
-

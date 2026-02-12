@@ -6,7 +6,6 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 
 errors=0
@@ -53,7 +52,7 @@ for file in "$@"; do
             while IFS= read -r line; do
                 # yamllint output format: "stdin:LINE:COL: [severity] message"
                 if [[ "$line" =~ ^stdin:([0-9]+):(.*)$ ]]; then
-                    orig_line=$(( ${BASH_REMATCH[1]} + frontmatter_start - 1 ))
+                    orig_line=$(( BASH_REMATCH[1] + frontmatter_start - 1 ))
                     echo "[TIER-1] $file:$orig_line:${BASH_REMATCH[2]}" >&2
                 elif [[ "$line" =~ ^[[:space:]] ]]; then
                     echo "  $line" >&2

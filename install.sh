@@ -891,7 +891,7 @@ cmd_uninstall() {
             log_info "Removing global installation..."
             for dir in commands skills rules agents schemas hooks agent-memory; do
                 if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
-                    rm -rf "$GLOBAL_CLAUDE_DIR/$dir"
+                    rm -rf "${GLOBAL_CLAUDE_DIR:?}/$dir"
                     log_success "Removed $dir"
                 fi
             done

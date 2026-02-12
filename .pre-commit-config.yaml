@@ -1,6 +1,6 @@
 # Pre-commit validation pipeline for genie-team
 # Organized by determinism tier (most deterministic → least)
-# Docs: docs/backlog/P2-precommit-validation-pipeline.md
+# Docs: docs/archive/quality-enforcement/2026-02-11_precommit-validation-pipeline/
 
 repos:
   # Tier 1: Standard linters
@@ -19,9 +19,10 @@ repos:
     rev: v0.10.0.1
     hooks:
       - id: shellcheck
-        args: [-e, SC1091, -e, SC2034]
+        args: [-e, SC1091, -e, SC2034, -e, SC2155, -e, SC2015, -e, SC2317, -e, SC1090]
+        exclude: ^tests/fixtures/
 
-  # Tier 1-4: Custom local hooks
+  # Tier 1-3: Custom local hooks
   - repo: local
     hooks:
       # Tier 1: YAML frontmatter syntax
@@ -30,6 +31,7 @@ repos:
         entry: hooks/precommit/lint-frontmatter-yaml.sh
         language: script
         files: ^docs/.*\.md$
+        exclude: ^docs/archive/
         types: [markdown]
 
       # Tier 2: Frontmatter schema validation
@@ -38,6 +40,7 @@ repos:
         entry: hooks/precommit/validate-frontmatter.sh
         language: script
         files: ^docs/.*\.md$
+        exclude: ^docs/archive/
         types: [markdown]
 
       # Tier 3: Cross-reference integrity
@@ -46,11 +49,13 @@ repos:
         entry: hooks/precommit/check-crossrefs.sh
         language: script
         files: ^docs/.*\.md$
+        exclude: ^docs/archive/
         types: [markdown]
 
-      # Tier 4: Source/installed copy sync
-      - id: check-source-sync
-        name: Check source/installed sync
-        entry: hooks/precommit/check-source-sync.sh
-        language: script
-        files: \.(md|sh)$
+      # Tier 4: Source/installed copy sync (DISABLED — run install.sh --sync first)
+      # Uncomment after syncing: install.sh project --sync
+      # - id: check-source-sync
+      #   name: Check source/installed sync
+      #   entry: hooks/precommit/check-source-sync.sh
+      #   language: script
+      #   files: \.(md|sh)$

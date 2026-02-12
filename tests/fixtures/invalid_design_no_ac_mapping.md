@@ -15,4 +15,3 @@ components:
 ---
 
 # No ac_mapping — should fail design validation
-

@@ -5,7 +5,7 @@ updated: 2026-02-10
 updated_by: "/deliver P1-autonomous-execution-readiness"
 adr_refs:
   - docs/decisions/ADR-001-thin-orchestrator.md
-backlog_ref: docs/backlog/P1-autonomous-execution-readiness.md
+backlog_ref: docs/archive/orchestration/2026-02-11_autonomous-execution-readiness/P1-autonomous-execution-readiness.md
 tags: [orchestration, cli, contract, streaming, portfolio]
 ---
 

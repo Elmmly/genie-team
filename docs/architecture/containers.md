@@ -5,7 +5,7 @@ level: 2
 title: "Container Diagram - Genie Team"
 updated: 2026-02-05
 updated_by: "/design"
-backlog_ref: docs/backlog/P1-designer-genie.md
+backlog_ref: docs/archive/designer/2026-02-05_designer-genie/P1-designer-genie.md
 adr_refs:
   - docs/decisions/ADR-002-designer-integration-commands-plus-skill.md
 tags: [overview, containers]

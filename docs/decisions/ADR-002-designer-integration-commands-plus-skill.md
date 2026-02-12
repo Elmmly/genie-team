@@ -9,7 +9,7 @@ deciders: [architect]
 domain: genies
 spec_refs:
   - docs/specs/genies/designer.md
-backlog_ref: docs/backlog/P1-designer-genie.md
+backlog_ref: docs/archive/designer/2026-02-05_designer-genie/P1-designer-genie.md
 tags: [designer, brand, integration, skill, commands]
 ---
 

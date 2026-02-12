@@ -30,7 +30,7 @@ find_source() {
         local source_prefix="${mapping#*:}"
 
         if [[ "$file" == ${installed_prefix}* ]]; then
-            local relative="${file#$installed_prefix}"
+            local relative="${file#"$installed_prefix"}"
             echo "${source_prefix}${relative}"
             return 0
         fi
