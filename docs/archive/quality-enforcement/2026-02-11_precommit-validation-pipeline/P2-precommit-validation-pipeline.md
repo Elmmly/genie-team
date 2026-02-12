@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: shaped-work
 id: precommit-validation-pipeline
 title: "Pre-commit Validation Pipeline by Determinism Tier"
-status: reviewed
+status: done
 created: 2026-02-11
 appetite: medium
 priority: P2
