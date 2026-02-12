@@ -61,3 +61,56 @@ Where `{Genie Name}` is the active genie (e.g., "Crafter", "Architect").
 - Do not modify files in parent directories
 - Do not access other repositories
 - Clean up any temporary files created during execution
+
+## Parallel Sessions via Git Worktrees
+
+When `worktree-enabled` is present (uncommented) in the project's CLAUDE.md
+`## Parallel Sessions` section, these conventions apply.
+
+### Worktree Detection
+
+```bash
+# Returns 0 if running in a worktree, 1 if in main working tree
+git_dir="$(git rev-parse --git-dir)"
+git_common="$(git rev-parse --git-common-dir)"
+[[ "$git_dir" != "$git_common" ]]  # true = worktree
+```
+
+### Safety Rules
+
+- NEVER force-push or delete a branch checked out in another worktree
+  (run `git worktree list` before destructive branch operations)
+- NEVER modify files outside the current worktree directory
+- Be aware that `main`/`master` is likely checked out in the main worktree —
+  do not reset, rebase, or force-push it
+- Do NOT attempt to check out a branch that another worktree is using
+  (git enforces this, but genies should not retry or work around the error)
+- Treat merge conflicts from parallel worktree merges as expected —
+  resolve them, don't force-overwrite
+
+### Worktree Branch Convention
+
+- Worktree branches follow PR mode naming: `genie/{backlog-item-id}-{phase}`
+- Each worktree operates on exactly one backlog item in one phase
+- When the phase completes, the worktree's branch is merged/PR'd and the
+  worktree is removed
+
+### Human-Led Parallel Sessions
+
+For human-led (interactive) sessions, parallel work uses separate terminals:
+
+1. Create a worktree: `git worktree add ../project--session -b genie/P1-item-deliver`
+2. Open a new terminal, `cd` into the worktree
+3. Run `claude` interactively
+
+The human is the orchestrator — they manage terminal windows and decide when
+to merge. No in-session dispatch machinery needed.
+
+### Orchestrator-Driven Parallel Sessions
+
+For headless orchestrators, dispatch via CLI contract:
+
+1. Create worktree per job
+2. Spawn `claude -p` per worktree (see cli-contract.md)
+3. Monitor via `--output-format stream-json`
+4. Clean up worktrees after completion

@@ -65,6 +65,22 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 MCP_SERVER_NAME="imagegen"
 MCP_SERVER_PKG="@fastmcp-me/imagegen-mcp"
 
+# Detect if running inside a git worktree (not the main working tree)
+detect_worktree() {
+    local git_dir git_common_dir
+    git_dir="$(git rev-parse --git-dir 2>/dev/null)" || return 1
+    git_common_dir="$(git rev-parse --git-common-dir 2>/dev/null)" || return 1
+    [[ "$git_dir" != "$git_common_dir" ]]
+}
+
+# Get the main worktree path from inside any worktree (or main tree)
+get_main_worktree() {
+    local common_dir
+    common_dir="$(git rev-parse --git-common-dir 2>/dev/null)" || return 1
+    # common-dir is the .git/ dir; parent is the main worktree
+    dirname "$(cd "$common_dir" && pwd)"
+}
+
 # Check if claude CLI is available
 check_claude_cli() {
     command -v claude &>/dev/null
@@ -659,7 +675,20 @@ cmd_project() {
     project_path="$(cd "$project_path" && pwd)"
     local claude_dir="$project_path/.claude"
 
+    # Detect worktree context
+    local is_worktree="false"
+    local main_worktree=""
+    if (cd "$project_path" && detect_worktree) 2>/dev/null; then
+        is_worktree="true"
+        main_worktree="$(cd "$project_path" && get_main_worktree)"
+    fi
+
+    # MCP scope: user in worktrees (shared across sessions), local otherwise (project-private)
+    local mcp_scope="local"
+    [[ "$is_worktree" == "true" ]] && mcp_scope="user"
+
     log_info "Installing Genie Team to $project_path/"
+    [[ "$is_worktree" == "true" ]] && log_info "Worktree detected (main: $main_worktree)"
     [[ "$sync" == "true" ]] && log_info "Sync mode: will remove obsolete files"
 
     if [[ "$dry_run" == "true" ]]; then
@@ -679,7 +708,7 @@ cmd_project() {
             log_info "[DRY RUN] Would install hooks to $claude_dir/hooks/"
         if [[ "$skip_mcp" != "true" ]]; then
             [[ "$install_all" == "true" || "$install_mcp" == "true" ]] && \
-                install_mcp_server "local" "$force" "true"
+                install_mcp_server "$mcp_scope" "$force" "true"
         fi
         [[ "$sync" == "true" ]] && \
             log_info "[DRY RUN] Would clean directories before installing"
@@ -726,10 +755,10 @@ cmd_project() {
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
         install_hooks "$claude_dir/hooks" "$claude_dir/settings.local.json" ".claude/hooks" "$force"
 
-    # MCP server installation (scope: local = project-private)
+    # MCP server installation (scope determined above: user for worktrees, local otherwise)
     if [[ "$skip_mcp" != "true" ]]; then
         [[ "$install_all" == "true" || "$install_mcp" == "true" ]] && \
-            install_mcp_server "local" "$force" "false"
+            install_mcp_server "$mcp_scope" "$force" "false"
     fi
 
     # Create project structure
@@ -740,6 +769,19 @@ cmd_project() {
         mkdir -p "$project_path/docs/specs"
         mkdir -p "$project_path/docs/architecture/components"
         create_claude_md "$project_path/CLAUDE.md" "$force"
+    fi
+
+    # Worktree: symlink genie memory to main worktree (shared learning)
+    if [[ "$is_worktree" == "true" && -n "$main_worktree" ]]; then
+        local main_memory="$main_worktree/.claude/agent-memory"
+        local wt_memory="$claude_dir/agent-memory"
+        if [[ -d "$main_memory" && ! -L "$wt_memory" && ! -d "$wt_memory" ]]; then
+            mkdir -p "$claude_dir"
+            ln -sf "$main_memory" "$wt_memory"
+            log_success "Linked genie memory to main worktree"
+        elif [[ -L "$wt_memory" ]]; then
+            log_info "Genie memory symlink already exists"
+        fi
     fi
 
     echo ""
@@ -987,6 +1029,11 @@ cmd_prehook() {
     echo ""
     echo "Bypass: git commit --no-verify"
 }
+
+# Support sourcing for tests (skip main dispatch)
+if [[ "${INSTALL_SOURCED:-}" == "true" ]]; then
+    return 0 2>/dev/null || true
+fi
 
 # Main
 case "${1:-}" in

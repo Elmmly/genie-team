@@ -2,7 +2,7 @@
 type: discover
 concept: execution
 enhancement: worker-based-repo-execution
-status: active
+status: completed
 created: 2026-02-04
 ---
 

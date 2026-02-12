@@ -112,6 +112,23 @@ The `/deliver` command enforces TDD:
 
 <!-- trunk-based -->
 
+## Parallel Sessions
+
+<!-- Genie-team supports parallel sessions via git worktrees.
+     Each session operates in its own worktree directory on a separate branch.
+     To enable worktree-aware safety rules, uncomment the line below. -->
+
+<!-- worktree-enabled -->
+
+<!-- Setup:
+     git worktree add ../project--session-name -b genie/P1-item-deliver
+     cd ../project--session-name
+     claude
+
+     Cleanup:
+     git worktree remove ../project--session-name
+-->
+
 ---
 
 ## Project Context

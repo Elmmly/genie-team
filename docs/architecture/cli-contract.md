@@ -66,6 +66,34 @@ claude -p "/design docs/backlog/P1-auth.md" \
   --resume "$session" --output-format json
 ```
 
+### Parallel Invocation via Worktrees
+
+For running multiple jobs concurrently on the same repository:
+
+```bash
+# Create a worktree per job (each on a unique branch)
+git worktree add "../${repo}--${job_id}" -b "genie/${backlog_id}-${phase}"
+
+# Launch Claude session in the worktree directory
+cd "../${repo}--${job_id}"
+claude -p "/deliver docs/backlog/${backlog_id}.md" \
+  --output-format stream-json \
+  --max-turns 100
+
+# After job completes: merge/PR, then clean up
+cd ..
+git worktree remove "${repo}--${job_id}"
+```
+
+Each worktree has its own working directory, branch, and index.
+No coordination needed between parallel sessions — git's branch-per-worktree
+constraint prevents conflicts. Genie-team's PR mode branch naming
+(`genie/{item}-{phase}`) produces unique branches naturally.
+
+Note: `--resume` does not work across worktrees (different project paths).
+Each worktree session is independent. Cross-session context transfers via
+the document trail (`docs/`).
+
 ---
 
 ## Streaming Conventions
