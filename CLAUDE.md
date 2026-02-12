@@ -21,6 +21,7 @@ genie-team/
 ├── .claude/
 │   ├── commands/        # Installed command definitions
 │   ├── skills/          # Automatic behavior skills
+│   ├── hooks/           # Context re-injection scripts (compaction recovery)
 │   └── rules/           # Always-on constraints
 ├── dist/                # Built/distributable commands
 ├── install.sh           # Installation script
@@ -59,7 +60,7 @@ Boundary: docs store WHAT the project knows; memory stores what each genie has L
 ## Development Conventions
 
 - This is a **prompt engineering** project — the primary artifacts are markdown files, not application code
-- `install.sh` copies commands, agents, skills, rules, and schemas to target `.claude/` directories
+- `install.sh` copies commands, agents, skills, rules, hooks, and schemas to target `.claude/` directories
 - No build step — all artifacts are markdown/YAML prompt definitions
 - Image generation uses `@fastmcp-me/imagegen-mcp` with Gemini models (see `.claude/rules/mcp-integration.md`)
 - Always check `docs/analysis/` for spike results before starting related work

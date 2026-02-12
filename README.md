@@ -25,20 +25,30 @@
 |-----------|---------|----------|
 | **Commands** | Slash commands (`/discover`, `/deliver`, etc.) | `.claude/commands/` |
 | **Genies** | Genie definitions (native Claude Code agent format) with per-genie model, tools, and memory | `.claude/agents/` |
-| **Skills** | Automatic behaviors (TDD, code quality, brand) | `.claude/skills/` |
-| **Rules** | Always-on constraints | `.claude/rules/` |
-| **Schemas** | Document format definitions | `schemas/` |
+| **Skills** | Automatic behaviors (TDD, code quality, brand awareness, etc.) | `.claude/skills/` |
+| **Rules** | Always-on constraints (workflow, code quality, agent conventions) | `.claude/rules/` |
+| **Schemas** | Document format definitions (ADR, spec, shaped contract, etc.) | `schemas/` |
+| **Hooks** | Context re-injection on compaction (preserves context across long sessions) | `.claude/hooks/` |
 | **MCP** | Image generation server (Designer genie) | Via `claude mcp add` |
 
 ### Install Options
 
 ```bash
-./install.sh global --commands    # Commands only
-./install.sh global --skills      # Skills only (automatic behaviors)
-./install.sh global --mcp         # MCP server only (imagegen)
-./install.sh project --skip-mcp   # Everything except MCP
-./install.sh project --force      # Re-install/upgrade
-./install.sh project --dry-run    # Preview changes
+./install.sh global                  # Full global install (includes MCP)
+./install.sh global --commands       # Commands only
+./install.sh global --skills         # Skills only (automatic behaviors)
+./install.sh global --agents         # Agents only
+./install.sh global --rules          # Rules only
+./install.sh global --hooks          # Hooks only (context re-injection)
+./install.sh global --schemas        # Schemas only
+./install.sh global --mcp            # MCP server only (imagegen)
+./install.sh project /path/to/app    # Full project install
+./install.sh project --skip-mcp      # Everything except MCP
+./install.sh project --force         # Re-install/upgrade (overwrite existing)
+./install.sh project --sync          # Clean install (removes obsolete files)
+./install.sh project --dry-run       # Preview changes
+./install.sh prehook /path/to/app    # Install pre-commit hooks (standalone)
+./install.sh uninstall               # Remove genie-team installation
 ```
 
 ## The Genies
@@ -98,15 +108,56 @@ Each genie is implemented as a native Claude Code agent (`.claude/agents/{name}.
 - `/genie:help` - Show all commands
 - `/genie:status` - Show current work status
 
+## Skills (Automatic Behaviors)
+
+Skills activate automatically based on context — no explicit invocation needed.
+
+| Skill | Activates When |
+|-------|----------------|
+| **tdd-discipline** | Writing code, implementing features, fixing bugs |
+| **code-quality** | Implementing features, editing code, refactoring |
+| **conventional-commits** | Committing code, creating git commits |
+| **problem-first** | Defining work, feature requests, "we should add..." |
+| **pattern-enforcement** | Designing systems, reviewing code structure |
+| **spec-awareness** | Loading context, starting features, discussing specs |
+| **architecture-awareness** | Discussing architecture, ADRs, C4 diagrams |
+| **brand-awareness** | Working with brand guides, design tokens, visual identity |
+
+## Parallel Sessions
+
+Multiple genie-team sessions can work on the same repository simultaneously using git worktrees. Each session operates in its own worktree directory on a separate branch.
+
+```bash
+# Create a worktree for parallel work
+git worktree add ../myproject--auth -b genie/P1-auth-deliver
+cd ../myproject--auth
+
+# Install genie-team (auto-detects worktree context)
+/path/to/genie-team/install.sh project .
+
+# Work in parallel — each worktree has its own branch, index, and files
+claude
+
+# Clean up when done
+git worktree remove ../myproject--auth
+```
+
+Worktree-aware behaviors:
+- **MCP scope** switches to `user` (shared across sessions) instead of `local`
+- **Genie memory** is symlinked to the main worktree (shared learning)
+- **Safety rules** prevent destructive operations that affect sibling worktrees
+- Enable in your project's CLAUDE.md by uncommenting `<!-- worktree-enabled -->`
+
 ## Structure
 
 ```
 genie-team/
 ├── .claude/
-│   ├── commands/        # Slash command definitions
+│   ├── commands/        # Slash command definitions (installed to target)
 │   ├── skills/          # Automatic behavior skills
+│   ├── hooks/           # Context re-injection scripts (compaction recovery)
 │   └── rules/           # Always-on constraints
-├── agents/              # Genie definitions in native agent format (copied to .claude/agents/ on install)
+├── agents/              # Genie definitions in native agent format (→ .claude/agents/)
 │   ├── scout.md         # Discovery specialist (haiku, read-only)
 │   ├── shaper.md        # Problem framer (sonnet, read-only)
 │   ├── architect.md     # Technical designer (sonnet, read-only)
@@ -114,9 +165,11 @@ genie-team/
 │   ├── critic.md        # Code reviewer (sonnet, read-only)
 │   ├── tidier.md        # Cleanup specialist (haiku, read-only)
 │   └── designer.md      # Brand strategist (sonnet, read-only)
-├── schemas/             # Document format schemas
+├── genies/              # Genie specs, system prompts, and templates per genie
+├── schemas/             # Document format schemas (ADR, spec, brand-spec, etc.)
 ├── templates/           # Project templates (CLAUDE.md)
 ├── tests/               # Test suite
+├── dist/                # Built/distributable commands
 └── install.sh           # Installation script
 ```
 
@@ -183,4 +236,4 @@ The "genie" framing for AI coding assistants comes from Beck's writing on his [T
 
 ---
 
-Last updated: 2026-02-10
+Last updated: 2026-02-12
