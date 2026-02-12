@@ -1,0 +1,56 @@
+# Pre-commit validation pipeline for genie-team
+# Organized by determinism tier (most deterministic → least)
+# Docs: docs/backlog/P2-precommit-validation-pipeline.md
+
+repos:
+  # Tier 1: Standard linters
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+        exclude: ^docs/
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
+    hooks:
+      - id: shellcheck
+        args: [-e, SC1091, -e, SC2034]
+
+  # Tier 1-4: Custom local hooks
+  - repo: local
+    hooks:
+      # Tier 1: YAML frontmatter syntax
+      - id: lint-frontmatter-yaml
+        name: Lint YAML frontmatter
+        entry: hooks/precommit/lint-frontmatter-yaml.sh
+        language: script
+        files: ^docs/.*\.md$
+        types: [markdown]
+
+      # Tier 2: Frontmatter schema validation
+      - id: validate-frontmatter
+        name: Validate frontmatter schema
+        entry: hooks/precommit/validate-frontmatter.sh
+        language: script
+        files: ^docs/.*\.md$
+        types: [markdown]
+
+      # Tier 3: Cross-reference integrity
+      - id: check-crossrefs
+        name: Check cross-references
+        entry: hooks/precommit/check-crossrefs.sh
+        language: script
+        files: ^docs/.*\.md$
+        types: [markdown]
+
+      # Tier 4: Source/installed copy sync
+      - id: check-source-sync
+        name: Check source/installed sync
+        entry: hooks/precommit/check-source-sync.sh
+        language: script
+        files: \.(md|sh)$

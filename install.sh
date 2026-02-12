@@ -24,6 +24,7 @@ Usage: $0 <command> [options]
 Commands:
   global              Install globally (~/.claude/) - available to all projects
   project [path]      Install to project (default: current directory)
+  prehook [path]      Install pre-commit hooks to a project (standalone, non-destructive)
   status              Show installation status
   uninstall           Remove genie-team installation
 
@@ -893,10 +894,105 @@ cmd_uninstall() {
     esac
 }
 
+# Pre-commit hook installation (standalone, non-destructive)
+cmd_prehook() {
+    local target_path="."
+    local force="false"
+    local dry_run="false"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force) force="true" ;;
+            --dry-run) dry_run="true" ;;
+            *)
+                if [[ -d "$1" ]]; then
+                    target_path="$1"
+                fi
+                ;;
+        esac
+        shift
+    done
+
+    target_path="$(cd "$target_path" && pwd)"
+
+    log_info "Installing pre-commit hooks to $target_path/"
+
+    # Guard: must be a git repo
+    if [[ ! -d "$target_path/.git" ]]; then
+        log_error "$target_path is not a git repository"
+        exit 1
+    fi
+
+    # Guard: check for existing .pre-commit-config.yaml
+    if [[ -f "$target_path/.pre-commit-config.yaml" && "$force" != "true" ]]; then
+        log_error ".pre-commit-config.yaml already exists at $target_path"
+        log_info "Use --force to overwrite, or manually merge from:"
+        log_info "  $SCRIPT_DIR/templates/pre-commit-config.yaml"
+        exit 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        log_info "[DRY RUN] Would install .pre-commit-config.yaml"
+        log_info "[DRY RUN] Would install .yamllint.yml"
+        log_info "[DRY RUN] Would install hooks/precommit/ scripts"
+        if command -v pre-commit &>/dev/null; then
+            log_info "[DRY RUN] Would run pre-commit install"
+        fi
+        return 0
+    fi
+
+    # 1. Copy .pre-commit-config.yaml template
+    cp "$SCRIPT_DIR/templates/pre-commit-config.yaml" "$target_path/.pre-commit-config.yaml"
+    log_success "Installed .pre-commit-config.yaml"
+
+    # 2. Copy .yamllint.yml template (skip if exists and not force)
+    if [[ ! -f "$target_path/.yamllint.yml" || "$force" == "true" ]]; then
+        cp "$SCRIPT_DIR/templates/yamllint.yml" "$target_path/.yamllint.yml"
+        log_success "Installed .yamllint.yml"
+    else
+        log_warn "Skipping .yamllint.yml (exists)"
+    fi
+
+    # 3. Copy custom hook scripts
+    mkdir -p "$target_path/hooks/precommit"
+    local count=0
+    for script in "$SCRIPT_DIR/hooks/precommit"/*.sh; do
+        if [[ -f "$script" ]]; then
+            cp "$script" "$target_path/hooks/precommit/"
+            chmod +x "$target_path/hooks/precommit/$(basename "$script")"
+            ((count++))
+        fi
+    done
+    log_success "Installed $count hook scripts to hooks/precommit/"
+
+    # 4. Run pre-commit install if available
+    if command -v pre-commit &>/dev/null; then
+        (cd "$target_path" && pre-commit install) 2>/dev/null && \
+            log_success "Ran pre-commit install" || \
+            log_warn "pre-commit install failed — run manually: cd $target_path && pre-commit install"
+    else
+        log_warn "pre-commit not found — install it to activate hooks:"
+        log_info "  brew install pre-commit  OR  pip install pre-commit"
+        log_info "  Then run: cd $target_path && pre-commit install"
+    fi
+
+    echo ""
+    log_success "Pre-commit hooks installed!"
+    echo ""
+    echo "Hooks installed:"
+    echo "  Tier 1: YAML frontmatter lint, shellcheck, check-json, check-yaml"
+    echo "  Tier 2: Frontmatter schema validation (required fields, enum values)"
+    echo "  Tier 3: Cross-reference integrity (spec_ref, adr_refs, etc.)"
+    echo "  Tier 4: Source/installed sync (disabled in template — configure SYNC_MAP)"
+    echo ""
+    echo "Bypass: git commit --no-verify"
+}
+
 # Main
 case "${1:-}" in
     global)   shift; cmd_global "$@" ;;
     project)  shift; cmd_project "$@" ;;
+    prehook)  shift; cmd_prehook "$@" ;;
     status)   cmd_status ;;
     uninstall) shift; cmd_uninstall "$@" ;;
     -h|--help|help|"") print_usage ;;
