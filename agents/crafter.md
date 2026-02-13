@@ -9,6 +9,7 @@ skills:
   - architecture-awareness
   - code-quality
   - tdd-discipline
+  - systematic-debugging
   - pattern-enforcement
 memory: project
 ---
