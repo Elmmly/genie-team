@@ -8,6 +8,18 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 
+# Detect available YAML validator once
+YAML_VALIDATOR="none"
+if command -v yamllint &>/dev/null; then
+    YAML_VALIDATOR="yamllint"
+elif command -v python3 &>/dev/null && python3 -c "import yaml" 2>/dev/null; then
+    YAML_VALIDATOR="python3"
+fi
+
+if [[ "$YAML_VALIDATOR" == "none" && $# -gt 0 ]]; then
+    echo "[TIER-1] WARNING: No YAML validator available (install yamllint or python3-yaml)" >&2
+fi
+
 errors=0
 
 for file in "$@"; do
@@ -36,10 +48,10 @@ for file in "$@"; do
         continue  # Empty frontmatter block
     fi
 
-    # Extract and validate with yamllint if available, otherwise basic check
+    # Extract and validate with available tool
     extracted=$(sed -n "${frontmatter_start},${frontmatter_end}p" "$file")
 
-    if command -v yamllint &>/dev/null; then
+    if [[ "$YAML_VALIDATOR" == "yamllint" ]]; then
         # Use yamllint with config if available
         yamllint_config="$REPO_ROOT/.yamllint.yml"
         yamllint_args=("-d" "relaxed")
@@ -61,21 +73,13 @@ for file in "$@"; do
             echo "[TIER-1] $file — invalid YAML syntax in frontmatter" >&2
             errors=$((errors + 1))
         }
-    else
-        # Fallback: basic YAML syntax check using python if available
-        if command -v python3 &>/dev/null; then
-            if ! echo "$extracted" | python3 -c "import sys, yaml; yaml.safe_load(sys.stdin)" 2>/dev/null; then
-                echo "[TIER-1] $file — invalid YAML syntax in frontmatter" >&2
-                errors=$((errors + 1))
-            fi
-        else
-            # Last resort: check for obvious issues (unmatched quotes, bad indentation)
-            if echo "$extracted" | grep -qE '^[^#]*"[^"]*$'; then
-                echo "[TIER-1] $file — possible unclosed quote in frontmatter" >&2
-                errors=$((errors + 1))
-            fi
+    elif [[ "$YAML_VALIDATOR" == "python3" ]]; then
+        if ! echo "$extracted" | python3 -c "import sys, yaml; yaml.safe_load(sys.stdin)" 2>/dev/null; then
+            echo "[TIER-1] $file — invalid YAML syntax in frontmatter" >&2
+            errors=$((errors + 1))
         fi
     fi
+    # No validator: skip validation (better than false positives)
 done
 
 if [[ $errors -gt 0 ]]; then
