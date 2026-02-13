@@ -265,27 +265,6 @@ assert_contains "$ae_content" "Orchestrator-Driven" \
     "autonomous-execution.md: documents orchestrator-driven parallel sessions"
 
 # ─────────────────────────────────────────────
-# Test: templates/CLAUDE.md content
-# ─────────────────────────────────────────────
-echo ""
-echo "--- templates/CLAUDE.md parallel sessions ---"
-
-tmpl_file="$PROJECT_DIR/templates/CLAUDE.md"
-tmpl_content=$(cat "$tmpl_file")
-
-assert_contains "$tmpl_content" "## Parallel Sessions" \
-    "templates/CLAUDE.md: contains Parallel Sessions heading"
-
-assert_contains "$tmpl_content" "worktree-enabled" \
-    "templates/CLAUDE.md: contains worktree-enabled comment marker"
-
-assert_contains "$tmpl_content" "git worktree add" \
-    "templates/CLAUDE.md: contains worktree setup instructions"
-
-assert_contains "$tmpl_content" "git worktree remove" \
-    "templates/CLAUDE.md: contains worktree cleanup instructions"
-
-# ─────────────────────────────────────────────
 # Test: cli-contract.md content
 # ─────────────────────────────────────────────
 echo ""

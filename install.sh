@@ -494,56 +494,6 @@ install_hooks() {
     merge_hook_config "$settings_file" "$cmd_prefix"
 }
 
-# Create CLAUDE.md template
-create_claude_md() {
-    local target="$1"
-    local force="$2"
-
-    if [[ -f "$target" && "$force" != "true" ]]; then
-        log_warn "Skipping CLAUDE.md (exists)"
-        return
-    fi
-
-    cp "$SCRIPT_DIR/templates/CLAUDE.md" "$target" 2>/dev/null || cat > "$target" << 'EOF'
-# Project Name
-
-> Brief description of this project
-
-## Genie Team Quick Reference
-
-- `/genie:help` - Show all commands
-- `/feature [topic]` - Full lifecycle delivery
-- `/bugfix [issue]` - Quick fix flow
-
-### The 7 D's Lifecycle
-```
-/discover → /define → /design → /deliver → /discern → /done
-
-/commit — anytime there are changes worth committing
-```
-
-## Git Workflow
-
-<!-- Genie-team defaults to PR mode: feature branches + pull requests.
-     To use trunk-based development instead, uncomment the line below. -->
-
-<!-- trunk-based -->
-
-## Project Context
-
-### Overview
-<!-- What this project does -->
-
-### Architecture
-<!-- Key components and patterns -->
-
-### Conventions
-<!-- Project-specific standards -->
-EOF
-
-    log_success "Created CLAUDE.md template"
-}
-
 # Global installation
 cmd_global() {
     local force="false"
@@ -824,7 +774,6 @@ cmd_project() {
         mkdir -p "$project_path/docs/decisions"
         mkdir -p "$project_path/docs/specs"
         mkdir -p "$project_path/docs/architecture/components"
-        create_claude_md "$project_path/CLAUDE.md" "$force"
     fi
 
     # Worktree: symlink genie memory to main worktree (shared learning)
@@ -844,9 +793,8 @@ cmd_project() {
     log_success "Project installation complete!"
     echo ""
     echo "Next steps:"
-    echo "  1. Edit CLAUDE.md with your project details"
-    echo "  2. Run /genie:help to see available commands"
-    echo "  3. Start with /context:load, /discover [topic], or /feature [topic]"
+    echo "  1. Run /genie:help to see available commands"
+    echo "  2. Start with /context:load, /discover [topic], or /feature [topic]"
     echo ""
     echo "Directories created:"
     echo "  docs/backlog/        — Living backlog items"

@@ -8,11 +8,7 @@
 
 Genie-team recognizes trunk-based mode through these signals (checked in order):
 
-1. **CLAUDE.md** (project-level, persistent) — the target project's `CLAUDE.md` contains:
-   ```
-   ## Git Workflow
-   trunk-based
-   ```
+1. **Project config** (persistent) — the project's `CLAUDE.md` or any loaded rules file contains `trunk-based`
 2. **Prompt prefix** (per-invocation) — the orchestrator prepends to the command:
    ```
    claude -p "git-mode: trunk. /deliver docs/backlog/P1-feature.md"
@@ -64,8 +60,8 @@ Where `{Genie Name}` is the active genie (e.g., "Crafter", "Architect").
 
 ## Parallel Sessions via Git Worktrees
 
-When `worktree-enabled` is present (uncommented) in the project's CLAUDE.md
-`## Parallel Sessions` section, these conventions apply.
+When `worktree-enabled` is present in the project's CLAUDE.md or rules,
+these conventions apply.
 
 ### Worktree Detection
 
