@@ -444,7 +444,7 @@ acquire_lock() {
         if [[ -f "$LOCKFILE" ]]; then
             local now lock_mtime
             now=$(date +%s)
-            lock_mtime=$(stat -f %m "$LOCKFILE" 2>/dev/null || stat -c %Y "$LOCKFILE" 2>/dev/null || echo "$now")
+            lock_mtime=$(stat -c %Y "$LOCKFILE" 2>/dev/null || stat -f %m "$LOCKFILE" 2>/dev/null || echo "$now")
             lock_age=$((now - lock_mtime))
         fi
 

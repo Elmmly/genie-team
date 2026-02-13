@@ -266,7 +266,7 @@ copy_dir() {
                 else
                     mkdir -p "$target_dir"
                     cp -r "$item"/* "$target_dir/" 2>/dev/null || true
-                    ((count++))
+                    count=$((count + 1))
                 fi
             elif [[ -f "$item" ]]; then
                 # It's a file
@@ -277,7 +277,7 @@ copy_dir() {
                     log_warn "Skipping $label/$filename (exists)"
                 else
                     cp "$item" "$target_file"
-                    ((count++))
+                    count=$((count + 1))
                 fi
             fi
         done
@@ -345,7 +345,7 @@ install_genies() {
                         log_warn "Skipping genies/$genie_name/$filename (exists)"
                     else
                         cp "$md_file" "$target_dir/$filename"
-                        ((count++))
+                        count=$((count + 1))
                     fi
                 fi
             done
@@ -380,7 +380,7 @@ install_scripts() {
             else
                 cp "$script" "$target_file"
                 chmod +x "$target_file"
-                ((count++))
+                count=$((count + 1))
             fi
         fi
     done
@@ -482,7 +482,7 @@ install_hooks() {
             else
                 cp "$script" "$target_file"
                 chmod +x "$target_file"
-                ((count++))
+                count=$((count + 1))
             fi
         fi
     done
@@ -1069,7 +1069,7 @@ cmd_prehook() {
         if [[ -f "$script" ]]; then
             cp "$script" "$target_path/hooks/precommit/"
             chmod +x "$target_path/hooks/precommit/$(basename "$script")"
-            ((count++))
+            count=$((count + 1))
         fi
     done
     log_success "Installed $count hook scripts to hooks/precommit/"

@@ -58,6 +58,7 @@ for file in "$@"; do
                     echo "  $line" >&2
                 fi
             done <<< "$lint_output"
+            echo "[TIER-1] $file — invalid YAML syntax in frontmatter" >&2
             errors=$((errors + 1))
         }
     else

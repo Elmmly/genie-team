@@ -272,7 +272,10 @@ _gs_finish_pr() {
         if [[ -n "${pr_url:-}" ]]; then
             echo "$pr_url"
         else
-            _gs_log "PR creation failed. Branch pushed — create PR manually."
+            local remote_url
+            remote_url=$(git -C "$repo_root" remote get-url origin 2>/dev/null)
+            _gs_log "PR creation failed. Branch pushed — create PR manually:"
+            _gs_log "  ${remote_url%.git}/compare/$branch"
         fi
     else
         local remote_url
