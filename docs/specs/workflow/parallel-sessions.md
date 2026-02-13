@@ -11,7 +11,10 @@ author: shaper
 tags: [workflow, parallel, git-worktrees, isolation, sessions]
 acceptance_criteria:
   - id: AC-1
-    description: "Multiple Claude Code sessions can operate on the same repository simultaneously using git worktrees, each on a separate branch with no file or index conflicts during parallel operation; merge conflicts when merging to main are resolved via standard git merge workflow"
+    description: >-
+      Multiple Claude Code sessions can operate on the same repository simultaneously using
+      git worktrees, each on a separate branch with no file or index conflicts during parallel
+      operation; merge conflicts when merging to main are resolved via standard git merge workflow
     status: met
   - id: AC-2
     description: "install.sh supports installing genie-team into a worktree (not just the main working tree)"
@@ -35,10 +38,16 @@ acceptance_criteria:
     description: "Session finish handles PR creation (PR mode default via gh CLI) or direct merge (trunk-based mode), with graceful fallback when gh is unavailable"
     status: met
   - id: AC-9
-    description: "Session management functions are sourceable by external scripts (autonomous runner) with documented signatures, return codes, and stdout/stderr contract: session_start(), session_finish(), session_worktree_path(), session_cleanup_item()"
+    description: >-
+      Session management functions are sourceable by external scripts (autonomous runner) with
+      documented signatures, return codes, and stdout/stderr contract: session_start(),
+      session_finish(), session_worktree_path(), session_cleanup_item()
     status: met
   - id: AC-10
-    description: "A session_cleanup_item function removes a specific item's worktree and branch regardless of merge state, enabling the autonomous runner to clean up prior failed attempts before retrying"
+    description: >-
+      A session_cleanup_item function removes a specific item's worktree and branch regardless
+      of merge state, enabling the autonomous runner to clean up prior failed attempts before
+      retrying
     status: met
   - id: AC-11
     description: "Session finish supports --force flag that removes worktree and branch without requiring clean merge state, enabling the runner's --cleanup-on-failure mode"

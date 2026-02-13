@@ -16,7 +16,10 @@ acceptance_criteria:
     description: "A new verification-gate skill exists at skills/verification-gate/SKILL.md with proper frontmatter (name, description, allowed-tools)"
     status: pending
   - id: AC-2
-    description: "The skill enforces that NO completion claim (task done, phase complete, ready for review) is valid without a fresh test run executed in the current session after the last code change"
+    description: >-
+      The skill enforces that NO completion claim (task done, phase complete, ready for review)
+      is valid without a fresh test run executed in the current session after the last code
+      change
     status: pending
   - id: AC-3
     description: "The skill includes a RED FLAGS section blocking rationalizations like 'tests passed earlier', 'I only changed comments', 'the change is trivial'"

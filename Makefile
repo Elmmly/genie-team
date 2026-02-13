@@ -6,7 +6,7 @@ SHELL := /bin/bash
 
 # ── Configuration ────────────────────────────────────────────
 SHELLCHECK_EXCLUDES := SC1091,SC2034,SC2155,SC2015,SC2317,SC1090
-SHELLCHECK_DIRS     := commands hooks/precommit scripts .claude/hooks
+SHELLCHECK_DIRS     := commands scripts .claude/hooks
 SHELLCHECK_FILES    := install.sh
 DOCS_DIR            := docs
 DOCS_EXCLUDE        := docs/archive
@@ -33,9 +33,9 @@ shellcheck: ## Lint shell scripts
 	shellcheck -e $(SHELLCHECK_EXCLUDES) $(SHELL_SOURCES)
 
 lint-docs: ## Validate doc frontmatter and cross-references
-	@hooks/precommit/lint-frontmatter-yaml.sh $(DOC_SOURCES)
-	@hooks/precommit/validate-frontmatter.sh $(DOC_SOURCES)
-	@hooks/precommit/check-crossrefs.sh $(DOC_SOURCES)
+	@scripts/validate/lint-frontmatter-yaml.sh $(DOC_SOURCES)
+	@scripts/validate/validate-frontmatter.sh $(DOC_SOURCES)
+	@scripts/validate/check-crossrefs.sh $(DOC_SOURCES)
 
 test: ## Run all tests
 	@failed=0; \

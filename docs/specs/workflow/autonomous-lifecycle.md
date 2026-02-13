@@ -11,13 +11,22 @@ author: shaper
 tags: [workflow, autonomous, lifecycle, runner, cron, orchestration]
 acceptance_criteria:
   - id: AC-1
-    description: "In-session autonomous mode: /run [--from <phase>] [--through <phase>] runs the specified phase range without per-phase user confirmation, using /discern as the automated quality gate — stops on BLOCKED, continues through APPROVED"
+    description: >-
+      In-session autonomous mode: /run [--from phase] [--through phase] runs the specified
+      phase range without per-phase user confirmation, using /discern as the automated quality
+      gate — stops on BLOCKED, continues through APPROVED
     status: met
   - id: AC-2
-    description: "Headless runner script chains claude -p invocations per phase, passes artifact paths between phases, handles errors with meaningful exit codes (0=success, 1=failure, 2=merge conflict), and produces structured log output"
+    description: >-
+      Headless runner script chains claude -p invocations per phase, passes artifact paths
+      between phases, handles errors with meaningful exit codes (0=success, 1=failure,
+      2=merge conflict), and produces structured log output
     status: met
   - id: AC-3
-    description: "Runner supports phase ranges via --from and --through flags: --from discover --through define runs only discovery and shaping; --from design runs design through done; no flags runs full lifecycle. Operates on existing backlog items or new topics."
+    description: >-
+      Runner supports phase ranges via --from and --through flags: --from discover --through
+      define runs only discovery and shaping; --from design runs design through done; no flags
+      runs full lifecycle. Operates on existing backlog items or new topics.
     status: met
   - id: AC-4
     description: "Runner is cron-compatible: no interactive input, log file output, meaningful exit codes, and a lockfile to prevent overlapping runs on the same item"
@@ -26,10 +35,17 @@ acceptance_criteria:
     description: "Runner implements worktree lifecycle for parallel execution: create worktree before run, cleanup on success, preserve-or-cleanup on failure with retry convention"
     status: unmet
   - id: AC-6
-    description: "Runner implements responsible execution: per-phase turn limits from CLI contract defaults, automatic single retry with --resume on phase exhaustion, stop-and-report when retry also exhausts. Logs token usage and turn counts per phase for transparency. Users can override per-phase limits (e.g. --deliver-turns 200)."
+    description: >-
+      Runner implements responsible execution: per-phase turn limits from CLI contract
+      defaults, automatic single retry with --resume on phase exhaustion, stop-and-report
+      when retry also exhausts. Logs token usage and turn counts per phase for transparency.
+      Users can override per-phase limits (e.g. --deliver-turns 200).
     status: met
   - id: AC-7
-    description: "Documentation describes scheduling patterns (cron, CI/CD, GitHub Actions) with concrete examples including: daily discover+define pipeline, human review checkpoint, then design+deliver on approved items"
+    description: >-
+      Documentation describes scheduling patterns (cron, CI/CD, GitHub Actions) with concrete
+      examples including: daily discover+define pipeline, human review checkpoint, then
+      design+deliver on approved items
     status: met
 ---
 

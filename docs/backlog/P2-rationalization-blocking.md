@@ -19,7 +19,10 @@ acceptance_criteria:
     description: "code-quality skill includes a RED FLAGS section listing specific thoughts that should trigger an agent to stop and re-read the skill"
     status: pending
   - id: AC-3
-    description: "problem-first skill includes rationalization blocking that counters common excuses for skipping problem framing (e.g., 'the user already told me the solution', 'this is too simple to reframe')"
+    description: >-
+      problem-first skill includes rationalization blocking that counters common excuses for
+      skipping problem framing (e.g., 'the user already told me the solution', 'this is too
+      simple to reframe')
     status: pending
   - id: AC-4
     description: "pattern-enforcement skill includes an excuse/reality table countering deviations (e.g., 'this pattern doesn't apply here', 'it's simpler without the pattern')"
