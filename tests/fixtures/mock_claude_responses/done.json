@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-done",
+  "result": "Archived docs/backlog/P2-test-topic.md to docs/archive/\n\nLifecycle complete.",
+  "is_error": false,
+  "total_cost_usd": 0.008,
+  "num_turns": 8,
+  "usage": {"input_tokens": 2000, "output_tokens": 1102}
+}

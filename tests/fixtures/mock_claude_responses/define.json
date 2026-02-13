@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-define",
+  "result": "Shaped work contract created at docs/backlog/P2-test-topic.md\n\nProblem framed with medium appetite.\n\nRouting: /design docs/backlog/P2-test-topic.md",
+  "is_error": false,
+  "total_cost_usd": 0.04,
+  "num_turns": 29,
+  "usage": {"input_tokens": 6000, "output_tokens": 3231}
+}

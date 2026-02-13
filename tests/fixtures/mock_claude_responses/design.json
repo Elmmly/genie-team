@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-design",
+  "result": "Design appended to docs/backlog/P2-test-topic.md\n\nComponents designed: 3\nAC mapping complete.\n\nRouting: /deliver docs/backlog/P2-test-topic.md",
+  "is_error": false,
+  "total_cost_usd": 0.06,
+  "num_turns": 41,
+  "usage": {"input_tokens": 10000, "output_tokens": 5892}
+}

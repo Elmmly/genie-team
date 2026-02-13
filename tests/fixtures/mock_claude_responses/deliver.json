@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-deliver",
+  "result": "Implementation complete for docs/backlog/P2-test-topic.md\n\nTDD: 12 tests written, all passing.\nFiles changed: 5\n\nRouting: /discern docs/backlog/P2-test-topic.md",
+  "is_error": false,
+  "total_cost_usd": 0.15,
+  "num_turns": 87,
+  "usage": {"input_tokens": 30000, "output_tokens": 18201}
+}

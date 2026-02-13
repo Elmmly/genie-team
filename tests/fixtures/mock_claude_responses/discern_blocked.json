@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-discern-blocked",
+  "result": "Review complete for docs/backlog/P2-test-topic.md\n\nVerdict: BLOCKED\n\nAC-2 not met: missing error handling.\nAC-5 not met: no tests for edge case.\n\nRouting: /deliver docs/backlog/P2-test-topic.md (fix issues)",
+  "is_error": false,
+  "total_cost_usd": 0.03,
+  "num_turns": 22,
+  "usage": {"input_tokens": 5000, "output_tokens": 3445}
+}

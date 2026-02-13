@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-discern",
+  "result": "Review complete for docs/backlog/P2-test-topic.md\n\nVerdict: APPROVED\n\nAll acceptance criteria met.\n\nRouting: /commit docs/backlog/P2-test-topic.md",
+  "is_error": false,
+  "total_cost_usd": 0.03,
+  "num_turns": 22,
+  "usage": {"input_tokens": 5000, "output_tokens": 3445}
+}

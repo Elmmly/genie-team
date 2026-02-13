@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-discern-cr",
+  "result": "Review complete for docs/backlog/P2-test-topic.md\n\nVerdict: CHANGES REQUESTED\n\nMinor issues found:\n- Function naming inconsistency\n- Missing docstring on public method\n\nRouting: /deliver docs/backlog/P2-test-topic.md (address feedback)",
+  "is_error": false,
+  "total_cost_usd": 0.03,
+  "num_turns": 20,
+  "usage": {"input_tokens": 4800, "output_tokens": 3100}
+}

@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-discover",
+  "result": "Discovery complete. Created opportunity snapshot at docs/analysis/20260212_discover_test_topic.md\n\nKey findings:\n- Finding 1\n- Finding 2\n\nRouting: /define docs/analysis/20260212_discover_test_topic.md",
+  "is_error": false,
+  "total_cost_usd": 0.05,
+  "num_turns": 38,
+  "usage": {"input_tokens": 8000, "output_tokens": 4847}
+}

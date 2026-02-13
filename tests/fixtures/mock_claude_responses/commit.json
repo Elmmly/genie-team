@@ -1,0 +1,9 @@
+{
+  "type": "result",
+  "session_id": "mock-session-commit",
+  "result": "Committed changes for docs/backlog/P2-test-topic.md\n\nfeat(test-topic): implement test topic\n\nRouting: /done docs/backlog/P2-test-topic.md",
+  "is_error": false,
+  "total_cost_usd": 0.005,
+  "num_turns": 4,
+  "usage": {"input_tokens": 800, "output_tokens": 403}
+}
