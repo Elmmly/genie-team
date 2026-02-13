@@ -310,9 +310,9 @@ trunk-based
 
 ## 5. Local Dev, CI/CD & Deployment
 
-Genie Team's workshops produce Architecture Decision Records and C4 diagrams that document infrastructure decisions. The tooling to *generate* infrastructure artifacts from those decisions is planned.
+Genie Team's workshops capture infrastructure decisions, and the existing lifecycle delivers them.
 
-### What Exists Today
+### How It Works
 
 The architecture workshop (`/design --workshop`) captures infrastructure decisions as ADRs:
 - Which container runtime (Docker, Podman, native)
@@ -320,19 +320,28 @@ The architecture workshop (`/design --workshop`) captures infrastructure decisio
 - Which deployment target (AWS, Vercel, Fly.io, K8s)
 - Which observability stack (Datadog, Grafana, CloudWatch)
 
-These decisions live in `docs/decisions/ADR-{NNN}-{slug}.md` and inform implementation. The `/deliver` command reads ADRs and follows them during implementation. The `/discern` command checks ADR compliance during review.
+These decisions live in `docs/decisions/ADR-{NNN}-{slug}.md`. Then use the normal lifecycle to implement them:
+
+```
+> /define "set up local dev environment with Docker"
+> /deliver docs/backlog/P2-local-dev-setup.md
+```
+
+The Crafter reads ADRs and C4 diagrams during implementation. The Critic checks ADR compliance during review. No special infrastructure command needed — the same workflow that builds features also builds infrastructure.
 
 `/arch:init` documents the system in C4 diagrams showing containers, external systems, and deployment boundaries.
 
-### What's Planned
+### Scheduling with the Headless Runner
 
-| Capability | Status | Description |
-|-----------|--------|-------------|
-| `/scaffold` command | Planned | Generate Dockerfile, docker-compose, CI pipeline, and deployment configs from ADRs |
-| GitHub Actions template | Planned | Workflow template for `run-pdlc.sh` integration (nightly discovery, approved-item delivery) |
-| `/discover --workshop` | Planned | Structured multi-phase product discovery workshop with iteration loops |
+For CI/CD integration with `run-pdlc.sh`:
 
-These are backlog items — the foundation (ADRs, C4 diagrams, headless runner) is in place, and the generation tooling is next.
+```bash
+# Nightly discovery pipeline
+0 2 * * * scripts/run-pdlc.sh --through define --lock --log-dir ./logs "explore improvements"
+
+# Implement approved items (manual trigger or CI)
+scripts/run-pdlc.sh --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
+```
 
 ---
 
