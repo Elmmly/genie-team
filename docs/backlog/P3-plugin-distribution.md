@@ -3,10 +3,12 @@ spec_version: "1.0"
 type: shaped-work
 id: plugin-distribution
 title: "Package Genie Team as a Claude Code Plugin"
-status: designed
+status: abandoned
+abandoned: "2026-02-13"
+abandoned_reason: "Premature — audience of one, Claude Code plugin system is new/unstable, install.sh works. Revisit when there's actual user demand or the plugin system stabilizes."
 created: "2026-02-13"
 appetite: medium
-priority: P3
+priority: someday
 target_project: genie-team
 author: shaper
 depends_on: []
@@ -14,25 +16,25 @@ tags: [distribution, plugin, installation, adoption]
 acceptance_criteria:
   - id: AC-1
     description: "A .claude-plugin/plugin.json manifest exists declaring genie-team's commands, skills, agents, hooks, and MCP servers"
-    status: pending
+    status: deferred
   - id: AC-2
     description: "A .claude-plugin/marketplace.json exists enabling installation via '/plugin marketplace add' and '/plugin install'"
-    status: pending
+    status: deferred
   - id: AC-3
     description: "Users can install genie-team with two commands: add marketplace, then install plugin — no shell script execution required"
-    status: pending
+    status: deferred
   - id: AC-4
     description: "Plugin installation produces the same functional result as 'install.sh global --all' (commands, skills, rules, agents, schemas, hooks, MCP)"
-    status: pending
+    status: deferred
   - id: AC-5
     description: "install.sh continues to work as an alternative installation path (not removed)"
-    status: pending
+    status: deferred
   - id: AC-6
     description: "Plugin version matches the VERSION in install.sh and is updated in a single place"
-    status: pending
+    status: deferred
   - id: AC-7
     description: "Command namespacing impact is documented — whether commands become '/genie-team:discover' vs staying '/discover' and what tradeoffs that creates"
-    status: pending
+    status: deferred
 ---
 
 # Shaped Work Contract: Package Genie Team as a Claude Code Plugin

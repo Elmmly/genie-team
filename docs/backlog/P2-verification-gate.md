@@ -3,7 +3,9 @@ spec_version: "1.0"
 type: shaped-work
 id: verification-gate
 title: "Add Verification Gate Skill"
-status: shaped
+status: abandoned
+abandoned: "2026-02-13"
+abandoned_reason: "Meta-enforcement problem — a skill to enforce another skill has the same weakness (advisory text, not a hard gate). If verification-before-completion matters, implement as a hook (hard gate) rather than a skill (soft advisory). The hooks system already exists for this."
 created: "2026-02-13"
 appetite: small
 priority: P2
@@ -14,25 +16,25 @@ tags: [skills, verification, quality, completeness]
 acceptance_criteria:
   - id: AC-1
     description: "A new verification-gate skill exists at skills/verification-gate/SKILL.md with proper frontmatter (name, description, allowed-tools)"
-    status: pending
+    status: rejected
   - id: AC-2
     description: >-
       The skill enforces that NO completion claim (task done, phase complete, ready for review)
       is valid without a fresh test run executed in the current session after the last code
       change
-    status: pending
+    status: rejected
   - id: AC-3
     description: "The skill includes a RED FLAGS section blocking rationalizations like 'tests passed earlier', 'I only changed comments', 'the change is trivial'"
-    status: pending
+    status: rejected
   - id: AC-4
     description: "The skill description uses trigger-context framing ('Use when...') without summarizing the verification process"
-    status: pending
+    status: rejected
   - id: AC-5
     description: "The Crafter agent definition (agents/crafter.md) lists verification-gate in its skills array"
-    status: pending
+    status: rejected
   - id: AC-6
     description: "The skill is installed to .claude/skills/verification-gate/SKILL.md via install.sh"
-    status: pending
+    status: rejected
 ---
 
 # Shaped Work Contract: Add Verification Gate Skill

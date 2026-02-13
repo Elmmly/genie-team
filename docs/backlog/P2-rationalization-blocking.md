@@ -3,7 +3,9 @@ spec_version: "1.0"
 type: shaped-work
 id: rationalization-blocking
 title: "Add Rationalization Blocking to Enforcement Skills"
-status: shaped
+status: abandoned
+abandoned: "2026-02-13"
+abandoned_reason: "Untested mechanism — no evidence that excuse/reality tables change agent behavior. Addresses symptoms (louder instructions) rather than root cause (context pressure, competing instructions). Prompt-engineering arms race with diminishing returns."
 created: "2026-02-13"
 appetite: small
 priority: P2
@@ -14,25 +16,25 @@ tags: [skills, enforcement, discipline, quality]
 acceptance_criteria:
   - id: AC-1
     description: "tdd-discipline skill includes an excuse/reality table with at least 4 entries countering predictable rationalizations (e.g., 'tests after achieve same goal', 'too simple to test')"
-    status: pending
+    status: rejected
   - id: AC-2
     description: "code-quality skill includes a RED FLAGS section listing specific thoughts that should trigger an agent to stop and re-read the skill"
-    status: pending
+    status: rejected
   - id: AC-3
     description: >-
       problem-first skill includes rationalization blocking that counters common excuses for
       skipping problem framing (e.g., 'the user already told me the solution', 'this is too
       simple to reframe')
-    status: pending
+    status: rejected
   - id: AC-4
     description: "pattern-enforcement skill includes an excuse/reality table countering deviations (e.g., 'this pattern doesn't apply here', 'it's simpler without the pattern')"
-    status: pending
+    status: rejected
   - id: AC-5
     description: "All rationalization-blocking content uses obligation language ('you MUST', 'STOP'), not suggestion language ('consider', 'should')"
-    status: pending
+    status: rejected
   - id: AC-6
     description: "Source skills in skills/ directory are updated and synced to .claude/skills/ via install.sh"
-    status: pending
+    status: rejected
 ---
 
 # Shaped Work Contract: Add Rationalization Blocking to Enforcement Skills
