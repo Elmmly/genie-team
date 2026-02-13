@@ -1,6 +1,7 @@
 # Pre-commit validation pipeline for genie-team
 # Organized by determinism tier (most deterministic → least)
 # Docs: docs/archive/quality-enforcement/2026-02-11_precommit-validation-pipeline/
+# NOTE: Shellcheck exclusions also defined in Makefile (canonical source for CI). Keep in sync.
 
 repos:
   # Tier 1: Standard linters
