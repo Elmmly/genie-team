@@ -280,7 +280,7 @@ better. The specific findings:
    ~80% to ~50% in interactive sessions.
 
 3. **The real enforcement gaps are in skill content.** The P2 items (rationalization-blocking,
-   verification-gate, systematic-debugging) correctly target skill content — the actual lever
+   verification-gate, debugging) correctly target skill content — the actual lever
    for behavior change. Those items should be prioritized over this one.
 
 4. **The character budget is a non-issue.** At 12.3% utilization, genie-team has room for

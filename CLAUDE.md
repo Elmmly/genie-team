@@ -10,23 +10,9 @@ Specialized AI genies for product discovery and delivery, extending Claude Code 
 
 ## Repository Structure
 
-```
-genie-team/
-├── agents/              # Genie definitions (native .claude/agents/ format)
-├── commands/            # Slash command source files
-├── genies/              # Genie specs, system prompts, templates
-├── schemas/             # Document format schemas (ADR, spec, brand-spec, etc.)
-├── templates/           # CLAUDE.md template for target projects
-├── tests/               # Test fixtures and test suite
-├── .claude/
-│   ├── commands/        # Installed command definitions
-│   ├── skills/          # Automatic behavior skills
-│   ├── hooks/           # Context re-injection scripts (compaction recovery)
-│   └── rules/           # Always-on constraints
-├── dist/                # Built/distributable commands
-├── install.sh           # Installation script
-└── docs/                # Document trail (see below)
-```
+Canonical sources for installable artifacts live at the repo root: `agents/`, `commands/`, `skills/`, `rules/`, `hooks/`. The `install.sh` script copies these to target `.claude/` directories (global or project-scoped). The repo's own `.claude/` installed copies are gitignored.
+
+Supporting directories: `genies/` (specs, prompts, templates), `schemas/` (document format schemas), `templates/` (CLAUDE.md template), `tests/`, `docs/` (document trail).
 
 ## Document Trail
 

@@ -1,6 +1,6 @@
 ---
 name: spec-awareness
-description: Ensures spec-driven behavior during all workflows. Use when loading context, discussing project structure, starting features, or when "spec", "specification", "acceptance criteria", or "bootstrap" are mentioned. Activates during /context:load, /context:refresh, /spec:init, /define, /design, /deliver, /discern, /done, and /discover.
+description: Ensures spec-driven behavior during all workflows. Use when loading context, discussing project structure, starting features, or when "spec", "specification", "acceptance criteria", or "bootstrap" are mentioned. Activates during /context:load, /context:refresh, /spec:init, /define, /design, /deliver, /discern, /handoff, /done, and /discover.
 allowed-tools: Read, Glob, Grep
 ---
 
@@ -67,6 +67,7 @@ This skill activates during:
 - `/design` — Load spec for context, write back design constraints
 - `/deliver` — Load spec ACs for TDD, write back implementation evidence
 - `/discern` — Verify implementation against spec ACs, update AC statuses
+- `/handoff` — Inject spec-specific transition guidance into handoff output
 - `/done` — Preserve spec on archive
 - Any discussion of project features, specs, or acceptance criteria
 
@@ -141,6 +142,11 @@ Loads spec ACs for TDD and writes back implementation evidence:
 3. Test descriptions reference AC ids (e.g., "AC-1: should issue refresh tokens")
 4. After implementation: Append "## Implementation Evidence" section to spec body with test file paths and implementation file paths
 5. Do NOT update AC statuses — that is /discern's job
+6. **Transition guidance** (conditional):
+   a. If backlog item body contains a "## Behavioral Delta" or "**Current Behavior:**" section:
+      > **Spec delta active:** This work modifies existing spec behavior. Verify that the implementation matches the proposed changes in the Behavioral Delta section, not just the original spec ACs.
+   b. If spec has ACs with `status: met`:
+      > **Regression watch:** Some spec ACs are already met. Verify the implementation doesn't regress previously passing criteria.
 
 **Reads:** Spec acceptance_criteria
 **Writes:** Spec body "## Implementation Evidence" section
@@ -168,6 +174,21 @@ Preserves spec when archiving backlog:
 
 **Reads:** Spec status
 **Writes:** Nothing (spec preservation is passive — just don't archive it)
+
+### During /handoff
+
+Injects spec-specific transition guidance into handoff output:
+
+1. Load spec via `spec_ref` (using common pattern)
+2. If spec loaded:
+   a. For `design → deliver` handoff:
+      > **Spec context for Crafter:** Spec at {spec_ref} has {N} acceptance criteria ({M} pending). {If backlog has Behavioral Delta: "Behavioral delta exists — implementation must match proposed changes, not just original ACs."}
+   b. For `deliver → discern` handoff:
+      > **Spec context for Critic:** {If spec has ACs with status: met: "Some ACs were previously met — check for regressions."} {If backlog has Behavioral Delta: "Spec delta — verify both old and new behavior."}
+3. If no spec: Silently continue (no guidance injected)
+
+**Reads:** Spec acceptance_criteria, backlog item body
+**Writes:** Nothing (read-only — guidance injection only)
 
 ### During /discover
 

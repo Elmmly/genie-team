@@ -293,21 +293,21 @@ copy_dir() {
 install_commands() {
     local dest="$1"
     local force="$2"
-    copy_dir "$SCRIPT_DIR/.claude/commands" "$dest" "$force" "commands"
+    copy_dir "$SCRIPT_DIR/commands" "$dest" "$force" "commands"
 }
 
 # Install skills
 install_skills() {
     local dest="$1"
     local force="$2"
-    copy_dir "$SCRIPT_DIR/.claude/skills" "$dest" "$force" "skills"
+    copy_dir "$SCRIPT_DIR/skills" "$dest" "$force" "skills"
 }
 
 # Install rules
 install_rules() {
     local dest="$1"
     local force="$2"
-    copy_dir "$SCRIPT_DIR/.claude/rules" "$dest" "$force" "rules"
+    copy_dir "$SCRIPT_DIR/rules" "$dest" "$force" "rules"
 }
 
 # Install agents
@@ -464,15 +464,15 @@ install_hooks() {
     local cmd_prefix="$3"
     local force="$4"
 
-    if [[ ! -d "$SCRIPT_DIR/.claude/hooks" ]]; then
-        log_warn "Source hooks not found: $SCRIPT_DIR/.claude/hooks"
+    if [[ ! -d "$SCRIPT_DIR/hooks" ]]; then
+        log_warn "Source hooks not found: $SCRIPT_DIR/hooks"
         return 1
     fi
 
     mkdir -p "$hooks_dest"
     local count=0
 
-    for script in "$SCRIPT_DIR/.claude/hooks"/*.sh; do
+    for script in "$SCRIPT_DIR/hooks"/*.sh; do
         if [[ -f "$script" ]]; then
             local filename=$(basename "$script")
             local target_file="$hooks_dest/$filename"

@@ -1,6 +1,6 @@
 ---
 name: brand-awareness
-description: Ensures brand-consistent behavior during workflows. Auto-activates when brand guide exists and "brand", "brand spec", "design tokens", "brand consistent", or "visual identity" are mentioned. Activates during /brand, /brand:image, /brand:tokens, /design, /deliver, /discern, /context:load, and /context:refresh.
+description: Ensures brand-consistent behavior during workflows. Auto-activates when brand guide exists and "brand", "brand spec", "design tokens", "brand consistent", or "visual identity" are mentioned. Activates during /brand, /brand:image, /brand:tokens, /design, /deliver, /discern, /handoff, /context:load, and /context:refresh.
 allowed-tools: Read, Glob, Grep
 ---
 
@@ -64,6 +64,7 @@ This skill activates during:
 - `/design` — Inject brand constraints as Architect context
 - `/deliver` — Surface design tokens for Crafter theming
 - `/discern` — Add Brand Compliance to Critic review checklist
+- `/handoff` — Inject brand-specific transition guidance into handoff output
 - `/context:load` — Report brand guide status
 - `/context:refresh` — Detect brand guide / tokens drift
 
@@ -178,6 +179,11 @@ Surfaces design tokens for Crafter theming:
    - Font stack: {typography.heading-family}, {typography.body-family}
    ```
 4. If no brand guide: Silently continue (no warning)
+5. **Transition guidance** (conditional):
+   a. If `docs/brand/assets/manifest.md` has entries:
+      > **Brand assets available:** Generated brand images exist in docs/brand/assets/ — review the manifest for visual references (color palettes, signature elements, mood boards) that capture intent beyond what the YAML brand guide encodes.
+   b. If brand guide has `status: active` and work touches CSS/theme/style files:
+      > **Visual verification recommended:** This work affects visual appearance. Before marking complete, verify the rendered UI matches the brand guide's visual intent (not just hex values).
 
 **Reads:** `docs/brand/*.md`, `docs/brand/tokens.json`
 **Writes:** Nothing (read-only — context surface only)
@@ -201,6 +207,9 @@ Adds Brand Compliance to Critic review:
    | Imagery style | Photography | Stock illustration | NO — brand specifies photography |
    ```
 4. If no brand guide: Silently continue (no Brand Compliance section)
+5. **Transition guidance** (conditional):
+   a. If work touched CSS/theme/style files:
+      > **Visual evidence:** This review covers brand-related visual changes. Consider requesting a screenshot or dev server inspection to verify rendered appearance matches brand intent — hex-value compliance alone may miss visual issues.
 
 **Reads:** `docs/brand/*.md`, `docs/brand/tokens.json`, implementation files
 **Writes:** Nothing (compliance output goes in review document, not in brand guide)
@@ -231,10 +240,28 @@ Detects brand guide / tokens drift:
    c. If brand guide is newer than tokens: Flag drift:
       > Brand guide updated more recently than tokens.json. Run /brand:tokens to sync.
    d. Scan `docs/brand/assets/manifest.md` for references to deprecated brand guide versions
+   e. Read `docs/brand/assets/manifest.md` for entry dates
+   f. If any manifest entries have dates older than the brand guide `updated` field:
+      > Brand asset images may be stale (generated before latest brand guide update). Visual references in these images may not reflect current brand values. Regenerate with /brand:image if needed.
 3. If no brand guide: Silently continue
 
 **Reads:** `docs/brand/*.md`, `docs/brand/tokens.json`
 **Writes:** Nothing (drift is reported, user fixes it)
+
+### During /handoff
+
+Injects brand-specific transition guidance into handoff output:
+
+1. Load brand guide via common pattern
+2. If brand guide found:
+   a. For `design → deliver` handoff:
+      > **Brand context for Crafter:** Brand guide active at docs/brand/{name}.md. Design tokens at docs/brand/tokens.json. {If manifest has entries: "Review docs/brand/assets/manifest.md for visual reference images."}
+   b. For `deliver → discern` handoff:
+      > **Brand context for Critic:** {If work touched CSS/theme/style files: "Visual changes present — verify rendered appearance, not just token compliance."}
+3. If no brand guide: Silently continue (no guidance injected)
+
+**Reads:** `docs/brand/*.md`, `docs/brand/tokens.json`, `docs/brand/assets/manifest.md`
+**Writes:** Nothing (read-only — guidance injection only)
 
 ## Brand Update Rules (All Commands)
 

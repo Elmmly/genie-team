@@ -47,6 +47,9 @@ Handoffs ensure:
 - [Context item 1]
 - [Context item 2]
 
+**Domain-Specific Guidance:**
+{Each active awareness skill that detects relevant artifacts contributes 1-2 contextual reminders here. Skills activate via their "During /handoff" behavior sections. If no skill has guidance, omit this section entirely.}
+
 **Recommended next:** `/[to] [input-path]`
 ```
 
@@ -114,6 +117,12 @@ Handoffs ensure:
 - Test strategy: [testing approach]
 - Gotchas: [things to watch for]
 
+**For Crafter (domain context):**
+{brand-awareness /handoff guidance — if brand guide exists}
+{spec-awareness /handoff guidance — if spec_ref exists}
+{architecture-awareness /handoff guidance — if adr_refs exist}
+{Omit this section if no awareness skill has guidance}
+
 **Next:** `/deliver docs/analysis/20251203_design_auth.md`
 ```
 
@@ -133,6 +142,12 @@ Handoffs ensure:
 - Test results: [summary]
 - Focus areas: [where to look closely]
 - Known limitations: [if any]
+
+**For Critic (domain context):**
+{brand-awareness /handoff guidance — if visual work}
+{spec-awareness /handoff guidance — if spec delta or regressions}
+{architecture-awareness /handoff guidance — if ADR compliance needed}
+{Omit this section if no awareness skill has guidance}
 
 **Next:** `/discern [implementation-reference]`
 ```

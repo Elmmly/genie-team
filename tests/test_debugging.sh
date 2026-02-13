@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tests for systematic-debugging skill
+# Tests for debugging skill
 # Validates skill file structure, required content, and crafter integration
 # Run: bash tests/test_systematic_debugging.sh
 
@@ -8,7 +8,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SKILL_FILE="$PROJECT_DIR/.claude/skills/systematic-debugging/SKILL.md"
+SKILL_FILE="$PROJECT_DIR/skills/debugging/SKILL.md"
 CRAFTER_FILE="$PROJECT_DIR/agents/crafter.md"
 
 # Test counters
@@ -88,7 +88,7 @@ assert_grep() {
     fi
 }
 
-echo "=== systematic-debugging Skill Tests ==="
+echo "=== debugging Skill Tests ==="
 echo ""
 
 # ─────────────────────────────────────────────
@@ -97,9 +97,9 @@ echo ""
 echo "--- AC-1: Skill file exists with frontmatter ---"
 
 assert_file_exists "$SKILL_FILE" \
-    "AC-1: SKILL.md exists at .claude/skills/systematic-debugging/"
+    "AC-1: SKILL.md exists at skills/debugging/"
 
-assert_grep "$SKILL_FILE" "^name: systematic-debugging" \
+assert_grep "$SKILL_FILE" "^name: debugging" \
     "AC-1: frontmatter has name field"
 
 assert_grep "$SKILL_FILE" "^description:" \
@@ -201,13 +201,13 @@ else
 fi
 
 # ─────────────────────────────────────────────
-# AC-6: Crafter agent lists systematic-debugging
+# AC-6: Crafter agent lists debugging
 # ─────────────────────────────────────────────
 echo ""
 echo "--- AC-6: Crafter agent integration ---"
 
-assert_grep "$CRAFTER_FILE" "systematic-debugging" \
-    "AC-6: crafter.md lists systematic-debugging in skills"
+assert_grep "$CRAFTER_FILE" "debugging" \
+    "AC-6: crafter.md lists debugging in skills"
 
 # ─────────────────────────────────────────────
 # AC-7: Install.sh installs the skill
@@ -215,16 +215,16 @@ assert_grep "$CRAFTER_FILE" "systematic-debugging" \
 echo ""
 echo "--- AC-7: install.sh compatibility ---"
 
-# Verify install_skills copies from .claude/skills/ (which includes our new dir)
-assert_file_exists "$PROJECT_DIR/.claude/skills/systematic-debugging/SKILL.md" \
-    "AC-7: skill is in .claude/skills/ (install source directory)"
+# Verify skill exists in canonical source directory
+assert_file_exists "$PROJECT_DIR/skills/debugging/SKILL.md" \
+    "AC-7: skill is in skills/ (canonical source directory)"
 
-# Verify install.sh install_skills function exists and references .claude/skills
+# Verify install.sh install_skills function exists and references skills/
 assert_grep "$PROJECT_DIR/install.sh" 'install_skills' \
     "AC-7: install.sh has install_skills function"
 
-assert_grep "$PROJECT_DIR/install.sh" '\.claude/skills' \
-    "AC-7: install_skills copies from .claude/skills directory"
+assert_grep "$PROJECT_DIR/install.sh" 'SCRIPT_DIR/skills' \
+    "AC-7: install_skills copies from skills/ directory"
 
 # ─────────────────────────────────────────────
 # Summary

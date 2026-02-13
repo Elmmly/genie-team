@@ -1,7 +1,7 @@
 ---
 spec_version: "1.0"
 type: shaped-work
-id: systematic-debugging
+id: debugging
 title: "Add Systematic Debugging Skill"
 status: reviewed
 created: "2026-02-13"
@@ -13,7 +13,7 @@ depends_on: []
 tags: [skills, debugging, discipline, crafter]
 acceptance_criteria:
   - id: AC-1
-    description: "A new systematic-debugging skill exists at skills/systematic-debugging/SKILL.md with proper frontmatter"
+    description: "A new debugging skill exists at skills/debugging/SKILL.md with proper frontmatter"
     status: pending
   - id: AC-2
     description: "The skill defines a 4-phase root cause investigation protocol: (1) reproduce and read error, (2) pattern analysis comparing working vs broken, (3) hypothesis testing with one change at a time, (4) implementation via failing test first"
@@ -28,10 +28,10 @@ acceptance_criteria:
     description: "The skill description uses trigger-context framing ('Use when...') without summarizing the debugging process"
     status: pending
   - id: AC-6
-    description: "The Crafter agent definition (agents/crafter.md) lists systematic-debugging in its skills array"
+    description: "The Crafter agent definition (agents/crafter.md) lists debugging in its skills array"
     status: pending
   - id: AC-7
-    description: "The skill is installed to .claude/skills/systematic-debugging/SKILL.md via install.sh"
+    description: "The skill is installed to .claude/skills/debugging/SKILL.md via install.sh"
     status: pending
 ---
 
@@ -112,23 +112,23 @@ New skill file with:
 
 ## Overview
 
-Create a new `systematic-debugging` skill at `.claude/skills/systematic-debugging/SKILL.md` following the existing skill pattern (YAML frontmatter + markdown body). The skill defines a 4-phase root cause investigation protocol, a 3-strike escalation rule, and a RED FLAGS section blocking common anti-patterns. Add the skill to the Crafter's skills array in `agents/crafter.md`.
+Create a new `debugging` skill at `.claude/skills/debugging/SKILL.md` following the existing skill pattern (YAML frontmatter + markdown body). The skill defines a 4-phase root cause investigation protocol, a 3-strike escalation rule, and a RED FLAGS section blocking common anti-patterns. Add the skill to the Crafter's skills array in `agents/crafter.md`.
 
 ## Architecture
 
-**Pattern: Standalone composable skill.** Follows the same structure as `tdd-discipline/SKILL.md` — frontmatter with `name`, `description`, `allowed-tools`, then markdown body with protocol phases, rules, and anti-pattern tables. The skill complements TDD discipline: TDD handles the build-test-refactor cycle; systematic-debugging handles what happens when that cycle encounters unexpected failures.
+**Pattern: Standalone composable skill.** Follows the same structure as `tdd-discipline/SKILL.md` — frontmatter with `name`, `description`, `allowed-tools`, then markdown body with protocol phases, rules, and anti-pattern tables. The skill complements TDD discipline: TDD handles the build-test-refactor cycle; debugging handles what happens when that cycle encounters unexpected failures.
 
 **Relationship to TDD:** Phase 4 of the debugging protocol ("Implement the Fix") hands off to TDD's RED phase — write a failing test that captures the root cause, then fix it. The two skills are sequential, not overlapping.
 
 ## Component Design
 
-### 1. Skill file — `.claude/skills/systematic-debugging/SKILL.md`
+### 1. Skill file — `.claude/skills/debugging/SKILL.md`
 
 **Frontmatter:**
 
 ```yaml
 ---
-name: systematic-debugging
+name: debugging
 description: "Structured root cause investigation when tests fail unexpectedly or fixes don't resolve the issue. Use when a test fails that you expected to pass, when a previous fix attempt didn't work, or when an error occurs during implementation."
 allowed-tools: Read, Grep, Glob, Bash(npm test*), Bash(npm run test*), Bash(pytest*), Bash(jest*), Bash(cargo test*), Bash(make test*), Bash(git diff*), Bash(git log*)
 ---
@@ -237,7 +237,7 @@ with a clear description of what was tried and what failed.
 
 **Modify: skills array (L7-12)**
 
-Add `systematic-debugging` after `tdd-discipline`:
+Add `debugging` after `tdd-discipline`:
 
 ```yaml
 skills:
@@ -245,7 +245,7 @@ skills:
   - architecture-awareness
   - code-quality
   - tdd-discipline
-  - systematic-debugging
+  - debugging
   - pattern-enforcement
 ```
 
@@ -255,18 +255,18 @@ Placement after `tdd-discipline` is intentional — it signals the conceptual re
 
 | AC | Approach | Files |
 |----|----------|-------|
-| AC-1 | Create skill file with proper YAML frontmatter (name, description, allowed-tools) | `.claude/skills/systematic-debugging/SKILL.md` |
-| AC-2 | Body defines 4 phases: Reproduce and Read → Pattern Analysis → Hypothesis Testing → Implement the Fix (via TDD) | `.claude/skills/systematic-debugging/SKILL.md` |
-| AC-3 | Attempt Counter section + Escalation Protocol section triggered at 3 attempts with assumption-questioning checklist | `.claude/skills/systematic-debugging/SKILL.md` |
-| AC-4 | RED FLAGS table with: Shotgun debugging, Symptom fixing, "It works now", Escalating complexity, Test modification | `.claude/skills/systematic-debugging/SKILL.md` |
-| AC-5 | description field uses trigger-context: "Use when a test fails unexpectedly, when a previous fix attempt didn't work, or when an error occurs during implementation" | `.claude/skills/systematic-debugging/SKILL.md` |
-| AC-6 | Add `systematic-debugging` to skills array after `tdd-discipline` | `agents/crafter.md` |
-| AC-7 | Skill lives in `.claude/skills/systematic-debugging/` — `install_skills()` in install.sh copies this directory automatically | No install.sh changes needed |
+| AC-1 | Create skill file with proper YAML frontmatter (name, description, allowed-tools) | `.claude/skills/debugging/SKILL.md` |
+| AC-2 | Body defines 4 phases: Reproduce and Read → Pattern Analysis → Hypothesis Testing → Implement the Fix (via TDD) | `.claude/skills/debugging/SKILL.md` |
+| AC-3 | Attempt Counter section + Escalation Protocol section triggered at 3 attempts with assumption-questioning checklist | `.claude/skills/debugging/SKILL.md` |
+| AC-4 | RED FLAGS table with: Shotgun debugging, Symptom fixing, "It works now", Escalating complexity, Test modification | `.claude/skills/debugging/SKILL.md` |
+| AC-5 | description field uses trigger-context: "Use when a test fails unexpectedly, when a previous fix attempt didn't work, or when an error occurs during implementation" | `.claude/skills/debugging/SKILL.md` |
+| AC-6 | Add `debugging` to skills array after `tdd-discipline` | `agents/crafter.md` |
+| AC-7 | Skill lives in `.claude/skills/debugging/` — `install_skills()` in install.sh copies this directory automatically | No install.sh changes needed |
 
 ## Implementation Guidance
 
 **Sequence:**
-1. `.claude/skills/systematic-debugging/SKILL.md` — create the skill file
+1. `.claude/skills/debugging/SKILL.md` — create the skill file
 2. `agents/crafter.md` — add to skills array
 
 **Key considerations:**
@@ -277,8 +277,8 @@ Placement after `tdd-discipline` is intentional — it signals the conceptual re
 
 **Test strategy:**
 - Verify the skill file has valid YAML frontmatter (parseable `name`, `description`, `allowed-tools`)
-- Verify `agents/crafter.md` lists `systematic-debugging` in its skills array
-- Run `./install.sh project /tmp/test-install` and verify `.claude/skills/systematic-debugging/SKILL.md` is present in the output
+- Verify `agents/crafter.md` lists `debugging` in its skills array
+- Run `./install.sh project /tmp/test-install` and verify `.claude/skills/debugging/SKILL.md` is present in the output
 - Run `make lint && make test` to verify no regressions
 
 ## Risks
@@ -299,14 +299,14 @@ Ready for Crafter. Single skill file creation + one-line agent definition change
 
 ## Summary
 
-Created the systematic-debugging skill and integrated it with the Crafter genie. All 7 acceptance criteria met.
+Created the debugging skill and integrated it with the Crafter genie. All 7 acceptance criteria met.
 
 ## Files Changed
 
 | Action | File | Purpose |
 |--------|------|---------|
-| added | `.claude/skills/systematic-debugging/SKILL.md` | New skill with 4-phase debugging protocol, escalation rule, RED FLAGS |
-| modified | `agents/crafter.md` | Added `systematic-debugging` to skills array (after `tdd-discipline`) |
+| added | `.claude/skills/debugging/SKILL.md` | New skill with 4-phase debugging protocol, escalation rule, RED FLAGS |
+| modified | `agents/crafter.md` | Added `debugging` to skills array (after `tdd-discipline`) |
 | added | `tests/test_systematic_debugging.sh` | 24 tests covering all 7 ACs |
 
 ## Test Results
@@ -321,13 +321,13 @@ Full suite: `make lint && make test` — 245 tests pass, lint clean.
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-1 | met | `.claude/skills/systematic-debugging/SKILL.md` exists with `name`, `description`, `allowed-tools` frontmatter |
+| AC-1 | met | `.claude/skills/debugging/SKILL.md` exists with `name`, `description`, `allowed-tools` frontmatter |
 | AC-2 | met | Phases 1-4: Reproduce and Read, Pattern Analysis, Hypothesis Testing, Implement the Fix (via TDD) |
 | AC-3 | met | Attempt Counter + Escalation Protocol triggered at 3 attempts with 5-point assumption checklist |
 | AC-4 | met | RED FLAGS table: Shotgun debugging, Symptom fixing, "It works now", Escalating complexity, Test modification |
 | AC-5 | met | Description: "Use when a test fails that you expected to pass, when a previous fix attempt didn't work, or when an error occurs during implementation" |
-| AC-6 | met | `agents/crafter.md` skills array includes `systematic-debugging` after `tdd-discipline` |
-| AC-7 | met | Skill lives in `.claude/skills/systematic-debugging/` — `install_skills()` copies automatically |
+| AC-6 | met | `agents/crafter.md` skills array includes `debugging` after `tdd-discipline` |
+| AC-7 | met | Skill lives in `.claude/skills/debugging/` — `install_skills()` copies automatically |
 
 ## Handoff to Critic
 
@@ -346,13 +346,13 @@ Clean implementation of a standalone debugging skill that complements the existi
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-1 | Pass | `.claude/skills/systematic-debugging/SKILL.md` exists with valid frontmatter: `name`, `description`, `allowed-tools` |
+| AC-1 | Pass | `.claude/skills/debugging/SKILL.md` exists with valid frontmatter: `name`, `description`, `allowed-tools` |
 | AC-2 | Pass | 4 phases verified: Phase 1 (Reproduce and Read), Phase 2 (Pattern Analysis), Phase 3 (Hypothesis Testing with "ONE change" enforcement), Phase 4 (Implement the Fix via "failing test" TDD handoff) |
 | AC-3 | Pass | Attempt Counter section + Escalation Protocol at 3 attempts. STOP directive present. 5-point assumption-questioning checklist. Headless mode produces `blocked` execution report. |
 | AC-4 | Pass | RED FLAGS table with 5 anti-patterns: Shotgun debugging, Symptom fixing, "It works now", Escalating complexity, Test modification. Each has Signal + Response columns. |
 | AC-5 | Pass | Description uses trigger-context: "Use when a test fails that you expected to pass, when a previous fix attempt didn't work, or when an error occurs during implementation." Does NOT summarize the 4-phase process. |
-| AC-6 | Pass | `agents/crafter.md` L12: `- systematic-debugging` (placed after `tdd-discipline`, before `pattern-enforcement`) |
-| AC-7 | Pass | Skill at `.claude/skills/systematic-debugging/SKILL.md` — `install_skills()` copies `.claude/skills/` tree automatically. No install.sh changes needed. |
+| AC-6 | Pass | `agents/crafter.md` L12: `- debugging` (placed after `tdd-discipline`, before `pattern-enforcement`) |
+| AC-7 | Pass | Skill at `.claude/skills/debugging/SKILL.md` — `install_skills()` copies `.claude/skills/` tree automatically. No install.sh changes needed. |
 
 ## Code Quality
 

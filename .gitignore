@@ -15,7 +15,15 @@ Desktop.ini
 *.swo
 *~
 
-# Local Claude Code settings (keep .claude/commands/ tracked)
+# Installed copies (canonical sources live at repo root)
+# Populated by install.sh from agents/, commands/, skills/, rules/, hooks/
+.claude/agents/
+.claude/commands/
+.claude/skills/
+.claude/rules/
+.claude/hooks/
+
+# Local Claude Code runtime state
 .claude/settings.*
 .claude/statsig/
 .claude/agent-memory/

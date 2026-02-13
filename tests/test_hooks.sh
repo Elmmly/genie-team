@@ -1,15 +1,15 @@
 #!/bin/bash
-# Tests for .claude/hooks/ scripts
+# Tests for hooks/ scripts (canonical sources)
 # Run: bash tests/test_hooks.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 FIXTURES_DIR="$SCRIPT_DIR/fixtures"
 
-# Hook scripts under test
-TRACK_COMMAND="$PROJECT_DIR/.claude/hooks/track-command.sh"
-TRACK_ARTIFACTS="$PROJECT_DIR/.claude/hooks/track-artifacts.sh"
-REINJECT_CONTEXT="$PROJECT_DIR/.claude/hooks/reinject-context.sh"
+# Hook scripts under test (canonical sources)
+TRACK_COMMAND="$PROJECT_DIR/hooks/track-command.sh"
+TRACK_ARTIFACTS="$PROJECT_DIR/hooks/track-artifacts.sh"
+REINJECT_CONTEXT="$PROJECT_DIR/hooks/reinject-context.sh"
 
 # Test counters
 TESTS_RUN=0

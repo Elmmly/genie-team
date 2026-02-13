@@ -240,7 +240,7 @@ teardown
 echo ""
 echo "--- autonomous-execution.md worktree section ---"
 
-ae_file="$PROJECT_DIR/.claude/rules/autonomous-execution.md"
+ae_file="$PROJECT_DIR/rules/autonomous-execution.md"
 ae_content=$(cat "$ae_file")
 
 assert_contains "$ae_content" "Parallel Sessions via Git Worktrees" \

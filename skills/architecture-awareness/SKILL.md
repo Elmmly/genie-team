@@ -1,6 +1,6 @@
 ---
 name: architecture-awareness
-description: Ensures ADR and C4 diagram behaviors during all workflows. Use when loading context, discussing architecture, creating designs, or when "ADR", "architecture decision", "C4", "coupling", "cohesion", or "boundary" are mentioned. Activates during /arch:init, /context:load, /context:refresh, /spec:init, /define, /design, /deliver, /discern, /diagnose, and /discover.
+description: Ensures ADR and C4 diagram behaviors during all workflows. Use when loading context, discussing architecture, creating designs, or when "ADR", "architecture decision", "C4", "coupling", "cohesion", or "boundary" are mentioned. Activates during /arch:init, /context:load, /context:refresh, /spec:init, /define, /design, /deliver, /discern, /handoff, /diagnose, and /discover.
 allowed-tools: Read, Glob, Grep
 ---
 
@@ -141,6 +141,7 @@ This skill activates during:
 - `/design` — Create accepted ADRs; update C4 diagrams when boundaries change
 - `/deliver` — Read ADRs for implementation context (WHY constraints exist)
 - `/discern` — Verify ADR compliance; check for boundary violations
+- `/handoff` — Inject ADR-specific transition guidance into handoff output
 - `/diagnose` — Coupling violations, cohesion drift, ADR health, diagram staleness
 - `/discover` — Surface existing ADRs as context for exploration
 
@@ -219,6 +220,9 @@ Reads ADRs for implementation context — does NOT create or modify them:
    - Boundary constraints (e.g., "ADR-003 requires auth to stay in its own service")
 3. Reference ADR ids in implementation notes when decisions guide choices
 4. If an implementation approach would violate an accepted ADR: **Warn** prominently
+5. **Transition guidance** (conditional):
+   a. If `adr_refs` exist in backlog item frontmatter:
+      > **ADR compliance:** This work references {N} architecture decision(s). Ensure the approach aligns with each accepted decision. Violations will be flagged during /discern review.
 
 **Reads:** `docs/decisions/ADR-*.md`, `docs/architecture/components/{domain}.md`
 **Writes:** Nothing (read-only for architecture artifacts)
@@ -310,6 +314,21 @@ Surfaces existing ADRs as context for exploration:
 
 **Reads:** `docs/decisions/ADR-*.md`
 **Writes:** Nothing (read-only)
+
+### During /handoff
+
+Injects ADR-specific transition guidance into handoff output:
+
+1. Load ADRs via common pattern
+2. If ADRs found relevant to the work:
+   a. For `design → deliver` handoff:
+      > **ADR context for Crafter:** {N} architecture decision(s) constrain this work: {list ADR ids + 1-line summaries}. Implementation must align with these decisions.
+   b. For `deliver → discern` handoff:
+      > **ADR context for Critic:** {If adr_refs exist: "Verify ADR compliance for: {list ADR ids}. Check for boundary violations."}
+3. If no ADRs: Silently continue (no guidance injected)
+
+**Reads:** `docs/decisions/ADR-*.md`
+**Writes:** Nothing (read-only — guidance injection only)
 
 ### During /context:load (AC-9)
 

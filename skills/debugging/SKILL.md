@@ -1,5 +1,5 @@
 ---
-name: systematic-debugging
+name: debugging
 description: "Structured root cause investigation when tests fail unexpectedly or fixes don't resolve the issue. Use when a test fails that you expected to pass, when a previous fix attempt didn't work, or when an error occurs during implementation."
 allowed-tools: Read, Grep, Glob, Bash(npm test*), Bash(npm run test*), Bash(pytest*), Bash(jest*), Bash(cargo test*), Bash(make test*), Bash(git diff*), Bash(git log*)
 ---

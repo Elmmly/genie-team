@@ -19,6 +19,9 @@ else
         "dist/commands/:commands/"
         ".claude/commands/:commands/"
         ".claude/agents/:agents/"
+        ".claude/skills/:skills/"
+        ".claude/rules/:rules/"
+        ".claude/hooks/:hooks/"
     )
 fi
 
