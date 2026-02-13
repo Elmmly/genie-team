@@ -3,7 +3,9 @@ spec_version: "1.0"
 type: shaped-work
 id: skill-description-audit
 title: "Audit Skill Descriptions to Prevent Short-Circuit Reading"
-status: shaped
+status: abandoned
+abandoned: "2026-02-13"
+abandoned_reason: "Design spike disproved core premise — proposed changes would harm skill activation"
 created: "2026-02-13"
 appetite: small
 priority: P3
@@ -14,22 +16,27 @@ tags: [skills, optimization, descriptions, meta]
 acceptance_criteria:
   - id: AC-1
     description: "All 8 skill descriptions (plus any new skills from concurrent work) have been audited for functional summaries that could cause short-circuit reading"
-    status: pending
+    status: completed
+    note: "Audit completed during spike. All 8 descriptions follow recommended best practice (functional summary + trigger context)."
   - id: AC-2
     description: >-
       Descriptions that embed functional summaries ('Ensures X', 'Enforces Y and Z') have
       been rewritten to focus on activation context ('Use when...') without summarizing what
       the skill does
-    status: pending
+    status: rejected
+    note: "Spike disproved — removing functional summaries goes against documented best practices and would reduce activation reliability from ~80% to ~50%."
   - id: AC-3
     description: "No skill description exceeds 200 characters — keeping them trigger-focused and concise"
-    status: pending
+    status: rejected
+    note: "Spike disproved — 200-char limit would break 3 knowledge skills. Recommended descriptions are 150-250+ chars. Budget utilization is only 12.3%."
   - id: AC-4
     description: "Total combined skill description character count is measured and documented, confirming all skills fit within Claude Code's ~15k character budget for the system prompt skill listing"
-    status: pending
+    status: completed
+    note: "Measured: 1,969 chars / ~16,000 budget = 12.3% utilization. Room for ~87 more skills."
   - id: AC-5
     description: "Source skills in skills/ directory are updated and synced to .claude/skills/ via install.sh"
-    status: pending
+    status: rejected
+    note: "No changes needed — descriptions already follow best practices."
 ---
 
 # Shaped Work Contract: Audit Skill Descriptions to Prevent Short-Circuit Reading
