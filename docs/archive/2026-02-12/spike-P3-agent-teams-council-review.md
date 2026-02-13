@@ -176,4 +176,10 @@ If the spike shows the council pattern catches meaningfully more real issues, it
 
 ---
 
+## Deferred (2026-02-12)
+
+Archived during backlog cleanup. Agent Teams remains an experimental research preview with known stability issues (task status lag, no session resumption, slow shutdown). This spike is valid but not actionable until the feature graduates. Revisit when Agent Teams is generally available.
+
+---
+
 # End of Spike
