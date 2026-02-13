@@ -1,0 +1,493 @@
+#!/bin/bash
+# genie-session.sh — Session management for parallel worktree sessions
+#
+# Wraps git worktree ceremony into memorable commands and sourceable functions.
+# Operates in two modes:
+#   CLI mode:     ./genie-session.sh start P2-search deliver
+#   Library mode: source genie-session.sh; session_start "P2-search" "deliver"
+#
+# Function contract (locked by P2-autonomous-lifecycle-runner design):
+#   session_start <item> <phase>           → 0=success, 1=failure; stdout=path
+#   session_finish <item> [--pr|--merge|--force] → 0=success, 1=failure, 2=conflict; stdout=PR URL
+#   session_worktree_path <item>           → 0=found, 1=not found; stdout=path
+#   session_cleanup_item <item>            → 0 (always); stdout=(none)
+
+set -euo pipefail
+
+# ── Output Helpers ─────────────────────────────────────────────
+
+_gs_log() {
+    echo "[session] $*" >&2
+}
+
+_gs_error() {
+    echo "[session] ERROR: $*" >&2
+}
+
+_gs_usage() {
+    cat << 'EOF' >&2
+Usage: genie-session <command> [args]
+
+Commands:
+  start <item> <phase>     Create a new worktree session
+  list                     List active sessions
+  finish <item> [flags]    Close out a session (PR, merge, or force-remove)
+  cleanup-item <item>      Remove a specific item's session
+  cleanup                  Remove all merged sessions
+
+Finish flags:
+  --pr      (default) Push branch and create PR via gh
+  --merge   Merge to default branch directly
+  --force   Force-remove worktree and branch (no PR/merge)
+
+Examples:
+  genie-session start P2-search deliver
+  genie-session list
+  genie-session finish P2-search
+  genie-session finish P2-search --merge
+  genie-session cleanup
+EOF
+}
+
+# ── Git Context Helpers ────────────────────────────────────────
+
+_gs_repo_root() {
+    # Returns the main worktree root (first entry in worktree list)
+    git worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //'
+}
+
+_gs_repo_name() {
+    basename "$(_gs_repo_root)"
+}
+
+_gs_default_branch() {
+    local branch
+    # Try remote HEAD reference (set when repo was cloned)
+    branch=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')
+    if [[ -n "$branch" ]]; then
+        echo "$branch"
+        return 0
+    fi
+    # Fallback: check for common default branch names
+    if git show-ref --verify --quiet refs/heads/main 2>/dev/null; then
+        echo "main"
+        return 0
+    fi
+    if git show-ref --verify --quiet refs/heads/master 2>/dev/null; then
+        echo "master"
+        return 0
+    fi
+    _gs_error "Cannot determine default branch"
+    return 1
+}
+
+# ── Naming Convention Helpers ──────────────────────────────────
+
+_gs_worktree_dir() {
+    local item="$1"
+    local root
+    root=$(_gs_repo_root)
+    echo "$(dirname "$root")/$(basename "$root")--${item}"
+}
+
+_gs_branch_name() {
+    local item="$1"
+    local phase="$2"
+    echo "genie/${item}-${phase}"
+}
+
+# ── Branch State Helpers ───────────────────────────────────────
+
+_gs_branch_exists() {
+    local branch="$1"
+    git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null
+}
+
+_gs_find_branch() {
+    # Find the first branch matching genie/{item}-*
+    local item="$1"
+    local branch
+    branch=$(git for-each-ref --format='%(refname:short)' "refs/heads/genie/${item}-*" 2>/dev/null | head -1)
+    if [[ -n "$branch" ]]; then
+        echo "$branch"
+        return 0
+    fi
+    return 1
+}
+
+_gs_is_merged() {
+    local branch="$1"
+    local default_branch
+    default_branch=$(_gs_default_branch) || return 1
+
+    # Branch tip must be reachable from the default branch
+    if ! git merge-base --is-ancestor "$branch" "$default_branch" 2>/dev/null; then
+        return 1
+    fi
+
+    # Distinguish "just created from main" vs "had work that was merged":
+    # A branch with only 1 reflog entry was just created (no commits yet).
+    # A branch with 2+ entries has had actual work done on it.
+    local reflog_count
+    reflog_count=$(git reflog show "$branch" 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "${reflog_count:-0}" -le 1 ]]; then
+        return 1  # Just created, no work → not considered "merged"
+    fi
+
+    return 0
+}
+
+# ── PR Helpers ─────────────────────────────────────────────────
+
+_gs_pr_title() {
+    local item="$1"
+    local scope
+    scope="${item#P[0-9]*-}"
+    echo "feat(${scope}): ${item} delivery"
+}
+
+_gs_pr_body() {
+    local item="$1"
+    cat << EOF
+## Summary
+
+Session delivery for backlog item.
+
+**Backlog:** docs/backlog/${item}.md
+
+---
+Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+}
+
+# ── Finish Mode Helpers ────────────────────────────────────────
+
+_gs_finish_force() {
+    local item="$1"
+    local worktree_dir branch repo_root
+
+    repo_root=$(_gs_repo_root)
+    worktree_dir=$(_gs_worktree_dir "$item")
+    branch=$(_gs_find_branch "$item" 2>/dev/null) || true
+
+    # Force remove worktree
+    if [[ -d "$worktree_dir" ]]; then
+        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+    fi
+
+    # Force delete branch
+    if [[ -n "${branch:-}" ]]; then
+        git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+    fi
+
+    _gs_log "Force-removed session: $item"
+    return 0
+}
+
+_gs_finish_merge() {
+    local item="$1"
+    local worktree_dir branch default_branch repo_root
+
+    repo_root=$(_gs_repo_root)
+    worktree_dir=$(_gs_worktree_dir "$item")
+    branch=$(_gs_find_branch "$item") || {
+        _gs_error "No branch found for item: $item"
+        return 1
+    }
+    default_branch=$(_gs_default_branch) || return 1
+
+    # Ensure main worktree is on the default branch
+    local current_branch
+    current_branch=$(git -C "$repo_root" rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [[ "$current_branch" != "$default_branch" ]]; then
+        _gs_error "Main worktree is on '$current_branch', not '$default_branch'."
+        _gs_error "  Run: git -C $repo_root checkout $default_branch"
+        return 1
+    fi
+
+    # Warn about uncommitted changes in the session worktree
+    if [[ -d "$worktree_dir" ]]; then
+        local status
+        status=$(git -C "$worktree_dir" status --porcelain 2>/dev/null)
+        if [[ -n "$status" ]]; then
+            _gs_log "Warning: uncommitted changes in $worktree_dir"
+        fi
+    fi
+
+    # Merge branch into default branch
+    if ! git -C "$repo_root" merge "$branch" -q 2>/dev/null; then
+        _gs_error "Merge conflict. Resolve conflicts in $repo_root, then run:"
+        _gs_error "  git add . && git commit"
+        _gs_error "  genie-session cleanup"
+        return 2
+    fi
+
+    # Remove worktree
+    git -C "$repo_root" worktree remove "$worktree_dir" 2>/dev/null || \
+        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+
+    # Delete branch (safe -d: only if merged)
+    git -C "$repo_root" branch -d "$branch" 2>/dev/null || true
+
+    _gs_log "Merged and cleaned up: $item"
+    return 0
+}
+
+_gs_finish_pr() {
+    local item="$1"
+    local worktree_dir branch default_branch repo_root
+
+    repo_root=$(_gs_repo_root)
+    worktree_dir=$(_gs_worktree_dir "$item")
+    branch=$(_gs_find_branch "$item") || {
+        _gs_error "No branch found for item: $item"
+        return 1
+    }
+    default_branch=$(_gs_default_branch) || return 1
+
+    # Warn about uncommitted changes
+    if [[ -d "$worktree_dir" ]]; then
+        local status
+        status=$(git -C "$worktree_dir" status --porcelain 2>/dev/null)
+        if [[ -n "$status" ]]; then
+            _gs_log "Warning: uncommitted changes in $worktree_dir"
+        fi
+    fi
+
+    # Push branch to remote
+    if ! git -C "$repo_root" push --quiet -u origin "$branch" 2>/dev/null; then
+        _gs_error "Failed to push branch: $branch"
+        return 1
+    fi
+
+    # Create PR via gh or print manual instructions
+    if command -v gh >/dev/null 2>&1; then
+        local pr_url
+        pr_url=$(cd "$repo_root" && gh pr create \
+            --base "$default_branch" \
+            --head "$branch" \
+            --title "$(_gs_pr_title "$item")" \
+            --body "$(_gs_pr_body "$item")" 2>/dev/null) || true
+
+        if [[ -n "${pr_url:-}" ]]; then
+            echo "$pr_url"
+        else
+            _gs_log "PR creation failed. Branch pushed — create PR manually."
+        fi
+    else
+        local remote_url
+        remote_url=$(git -C "$repo_root" remote get-url origin 2>/dev/null)
+        _gs_log "Branch pushed. gh CLI not available — create PR manually:"
+        _gs_log "  ${remote_url%.git}/compare/$branch"
+    fi
+
+    # Remove worktree (branch stays — it backs the PR)
+    git -C "$repo_root" worktree remove "$worktree_dir" 2>/dev/null || \
+        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+
+    _gs_log "Session finished: $item"
+    return 0
+}
+
+# ── Public Functions (Runner Contract) ─────────────────────────
+
+session_start() {
+    local item="${1:?Usage: session_start <item> <phase>}"
+    local phase="${2:?Usage: session_start <item> <phase>}"
+    local worktree_dir branch base_branch repo_root
+
+    repo_root=$(_gs_repo_root)
+    worktree_dir=$(_gs_worktree_dir "$item")
+    branch=$(_gs_branch_name "$item" "$phase")
+    base_branch=$(_gs_default_branch) || return 1
+
+    # Guard: worktree already exists
+    if [[ -d "$worktree_dir" ]]; then
+        _gs_error "Worktree already exists: $worktree_dir"
+        return 1
+    fi
+
+    # Guard: branch already exists
+    if _gs_branch_exists "$branch"; then
+        _gs_error "Branch already exists: $branch"
+        return 1
+    fi
+
+    # Create worktree + branch from default branch
+    if ! git -C "$repo_root" worktree add "$worktree_dir" -b "$branch" "$base_branch" -q 2>/dev/null; then
+        _gs_error "Failed to create worktree at $worktree_dir"
+        return 1
+    fi
+
+    # Stdout: absolute worktree path (machine-readable)
+    echo "$worktree_dir"
+
+    # Stderr: human-readable progress and next steps
+    _gs_log "Session started: $item ($phase)"
+    _gs_log "Worktree: $worktree_dir"
+    _gs_log "Branch: $branch"
+    _gs_log ""
+    _gs_log "Next steps:"
+    _gs_log "  cd $worktree_dir && claude"
+
+    return 0
+}
+
+session_finish() {
+    local item="${1:?Usage: session_finish <item> [--pr|--merge|--force]}"
+    shift
+    local mode="pr"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --pr)    mode="pr"; shift ;;
+            --merge) mode="merge"; shift ;;
+            --force) mode="force"; shift ;;
+            *)       _gs_error "Unknown flag: $1"; return 1 ;;
+        esac
+    done
+
+    case "$mode" in
+        force) _gs_finish_force "$item" ;;
+        merge) _gs_finish_merge "$item" ;;
+        pr)    _gs_finish_pr "$item" ;;
+    esac
+}
+
+session_worktree_path() {
+    local item="${1:?Usage: session_worktree_path <item>}"
+    local worktree_dir
+
+    worktree_dir=$(_gs_worktree_dir "$item")
+
+    # Verify worktree exists
+    if [[ -d "$worktree_dir" ]] && git worktree list --porcelain 2>/dev/null | grep -qF "worktree $worktree_dir"; then
+        echo "$worktree_dir"
+        return 0
+    fi
+
+    _gs_error "No session found for: $item"
+    return 1
+}
+
+session_cleanup_item() {
+    local item="${1:?Usage: session_cleanup_item <item>}"
+    local worktree_dir branch repo_root
+
+    repo_root=$(_gs_repo_root 2>/dev/null) || { _gs_log "Cleaned up: $item"; return 0; }
+    worktree_dir=$(_gs_worktree_dir "$item" 2>/dev/null) || true
+    branch=$(_gs_find_branch "$item" 2>/dev/null) || true
+
+    # Remove worktree if it exists
+    if [[ -n "${worktree_dir:-}" && -d "${worktree_dir}" ]]; then
+        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+    fi
+
+    # Remove branch if it exists
+    if [[ -n "${branch:-}" ]]; then
+        git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+    fi
+
+    _gs_log "Cleaned up: $item"
+    return 0
+}
+
+# ── CLI-Only Functions ─────────────────────────────────────────
+
+session_list() {
+    local repo_root default_branch
+    repo_root=$(_gs_repo_root) || { _gs_error "Not in a git repo"; return 1; }
+    default_branch=$(_gs_default_branch) || return 1
+
+    local found=0
+    local wt_path="" wt_branch=""
+
+    while IFS= read -r line; do
+        if [[ "$line" == "worktree "* ]]; then
+            wt_path="${line#worktree }"
+        elif [[ "$line" == "branch refs/heads/genie/"* ]]; then
+            wt_branch="${line#branch refs/heads/}"
+            local item status
+
+            # Extract item from branch: genie/{item}-{phase} → {item}
+            item=$(echo "$wt_branch" | sed 's|^genie/||; s|-[^-]*$||')
+
+            if _gs_is_merged "$wt_branch" 2>/dev/null; then
+                status="merged"
+            else
+                status="active"
+            fi
+
+            if [[ $found -eq 0 ]]; then
+                printf "%-20s %-35s %-40s %s\n" "ITEM" "BRANCH" "PATH" "STATUS"
+                found=1
+            fi
+            printf "%-20s %-35s %-40s %s\n" "$item" "$wt_branch" "$wt_path" "$status"
+
+            wt_path=""
+            wt_branch=""
+        elif [[ -z "$line" ]]; then
+            wt_path=""
+            wt_branch=""
+        fi
+    done < <(git -C "$repo_root" worktree list --porcelain 2>/dev/null)
+
+    if [[ $found -eq 0 ]]; then
+        echo "No active sessions"
+    fi
+
+    return 0
+}
+
+session_cleanup() {
+    local repo_root default_branch
+    repo_root=$(_gs_repo_root) || return 1
+    default_branch=$(_gs_default_branch) || return 1
+
+    local count=0
+    local wt_path="" wt_branch=""
+
+    while IFS= read -r line; do
+        if [[ "$line" == "worktree "* ]]; then
+            wt_path="${line#worktree }"
+        elif [[ "$line" == "branch refs/heads/genie/"* ]]; then
+            wt_branch="${line#branch refs/heads/}"
+
+            if _gs_is_merged "$wt_branch" 2>/dev/null; then
+                local item
+                item=$(echo "$wt_branch" | sed 's|^genie/||; s|-[^-]*$||')
+                session_cleanup_item "$item" 2>/dev/null
+                count=$((count + 1))
+            fi
+
+            wt_path=""
+            wt_branch=""
+        elif [[ -z "$line" ]]; then
+            wt_path=""
+            wt_branch=""
+        fi
+    done < <(git -C "$repo_root" worktree list --porcelain 2>/dev/null)
+
+    if [[ $count -gt 0 ]]; then
+        _gs_log "Cleaned up $count session(s)"
+    else
+        _gs_log "No merged sessions to clean up"
+    fi
+
+    return 0
+}
+
+# ── Source Guard ───────────────────────────────────────────────
+# When sourced by another script (e.g., run-pdlc.sh), only function
+# definitions are loaded — the CLI dispatcher below is skipped.
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        start)        shift; session_start "$@" ;;
+        list)         session_list ;;
+        finish)       shift; session_finish "$@" ;;
+        cleanup-item) shift; session_cleanup_item "$@" ;;
+        cleanup)      session_cleanup ;;
+        -h|--help|"") _gs_usage ;;
+        *)            _gs_error "Unknown command: $1"; _gs_usage; exit 1 ;;
+    esac
+fi

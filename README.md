@@ -28,6 +28,7 @@
 | **Skills** | Automatic behaviors (TDD, code quality, brand awareness, etc.) | `.claude/skills/` |
 | **Rules** | Always-on constraints (workflow, code quality, agent conventions) | `.claude/rules/` |
 | **Schemas** | Document format definitions (ADR, spec, shaped contract, etc.) | `schemas/` |
+| **Scripts** | Session management (`genie-session.sh` for parallel worktrees) | `scripts/` |
 | **Hooks** | Context re-injection on compaction (preserves context across long sessions) | `.claude/hooks/` |
 | **MCP** | Image generation server (Designer genie) | Via `claude mcp add` |
 
@@ -41,6 +42,7 @@
 ./install.sh global --rules          # Rules only
 ./install.sh global --hooks          # Hooks only (context re-injection)
 ./install.sh global --schemas        # Schemas only
+./install.sh global --scripts        # Scripts only (genie-session)
 ./install.sh global --mcp            # MCP server only (imagegen)
 ./install.sh project /path/to/app    # Full project install
 ./install.sh project --skip-mcp      # Everything except MCP
@@ -125,24 +127,52 @@ Skills activate automatically based on context — no explicit invocation needed
 
 ## Parallel Sessions
 
-Multiple genie-team sessions can work on the same repository simultaneously using git worktrees. Each session operates in its own worktree directory on a separate branch.
+Multiple genie-team sessions can work on the same repository simultaneously using git worktrees. The `genie-session` script wraps git worktree ceremony into simple commands.
 
 ```bash
-# Create a worktree for parallel work
-git worktree add ../myproject--auth -b genie/P1-auth-deliver
-cd ../myproject--auth
+# Start a parallel session (creates worktree + branch in one step)
+scripts/genie-session start P2-search deliver
+# → Creates ../myproject--P2-search on branch genie/P2-search-deliver
+# → Prints: cd ../myproject--P2-search && claude
 
-# Install genie-team (auto-detects worktree context)
-/path/to/genie-team/install.sh project .
+# List all active sessions
+scripts/genie-session list
+# → Shows item, branch, path, and merge status for each session
 
-# Work in parallel — each worktree has its own branch, index, and files
-claude
+# Finish a session (push + create PR, remove worktree)
+scripts/genie-session finish P2-search
+# → Pushes branch, creates PR via gh, removes worktree
 
-# Clean up when done
-git worktree remove ../myproject--auth
+# Or merge directly (trunk-based mode)
+scripts/genie-session finish P2-search --merge
+
+# Clean up all merged sessions
+scripts/genie-session cleanup
 ```
 
-Worktree-aware behaviors:
+### Finish Modes
+
+| Flag | Behavior |
+|------|----------|
+| `--pr` (default) | Push branch, create PR via `gh`, remove worktree |
+| `--merge` | Merge to default branch, remove worktree and branch |
+| `--force` | Force-remove worktree and branch (no PR/merge) |
+
+### Sourceable by Scripts
+
+The session management functions can be sourced by other scripts (e.g., the autonomous runner):
+
+```bash
+source scripts/genie-session.sh
+session_start "P2-search" "deliver"     # Returns 0/1, prints path to stdout
+session_finish "P2-search" --pr         # Returns 0/1/2, prints PR URL
+session_worktree_path "P2-search"       # Returns 0/1, prints path
+session_cleanup_item "P2-search"        # Returns 0 (always)
+```
+
+### Worktree-Aware Behaviors
+
+When installed in a worktree context:
 - **MCP scope** switches to `user` (shared across sessions) instead of `local`
 - **Genie memory** is symlinked to the main worktree (shared learning)
 - **Safety rules** prevent destructive operations that affect sibling worktrees
@@ -167,6 +197,8 @@ genie-team/
 │   └── designer.md      # Brand strategist (sonnet, read-only)
 ├── genies/              # Genie specs, system prompts, and templates per genie
 ├── schemas/             # Document format schemas (ADR, spec, brand-spec, etc.)
+├── scripts/             # Session management and automation scripts
+│   └── genie-session.sh # Parallel session lifecycle (start, list, finish, cleanup)
 ├── templates/           # Project templates (CLAUDE.md)
 ├── tests/               # Test suite
 ├── dist/                # Built/distributable commands

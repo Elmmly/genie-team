@@ -28,6 +28,21 @@ acceptance_criteria:
   - id: AC-6
     description: "Safety rules prevent destructive operations that affect sibling worktrees (e.g., force-pushing shared branches, deleting the main worktree's branch)"
     status: met
+  - id: AC-7
+    description: "Session lifecycle commands (start, list, finish, cleanup) wrap git worktree ceremony into single operations with correct naming conventions"
+    status: met
+  - id: AC-8
+    description: "Session finish handles PR creation (PR mode default via gh CLI) or direct merge (trunk-based mode), with graceful fallback when gh is unavailable"
+    status: met
+  - id: AC-9
+    description: "Session management functions are sourceable by external scripts (autonomous runner) with documented signatures, return codes, and stdout/stderr contract: session_start(), session_finish(), session_worktree_path(), session_cleanup_item()"
+    status: met
+  - id: AC-10
+    description: "A session_cleanup_item function removes a specific item's worktree and branch regardless of merge state, enabling the autonomous runner to clean up prior failed attempts before retrying"
+    status: met
+  - id: AC-11
+    description: "Session finish supports --force flag that removes worktree and branch without requiring clean merge state, enabling the runner's --cleanup-on-failure mode"
+    status: met
 ---
 
 # Parallel Sessions via Git Worktrees
@@ -93,6 +108,7 @@ This capability builds on existing genie-team patterns:
 
 ## Design Constraints
 <!-- Updated by /design on 2026-02-12 from parallel-sessions-git-worktrees -->
+<!-- Updated by /design on 2026-02-12 from session-management -->
 - Worktree detection uses `git rev-parse --git-dir` vs `--git-common-dir` comparison (no external tools)
 - install.sh auto-detects worktree context — no `--worktree` flag needed (backwards compatible)
 - MCP scope switches from `local` to `user` when installing in a worktree (shared across sessions)
@@ -101,6 +117,14 @@ This capability builds on existing genie-team patterns:
 - Claude Code `--resume` works WITHIN a single worktree across chained commands, does NOT work ACROSS worktrees (Claude Code treats each worktree path as a separate project)
 - No cross-worktree coordination protocol — git's branch-per-worktree constraint is the isolation mechanism
 - No in-session dispatch from active Claude sessions — human users create worktrees and open new terminals; orchestrators use the CLI contract. Rationale: in-session dispatch degrades the human experience (no unified view, no result injection, log file monitoring instead of interactive control). The human IS the orchestrator in interactive mode.
+- Session management script (`scripts/genie-session.sh`) uses dual-mode pattern: CLI subcommands when executed, sourceable functions when sourced (via `BASH_SOURCE` guard)
+- Public functions use `session_` prefix; internal helpers use `_gs_` prefix to avoid namespace collisions when sourced
+- Function contract: return codes (0=success, 1=failure, 2=conflict) + stdout (paths/URLs) + stderr (progress/errors) separation
+- Worktree naming uses item slug only (`../{repo}--{item}`), not item+phase, because a single worktree may span multiple phases
+- Branch naming includes phase (`genie/{item}-{phase}`) for disambiguation
+- PR mode is default; branch is NOT deleted after PR creation (cleanup happens after PR merge via `session cleanup`)
+- `gh` CLI is optional; fallback prints manual compare URL when gh is unavailable
+- Distribution via install.sh `--scripts` flag; scripts copied to target `scripts/` directory with `chmod +x`
 
 ## Cost Implications
 
@@ -137,17 +161,32 @@ These are NOT blocking for human-led parallel sessions (this item's primary deli
 - templates/CLAUDE.md: Added "Parallel Sessions" section with worktree-enabled comment marker
 - docs/architecture/cli-contract.md: Added "Parallel Invocation via Worktrees" section with orchestrator examples
 
+### Session Management (from session-management)
+<!-- Updated by /deliver on 2026-02-12 from session-management -->
+
+#### Test Coverage
+- tests/test_session.sh: 48 test cases covering AC-7, AC-8, AC-9, AC-10, AC-11
+
+#### Implementation Files
+- scripts/genie-session.sh: Session lifecycle commands (start, list, finish, cleanup) with dual CLI/library mode
+- install.sh: Added install_scripts() function and --scripts flag for distribution
+
 ## Review Verdict
-<!-- Updated by /discern on 2026-02-12 from parallel-sessions-git-worktrees -->
+<!-- Updated by /discern on 2026-02-12 from session-management -->
 
 **Verdict:** APPROVED
-**ACs verified:** 6/6 met
+**ACs verified:** 11/11 met
 
 | AC | Status | Evidence |
 |----|--------|----------|
 | AC-1 | met | cli-contract.md documents worktree invocation; safety rules address merge conflicts; design validated concurrent commits |
 | AC-2 | met | detect_worktree() and get_main_worktree() in install.sh; cmd_project() adjusts MCP scope and creates memory symlink |
 | AC-3 | met | autonomous-execution.md "Parallel Sessions via Git Worktrees" section with detection, safety, branch convention, human/orchestrator patterns |
-| AC-4 | met | templates/CLAUDE.md "## Parallel Sessions" with `<!-- worktree-enabled -->` marker following `<!-- trunk-based -->` pattern |
+| AC-4 | met | templates/CLAUDE.md "## Parallel Sessions" with `<!-- worktree-enabled -->` marker and genie-session commands |
 | AC-5 | met | install.sh creates memory symlink to main worktree; isolation documented as opt-out |
 | AC-6 | met | 5 safety rules in autonomous-execution.md covering force-push, file boundaries, main branch, branch checkout, merge conflicts |
+| AC-7 | met | scripts/genie-session.sh: session_start, session_list, session_finish, session_cleanup with correct naming conventions. 48 tests. |
+| AC-8 | met | _gs_finish_pr() with gh CLI, _gs_finish_merge() for trunk-based. Graceful fallback to manual compare URL. |
+| AC-9 | met | Source guard via BASH_SOURCE. session_start(), session_finish(), session_worktree_path(), session_cleanup_item() with documented return codes. |
+| AC-10 | met | session_cleanup_item() force-removes worktree+branch regardless of merge state, always returns 0. 5 tests. |
+| AC-11 | met | session_finish --force delegates to _gs_finish_force() which skips all checks. Always returns 0. 4 tests. |

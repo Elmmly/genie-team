@@ -120,13 +120,17 @@ The `/deliver` command enforces TDD:
 
 <!-- worktree-enabled -->
 
-<!-- Setup:
-     git worktree add ../project--session-name -b genie/P1-item-deliver
-     cd ../project--session-name
-     claude
-
-     Cleanup:
-     git worktree remove ../project--session-name
+<!-- Session management commands (requires scripts/genie-session.sh):
+     scripts/genie-session start P1-item deliver
+     scripts/genie-session list
+     scripts/genie-session finish P1-item
+     scripts/genie-session cleanup
+-->
+<!-- Manual alternative (without genie-session):
+     git worktree add ../project-DASH-session -b genie/P1-item-deliver
+     cd ../project-DASH-session && claude
+     git worktree remove ../project-DASH-session
+     (replace -DASH- with double dash)
 -->
 
 ---

@@ -35,6 +35,7 @@ Options:
   --agents            Install agents only
   --genies            Install genie specs only (project only)
   --schemas           Install schemas only
+  --scripts           Install scripts only (genie-session.sh)
   --hooks             Install hooks only (context re-injection)
   --mcp               Install MCP server only (imagegen for Designer genie)
   --all               Install everything (default, includes MCP)
@@ -356,6 +357,40 @@ install_genies() {
     fi
 }
 
+# Install scripts (genie-session.sh, etc.)
+install_scripts() {
+    local dest="$1"
+    local force="$2"
+
+    if [[ ! -d "$SCRIPT_DIR/scripts" ]]; then
+        log_warn "Source not found: $SCRIPT_DIR/scripts"
+        return 1
+    fi
+
+    mkdir -p "$dest"
+    local count=0
+
+    for script in "$SCRIPT_DIR/scripts"/*.sh; do
+        if [[ -f "$script" ]]; then
+            local filename=$(basename "$script")
+            local target_file="$dest/$filename"
+
+            if [[ -f "$target_file" && "$force" != "true" ]]; then
+                log_warn "Skipping scripts/$filename (exists)"
+            else
+                cp "$script" "$target_file"
+                chmod +x "$target_file"
+                ((count++))
+            fi
+        fi
+    done
+
+    if [[ $count -gt 0 ]]; then
+        log_success "Installed $count scripts"
+    fi
+    return 0
+}
+
 # Merge hook configuration into a settings file
 merge_hook_config() {
     local settings_file="$1"
@@ -518,6 +553,7 @@ cmd_global() {
     local install_rules="false"
     local install_agents="false"
     local install_schemas="false"
+    local install_scripts_flag="false"
     local install_hooks_flag="false"
     local install_mcp="false"
     local skip_mcp="false"
@@ -533,6 +569,7 @@ cmd_global() {
             --rules) install_rules="true"; install_all="false" ;;
             --agents) install_agents="true"; install_all="false" ;;
             --schemas) install_schemas="true"; install_all="false" ;;
+            --scripts) install_scripts_flag="true"; install_all="false" ;;
             --hooks) install_hooks_flag="true"; install_all="false" ;;
             --mcp) install_mcp="true"; install_all="false" ;;
             --skip-mcp) skip_mcp="true" ;;
@@ -556,6 +593,8 @@ cmd_global() {
             log_info "[DRY RUN] Would install agents"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas"
+        [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+            log_info "[DRY RUN] Would install scripts"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install hooks"
         if [[ "$skip_mcp" != "true" ]]; then
@@ -579,6 +618,8 @@ cmd_global() {
             clean_dir "$GLOBAL_CLAUDE_DIR/agents" "agents" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_dir "$GLOBAL_CLAUDE_DIR/schemas" "schemas" "$dry_run"
+        [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+            clean_dir "$GLOBAL_CLAUDE_DIR/scripts" "scripts" "$dry_run"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
             clean_dir "$GLOBAL_CLAUDE_DIR/hooks" "hooks" "$dry_run"
     fi
@@ -598,6 +639,10 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$GLOBAL_CLAUDE_DIR/schemas" "$force"
 
+    # Scripts installation (genie-session.sh, etc.)
+    [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+        install_scripts "$GLOBAL_CLAUDE_DIR/scripts" "$force"
+
     # Hooks installation (scripts + settings merge)
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
         install_hooks "$GLOBAL_CLAUDE_DIR/hooks" "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/hooks" "$force"
@@ -614,7 +659,7 @@ cmd_global() {
     echo "Available:"
     echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /done"
     echo "  Utility:    /commit (anytime)"
-    echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
+    echo "  Workflows:  /feature, /bugfix, /spike, /cleanup, /run"
     echo "  Brand:      /brand, /brand:image, /brand:tokens"
     echo "  Maintain:   /diagnose, /tidy"
     echo "  Bootstrap:  /spec:init, /arch:init"
@@ -627,6 +672,7 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
+    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }
@@ -642,6 +688,7 @@ cmd_project() {
     local install_agents="false"
     local install_genies="false"
     local install_schemas="false"
+    local install_scripts_flag="false"
     local install_hooks_flag="false"
     local install_mcp="false"
     local skip_mcp="false"
@@ -658,6 +705,7 @@ cmd_project() {
             --agents) install_agents="true"; install_all="false" ;;
             --genies) install_genies="true"; install_all="false"; log_warn "DEPRECATED: --genies flag is deprecated. Genies are now consolidated into agents/. Use --agents instead." ;;
             --schemas) install_schemas="true"; install_all="false" ;;
+            --scripts) install_scripts_flag="true"; install_all="false" ;;
             --hooks) install_hooks_flag="true"; install_all="false" ;;
             --mcp) install_mcp="true"; install_all="false" ;;
             --skip-mcp) skip_mcp="true" ;;
@@ -704,6 +752,8 @@ cmd_project() {
             log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/ (DEPRECATED)"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas to $project_path/schemas/"
+        [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+            log_info "[DRY RUN] Would install scripts to $project_path/scripts/"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install hooks to $claude_dir/hooks/"
         if [[ "$skip_mcp" != "true" ]]; then
@@ -729,6 +779,8 @@ cmd_project() {
             clean_dir "$claude_dir/genies" "genies" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_dir "$project_path/schemas" "schemas" "$dry_run"
+        [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+            clean_dir "$project_path/scripts" "scripts" "$dry_run"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
             clean_dir "$claude_dir/hooks" "hooks" "$dry_run"
     fi
@@ -750,6 +802,10 @@ cmd_project() {
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$project_path/schemas" "$force"
+
+    # Scripts installation (genie-session.sh, etc.)
+    [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+        install_scripts "$project_path/scripts" "$force"
 
     # Hooks installation (scripts + settings merge)
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
@@ -802,7 +858,7 @@ cmd_project() {
     echo "Available:"
     echo "  Lifecycle:  /discover, /define, /design, /deliver, /discern, /done"
     echo "  Utility:    /commit (anytime)"
-    echo "  Workflows:  /feature, /bugfix, /spike, /cleanup"
+    echo "  Workflows:  /feature, /bugfix, /spike, /cleanup, /run"
     echo "  Brand:      /brand, /brand:image, /brand:tokens"
     echo "  Maintain:   /diagnose, /tidy"
     echo "  Bootstrap:  /spec:init, /arch:init"
@@ -815,6 +871,7 @@ cmd_project() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
+    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }
@@ -826,7 +883,7 @@ cmd_status() {
     echo ""
 
     echo "Global (~/.claude/):"
-    for dir in commands skills rules agents schemas hooks; do
+    for dir in commands skills rules agents schemas scripts hooks; do
         if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
             local count=$(find "$GLOBAL_CLAUDE_DIR/$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"
@@ -840,7 +897,7 @@ cmd_status() {
     fi
 
     echo ""
-    echo "Project (./.claude/ and ./schemas/):"
+    echo "Project (./.claude/ and ./schemas/ and ./scripts/):"
     for dir in commands skills rules agents hooks; do
         if [[ -d "./.claude/$dir" ]]; then
             local count=$(find "./.claude/$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -858,6 +915,12 @@ cmd_status() {
         echo "  schemas: $count files"
     else
         echo "  schemas: not installed"
+    fi
+    if [[ -d "./scripts" ]]; then
+        local count=$(find "./scripts" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
+        echo "  scripts: $count files"
+    else
+        echo "  scripts: not installed"
     fi
 
     echo ""
@@ -889,7 +952,7 @@ cmd_uninstall() {
     case "$target" in
         global)
             log_info "Removing global installation..."
-            for dir in commands skills rules agents schemas hooks agent-memory; do
+            for dir in commands skills rules agents schemas scripts hooks agent-memory; do
                 if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
                     rm -rf "${GLOBAL_CLAUDE_DIR:?}/$dir"
                     log_success "Removed $dir"
@@ -917,6 +980,10 @@ cmd_uninstall() {
             if [[ -d "./schemas" ]]; then
                 rm -rf "./schemas"
                 log_success "Removed schemas"
+            fi
+            if [[ -d "./scripts" ]]; then
+                rm -rf "./scripts"
+                log_success "Removed scripts"
             fi
             if check_claude_cli && check_mcp_installed; then
                 local mcp_scope
