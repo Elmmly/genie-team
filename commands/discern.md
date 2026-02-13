@@ -193,3 +193,13 @@ After review:
 - Focuses on risks that matter
 - Creates audit trail
 - Gatekeeper before deployment
+
+## Calibration
+
+**CHANGES REQUESTED is expensive.** In an autonomous `/run`, it triggers a full fix-retest-re-review cycle. Reserve it for issues that would cause runtime failures, security vulnerabilities, or spec non-compliance. Do NOT request changes for:
+- Style preferences when the code follows project conventions
+- Alternative approaches that aren't clearly better (e.g., `errors.Join` vs first-error)
+- ACs that are already satisfied — verify before claiming unmet
+- Pedantic concerns that don't affect correctness or maintainability
+
+**When in doubt, APPROVE with notes** rather than requesting changes. Append observations to the review as informational findings, not blocking issues.

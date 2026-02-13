@@ -8,6 +8,21 @@ Unlike `/feature` (which pauses for user confirmation at each transition), `/run
 
 ---
 
+## Prerequisites
+
+`/run` is designed for unattended execution. Before invoking, ensure:
+
+**Permissions:** Claude Code's permission system will block file writes in default mode. Run with one of:
+- `--dangerously-skip-permissions` (simplest for unattended runs)
+- `--allowedTools "Read,Write,Edit,Glob,Grep,Bash,Task,Skill,TodoWrite"` (scoped)
+
+**Example:**
+```bash
+claude -p --dangerously-skip-permissions "/run \"add password reset\""
+```
+
+---
+
 ## Arguments
 
 - `topic|backlog-item-path` - What to work on (required)
@@ -23,6 +38,12 @@ Unlike `/feature` (which pauses for user confirmation at each transition), `/run
 
 ```
 /run "add password reset"
+    │
+    ├─→ [preflight] Verify toolchain and context
+    │   ├─→ Check required tools (go/npm/make, gh, git)
+    │   ├─→ Check build passes on clean state
+    │   ├─→ Check tests pass on clean state
+    │   └─→ FAIL → STOP, report what's missing
     │
     ├─→ /discover "add password reset"
     │   └─→ Scout produces Opportunity Snapshot
@@ -152,6 +173,30 @@ When `--from` is `design` or later, the user provides `item_path` directly as in
 
 ---
 
+## Preflight Check
+
+Before starting any phase, run a preflight check. If any check fails, **STOP immediately** and report what's missing.
+
+### Required tools
+Verify each tool exists and is authenticated:
+
+| Tool | Check | Why |
+|------|-------|-----|
+| `git` | `git status` | Branch creation, commits |
+| `gh` | `gh auth status` | PR creation in commit phase |
+| Build toolchain | `make build` or `go build ./...` or `npm run build` | Deliver phase needs to compile |
+| Test runner | `make test` or `go test ./...` or `npm test` | TDD cycle, discern gate |
+
+If `gh` is not installed or not authenticated, warn but continue — the commit phase will push the branch and print a manual PR URL as fallback.
+
+### Clean build state
+Run the project's build and test commands. If either fails on the current branch before any changes are made, **STOP** — the codebase is broken and autonomous delivery will compound the problem.
+
+### Context freshness
+Read `docs/context/current_work.md` (if it exists) to orient the discovery phase. A fresh context file dramatically reduces scout exploration time — the difference between reading 3 files vs 46.
+
+---
+
 ## Gate Behavior
 
 When `/discern` is within the phase range:
@@ -160,10 +205,25 @@ When `/discern` is within the phase range:
 |---------|--------|
 | APPROVED | Continue to `/commit` → `/done` |
 | BLOCKED | **STOP immediately**. Report what failed. Suggest next action. |
-| CHANGES REQUESTED | **STOP immediately**. Report feedback. |
+| CHANGES REQUESTED | Attempt one fix cycle (fix → retest → re-discern). If still not APPROVED, **STOP**. |
 | (not parsed) | **STOP** (safe default). Report parsing failure. |
 
 Stopping on BLOCKED matches the "genie grants wishes literally" philosophy — don't try to be clever about failures.
+
+---
+
+## Cleanup Before Commit
+
+Before the `/commit` phase, clean up build artifacts created during `/deliver`:
+
+1. **Remove compiled binaries** — `go build ./...` may produce binaries in the repo root. Run `go clean` or delete explicitly. Check `.gitignore` covers build outputs.
+2. **Stage ALL artifacts** — The commit must include everything created during the run:
+   - Source code and tests (the implementation)
+   - `docs/analysis/` snapshots (from `/discover`)
+   - `docs/backlog/` updates (from `/define`, `/design`, `/deliver`, `/discern`)
+   - `docs/context/current_work.md` updates
+   - Any new config files, dashboards, migrations
+3. **Verify nothing is left behind** — Run `git status` after staging. Untracked files created during the run that aren't in `.gitignore` should be either staged or explicitly cleaned up.
 
 ---
 
@@ -175,3 +235,4 @@ Stopping on BLOCKED matches the "genie grants wishes literally" philosophy — d
 - Conversation context is preserved across all phases (single session)
 - The backlog item's frontmatter `status` field tracks progression
 - For headless/cron use, see `scripts/run-pdlc.sh`
+- For large-appetite items, consider splitting: `--through design` then `--from deliver` in separate sessions to avoid context limits
