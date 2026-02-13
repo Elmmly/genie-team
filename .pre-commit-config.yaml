@@ -29,7 +29,7 @@ repos:
       # Tier 1: YAML frontmatter syntax
       - id: lint-frontmatter-yaml
         name: Lint YAML frontmatter
-        entry: hooks/precommit/lint-frontmatter-yaml.sh
+        entry: scripts/validate/lint-frontmatter-yaml.sh
         language: script
         files: ^docs/.*\.md$
         exclude: ^docs/archive/
@@ -38,7 +38,7 @@ repos:
       # Tier 2: Frontmatter schema validation
       - id: validate-frontmatter
         name: Validate frontmatter schema
-        entry: hooks/precommit/validate-frontmatter.sh
+        entry: scripts/validate/validate-frontmatter.sh
         language: script
         files: ^docs/.*\.md$
         exclude: ^docs/archive/
@@ -47,7 +47,7 @@ repos:
       # Tier 3: Cross-reference integrity
       - id: check-crossrefs
         name: Check cross-references
-        entry: hooks/precommit/check-crossrefs.sh
+        entry: scripts/validate/check-crossrefs.sh
         language: script
         files: ^docs/.*\.md$
         exclude: ^docs/archive/
@@ -57,6 +57,6 @@ repos:
       # Uncomment after syncing: install.sh project --sync
       # - id: check-source-sync
       #   name: Check source/installed sync
-      #   entry: hooks/precommit/check-source-sync.sh
+      #   entry: scripts/validate/check-source-sync.sh
       #   language: script
       #   files: \.(md|sh)$

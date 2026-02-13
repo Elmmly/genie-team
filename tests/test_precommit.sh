@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tests for hooks/precommit/ scripts
+# Tests for scripts/validate/ quality check scripts
 # Run: bash tests/test_precommit.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -7,10 +7,10 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 FIXTURES_DIR="$SCRIPT_DIR/fixtures/precommit"
 
 # Scripts under test
-LINT_FRONTMATTER="$PROJECT_DIR/hooks/precommit/lint-frontmatter-yaml.sh"
-VALIDATE_FRONTMATTER="$PROJECT_DIR/hooks/precommit/validate-frontmatter.sh"
-CHECK_CROSSREFS="$PROJECT_DIR/hooks/precommit/check-crossrefs.sh"
-CHECK_SOURCE_SYNC="$PROJECT_DIR/hooks/precommit/check-source-sync.sh"
+LINT_FRONTMATTER="$PROJECT_DIR/scripts/validate/lint-frontmatter-yaml.sh"
+VALIDATE_FRONTMATTER="$PROJECT_DIR/scripts/validate/validate-frontmatter.sh"
+CHECK_CROSSREFS="$PROJECT_DIR/scripts/validate/check-crossrefs.sh"
+CHECK_SOURCE_SYNC="$PROJECT_DIR/scripts/validate/check-source-sync.sh"
 
 # Test counters
 TESTS_RUN=0
@@ -432,10 +432,10 @@ teardown
 setup
 mkdir -p "$TEST_TMP/.git"
 "$INSTALL_SH" prehook "$TEST_TMP" 2>/dev/null || true
-assert_file_exists "$TEST_TMP/hooks/precommit/lint-frontmatter-yaml.sh" "T6.3a: installs lint-frontmatter-yaml.sh"
-assert_file_exists "$TEST_TMP/hooks/precommit/validate-frontmatter.sh" "T6.3b: installs validate-frontmatter.sh"
-assert_file_exists "$TEST_TMP/hooks/precommit/check-crossrefs.sh" "T6.3c: installs check-crossrefs.sh"
-assert_file_exists "$TEST_TMP/hooks/precommit/check-source-sync.sh" "T6.3d: installs check-source-sync.sh"
+assert_file_exists "$TEST_TMP/scripts/validate/lint-frontmatter-yaml.sh" "T6.3a: installs lint-frontmatter-yaml.sh"
+assert_file_exists "$TEST_TMP/scripts/validate/validate-frontmatter.sh" "T6.3b: installs validate-frontmatter.sh"
+assert_file_exists "$TEST_TMP/scripts/validate/check-crossrefs.sh" "T6.3c: installs check-crossrefs.sh"
+assert_file_exists "$TEST_TMP/scripts/validate/check-source-sync.sh" "T6.3d: installs check-source-sync.sh"
 teardown
 
 # T6.4: prehook bails if .pre-commit-config.yaml already exists

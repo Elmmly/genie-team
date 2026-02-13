@@ -231,7 +231,7 @@ source_of_truth: "{path to spec/brand guide/ADR}"
 - **correction** — Drift review: Verify the specific value now matches source_of_truth. Verify no regression. Skip: code quality deep-dive, architecture review.
 ```
 
-### 4. Precommit validation — `hooks/precommit/validate-frontmatter.sh`
+### 4. Precommit validation — `scripts/validate/validate-frontmatter.sh`
 
 **Add validation for new fields:**
 - If `work_type` present: validate enum value
@@ -249,7 +249,7 @@ source_of_truth: "{path to spec/brand guide/ADR}"
 | AC-4 | Feature template unchanged; `work_type` defaults to `feature` when absent | `schemas/shaped-work-contract.schema.md` |
 | AC-5 | Shaper Work Type Selection judgment rule with input signal detection | `agents/shaper.md` |
 | AC-6 | Critic Work Type Review Adaptation section | `agents/critic.md` |
-| AC-7 | Validation: missing `work_type` treated as `feature` | `schemas/shaped-work-contract.schema.md`, `hooks/precommit/validate-frontmatter.sh` |
+| AC-7 | Validation: missing `work_type` treated as `feature` | `schemas/shaped-work-contract.schema.md`, `scripts/validate/validate-frontmatter.sh` |
 
 ## Implementation Guidance
 
@@ -257,7 +257,7 @@ source_of_truth: "{path to spec/brand guide/ADR}"
 1. `schemas/shaped-work-contract.schema.md` — add fields, variants, validation rules
 2. `agents/shaper.md` — add work type selection judgment rule + templates
 3. `agents/critic.md` — add work type review adaptation
-4. `hooks/precommit/validate-frontmatter.sh` — add validation for new fields
+4. `scripts/validate/validate-frontmatter.sh` — add validation for new fields
 
 **Test strategy:**
 - Validate existing contracts (no `work_type`) still pass schema validation

@@ -1,0 +1,16 @@
+#!/bin/bash
+# Run all quality validation scripts against specified files.
+# Usage: scripts/run-quality-checks.sh <file1> [file2] ...
+# Exit: 0 if all pass, 1 if any fail
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exit_code=0
+
+for script in "$SCRIPT_DIR/validate"/*.sh; do
+    [[ -f "$script" ]] || continue
+    bash "$script" "$@" || exit_code=1
+done
+
+exit $exit_code

@@ -991,7 +991,7 @@ cmd_prehook() {
     if [[ "$dry_run" == "true" ]]; then
         log_info "[DRY RUN] Would install .pre-commit-config.yaml"
         log_info "[DRY RUN] Would install .yamllint.yml"
-        log_info "[DRY RUN] Would install hooks/precommit/ scripts"
+        log_info "[DRY RUN] Would install scripts/validate/ scripts"
         if command -v pre-commit &>/dev/null; then
             log_info "[DRY RUN] Would run pre-commit install"
         fi
@@ -1010,17 +1010,17 @@ cmd_prehook() {
         log_warn "Skipping .yamllint.yml (exists)"
     fi
 
-    # 3. Copy custom hook scripts
-    mkdir -p "$target_path/hooks/precommit"
+    # 3. Copy validation scripts
+    mkdir -p "$target_path/scripts/validate"
     local count=0
-    for script in "$SCRIPT_DIR/hooks/precommit"/*.sh; do
+    for script in "$SCRIPT_DIR/scripts/validate"/*.sh; do
         if [[ -f "$script" ]]; then
-            cp "$script" "$target_path/hooks/precommit/"
-            chmod +x "$target_path/hooks/precommit/$(basename "$script")"
+            cp "$script" "$target_path/scripts/validate/"
+            chmod +x "$target_path/scripts/validate/$(basename "$script")"
             count=$((count + 1))
         fi
     done
-    log_success "Installed $count hook scripts to hooks/precommit/"
+    log_success "Installed $count validation scripts to scripts/validate/"
 
     # 4. Run pre-commit install if available
     if command -v pre-commit &>/dev/null; then
