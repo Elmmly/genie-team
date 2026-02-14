@@ -123,6 +123,7 @@ parse_args() {
     TURNS_PER_PHASE=""
     CLEANUP_ON_FAILURE="false"
     TRUNK_MODE="false"
+    VERBOSE_LOGGING="false"
 
     # Per-phase turn overrides
     DISCOVER_TURNS=""
@@ -144,6 +145,7 @@ parse_args() {
             --turns-per-phase)   TURNS_PER_PHASE="$2"; shift 2 ;;
             --cleanup-on-failure) CLEANUP_ON_FAILURE="true"; shift ;;
             --trunk)             TRUNK_MODE="true"; shift ;;
+            --verbose)           VERBOSE_LOGGING="true"; shift ;;
             --discover-turns)    DISCOVER_TURNS="$2"; shift 2 ;;
             --define-turns)      DEFINE_TURNS="$2"; shift 2 ;;
             --design-turns)      DESIGN_TURNS="$2"; shift 2 ;;
@@ -167,6 +169,9 @@ parse_args() {
                 echo "Cron:"
                 echo "  --log-dir <dir>         Log directory (enables structured JSON logging)"
                 echo "  --lock                  Enable lockfile"
+                echo ""
+                echo "Logging:"
+                echo "  --verbose               Write full claude session trace to log dir"
                 echo ""
                 echo "Git:"
                 echo "  --trunk                 Use trunk-based mode (commit to main, no PRs)"
@@ -332,7 +337,14 @@ run_phase() {
     idx=$(phase_index "$phase")
     tools="${PHASE_TOOLS[$idx]}"
 
-    local claude_args=(-p "$prompt" --output-format json --max-turns "$max_turns" --allowedTools "$tools")
+    local claude_args=(-p "$prompt" --max-turns "$max_turns" --allowedTools "$tools")
+
+    # Verbose mode: stream-json for full trace; otherwise json for compact output
+    if [[ "${VERBOSE_LOGGING:-false}" == "true" ]]; then
+        claude_args+=(--verbose --output-format stream-json)
+    else
+        claude_args+=(--output-format json)
+    fi
 
     # Add --resume if we have a session and resume is enabled
     if [[ -n "${SESSION_ID:-}" && "$NO_RESUME" != "true" ]]; then
@@ -342,7 +354,14 @@ run_phase() {
     log_info "[$phase] Starting (max turns: $max_turns)"
 
     local raw_output
-    raw_output=$(claude "${claude_args[@]}" 2>/dev/null)
+    if [[ "${VERBOSE_LOGGING:-false}" == "true" && -n "$LOG_DIR" ]]; then
+        local verbose_log="$LOG_DIR/${phase}_verbose.jsonl"
+        mkdir -p "$LOG_DIR"
+        raw_output=$(claude "${claude_args[@]}" 2>/dev/null | tee "$verbose_log")
+        log_info "[$phase] Verbose trace: $verbose_log"
+    else
+        raw_output=$(claude "${claude_args[@]}" 2>/dev/null)
+    fi
     local ec=$?
 
     # Reset phase metrics
@@ -357,15 +376,24 @@ run_phase() {
 
     # Parse JSON output
     if command -v jq &>/dev/null; then
-        OUTPUT=$(echo "$raw_output" | jq -r '.result // empty')
-        SESSION_ID=$(echo "$raw_output" | jq -r '.session_id // empty')
-        PHASE_NUM_TURNS=$(echo "$raw_output" | jq -r '.num_turns // 0')
+        local json_blob="$raw_output"
+        # stream-json: extract the last result message from the stream
+        if [[ "${VERBOSE_LOGGING:-false}" == "true" ]]; then
+            json_blob=$(echo "$raw_output" | grep '"type":"result"' | tail -1)
+            if [[ -z "$json_blob" ]]; then
+                # Fallback: try last non-empty line
+                json_blob=$(echo "$raw_output" | tail -1)
+            fi
+        fi
+        OUTPUT=$(echo "$json_blob" | jq -r '.result // empty')
+        SESSION_ID=$(echo "$json_blob" | jq -r '.session_id // empty')
+        PHASE_NUM_TURNS=$(echo "$json_blob" | jq -r '.num_turns // 0')
         local input_tokens output_tokens
-        input_tokens=$(echo "$raw_output" | jq -r '.usage.input_tokens // 0')
-        output_tokens=$(echo "$raw_output" | jq -r '.usage.output_tokens // 0')
+        input_tokens=$(echo "$json_blob" | jq -r '.usage.input_tokens // 0')
+        output_tokens=$(echo "$json_blob" | jq -r '.usage.output_tokens // 0')
         PHASE_TOKENS=$((input_tokens + output_tokens))
         local cost
-        cost=$(echo "$raw_output" | jq -r '.total_cost_usd // 0')
+        cost=$(echo "$json_blob" | jq -r '.total_cost_usd // 0')
         log_info "[$phase] Completed ($PHASE_NUM_TURNS turns, $PHASE_TOKENS tokens, \$$cost)"
     else
         OUTPUT="$raw_output"
@@ -391,8 +419,22 @@ retry_phase() {
     idx=$(phase_index "$phase")
     tools="${PHASE_TOOLS[$idx]}"
 
+    local claude_args=(-p "$prompt" --max-turns "$max_turns" --allowedTools "$tools" --resume "$prev_session")
+
+    if [[ "${VERBOSE_LOGGING:-false}" == "true" ]]; then
+        claude_args+=(--verbose --output-format stream-json)
+    else
+        claude_args+=(--output-format json)
+    fi
+
     local raw_output
-    raw_output=$(claude -p "$prompt" --output-format json --max-turns "$max_turns" --allowedTools "$tools" --resume "$prev_session" 2>/dev/null)
+    if [[ "${VERBOSE_LOGGING:-false}" == "true" && -n "$LOG_DIR" ]]; then
+        local verbose_log="$LOG_DIR/${phase}_retry_verbose.jsonl"
+        mkdir -p "$LOG_DIR"
+        raw_output=$(claude "${claude_args[@]}" 2>/dev/null | tee "$verbose_log")
+    else
+        raw_output=$(claude "${claude_args[@]}" 2>/dev/null)
+    fi
     local ec=$?
 
     if [[ $ec -ne 0 ]]; then
@@ -403,10 +445,17 @@ retry_phase() {
 
     # Parse JSON output
     if command -v jq &>/dev/null; then
-        OUTPUT=$(echo "$raw_output" | jq -r '.result // empty')
-        SESSION_ID=$(echo "$raw_output" | jq -r '.session_id // empty')
+        local json_blob="$raw_output"
+        if [[ "${VERBOSE_LOGGING:-false}" == "true" ]]; then
+            json_blob=$(echo "$raw_output" | grep '"type":"result"' | tail -1)
+            if [[ -z "$json_blob" ]]; then
+                json_blob=$(echo "$raw_output" | tail -1)
+            fi
+        fi
+        OUTPUT=$(echo "$json_blob" | jq -r '.result // empty')
+        SESSION_ID=$(echo "$json_blob" | jq -r '.session_id // empty')
         local num_turns
-        num_turns=$(echo "$raw_output" | jq -r '.num_turns // 0')
+        num_turns=$(echo "$json_blob" | jq -r '.num_turns // 0')
         log_info "[$phase] Retry completed ($num_turns turns)"
     else
         OUTPUT="$raw_output"

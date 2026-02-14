@@ -575,6 +575,36 @@ assert_eq "done" "$THROUGH_PHASE" "parse_args: --trunk doesn't interfere with --
 assert_eq "true" "$USE_LOCK" "parse_args: --trunk doesn't interfere with --lock"
 
 # ═══════════════════════════════════════════════
+# Category 7c: --verbose flag (3 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- --verbose flag ---"
+
+# Test: --verbose default is false
+# Arrange
+# Act
+parse_args "test topic"
+# Assert
+assert_eq "false" "$VERBOSE_LOGGING" "parse_args: default VERBOSE_LOGGING is false"
+
+# Test: --verbose sets VERBOSE_LOGGING=true
+# Arrange
+# Act
+parse_args --verbose "test topic"
+# Assert
+assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose sets VERBOSE_LOGGING=true"
+
+# Test: --verbose combined with --trunk and --worktree
+# Arrange
+# Act
+parse_args --verbose --trunk --worktree "docs/backlog/P2-item.md"
+# Assert
+assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose + --trunk + --worktree sets VERBOSE_LOGGING"
+assert_eq "true" "$TRUNK_MODE" "parse_args: --verbose doesn't interfere with --trunk"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --verbose doesn't interfere with --worktree"
+
+# ═══════════════════════════════════════════════
 # Category 8: run_phase (5 tests)
 # ═══════════════════════════════════════════════
 
@@ -586,6 +616,7 @@ echo "--- run_phase ---"
 setup_temp
 NO_RESUME="false"
 TURNS_PER_PHASE=""
+VERBOSE_LOGGING="false"
 # shellcheck disable=SC2034  # Used by sourced run-pdlc.sh
 DISCOVER_TURNS=""
 # Act

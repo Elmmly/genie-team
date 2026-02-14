@@ -41,21 +41,37 @@ get_frontmatter_field() {
         sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//" | xargs
 }
 
+# Map backlog item status to the next phase to run
+# Usage: status_to_phase <status>
+status_to_phase() {
+    local status="$1"
+    case "$status" in
+        shaped)       echo "design" ;;
+        designed)     echo "deliver" ;;
+        implemented)  echo "discern" ;;
+        reviewed)     echo "commit" ;;
+        *)            echo "" ;;  # unknown/done/abandoned — skip
+    esac
+}
+
 # ─────────────────────────────────────────────
 # Deliver subcommand
 # ─────────────────────────────────────────────
 
 deliver_usage() {
     cat >&2 <<'EOF'
-Usage: run-batch.sh deliver [OPTIONS]
+Usage: run-batch.sh deliver [OPTIONS] [ITEM...]
 
-Run delivery on backlog items at 'designed' status.
+Run lifecycle phases on backlog items. By default finds all actionable
+items (shaped/designed/implemented/reviewed) and auto-detects the starting
+phase from each item's status. Specific items can be passed as arguments.
 
 Options:
   --priority P1|P2|P3    Filter by priority (repeatable)
-  --from <phase>         Start phase (default: deliver)
+  --from <phase>         Override start phase (default: auto-detect from status)
   --through <phase>      End phase (default: done)
   --log-dir <dir>        Log directory for run-pdlc.sh
+  --verbose              Write full claude session traces to log dir
   --continue-on-failure  Keep going when an item fails (default: stop)
   --trunk                Use trunk-based mode (commit to main, no PRs)
   --parallel N           Run N items concurrently (implies --worktree --trunk)
@@ -66,13 +82,15 @@ EOF
 
 cmd_deliver() {
     local priorities=()
-    local from_phase="deliver"
+    local from_phase=""
     local through_phase="done"
     local log_dir=""
     local continue_on_failure="false"
     local dry_run="false"
     local trunk_mode="false"
     local parallel_jobs=0
+    local verbose_mode="false"
+    local explicit_items=()
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -80,12 +98,14 @@ cmd_deliver() {
             --from)              from_phase="$2"; shift 2 ;;
             --through)           through_phase="$2"; shift 2 ;;
             --log-dir)           log_dir="$2"; shift 2 ;;
+            --verbose)           verbose_mode="true"; shift ;;
             --continue-on-failure) continue_on_failure="true"; shift ;;
             --trunk)             trunk_mode="true"; shift ;;
             --parallel)          parallel_jobs="$2"; shift 2 ;;
             --dry-run)           dry_run="true"; shift ;;
             -h|--help)           deliver_usage; exit 0 ;;
-            *)                   log_error "Unknown option: $1"; deliver_usage; exit 3 ;;
+            -*)                  log_error "Unknown option: $1"; deliver_usage; exit 3 ;;
+            *)                   explicit_items+=("$1"); shift ;;
         esac
     done
 
@@ -94,39 +114,62 @@ cmd_deliver() {
         trunk_mode="true"
     fi
 
-    # Find designed backlog items
+    # Build item list: explicit items or auto-discover from backlog
+    # Format: "priority:phase:file" (phase is auto-detected or overridden)
     local items=()
-    local backlog_dir="docs/backlog"
 
-    if [[ ! -d "$backlog_dir" ]]; then
-        log_error "Backlog directory not found: $backlog_dir"
-        exit 3
-    fi
+    if [[ ${#explicit_items[@]} -gt 0 ]]; then
+        # Explicit items passed as arguments
+        for file in "${explicit_items[@]}"; do
+            if [[ ! -f "$file" ]]; then
+                log_error "Item not found: $file"
+                exit 3
+            fi
+            local status priority item_phase
+            status=$(get_frontmatter_field "$file" "status")
+            priority=$(get_frontmatter_field "$file" "priority")
+            item_phase="${from_phase:-$(status_to_phase "$status")}"
+            if [[ -z "$item_phase" ]]; then
+                log_info "Skipping $file (status: $status — not actionable)"
+                continue
+            fi
+            items+=("$priority:$item_phase:$file")
+        done
+    else
+        # Auto-discover from backlog
+        local backlog_dir="docs/backlog"
 
-    for file in "$backlog_dir"/*.md; do
-        [[ -f "$file" ]] || continue
-
-        local status priority
-        status=$(get_frontmatter_field "$file" "status")
-        priority=$(get_frontmatter_field "$file" "priority")
-
-        # Only designed items
-        [[ "$status" == "designed" ]] || continue
-
-        # Priority filter (if specified)
-        if [[ ${#priorities[@]} -gt 0 ]]; then
-            local match="false"
-            for p in "${priorities[@]}"; do
-                if [[ "$priority" == "$p" ]]; then
-                    match="true"
-                    break
-                fi
-            done
-            [[ "$match" == "true" ]] || continue
+        if [[ ! -d "$backlog_dir" ]]; then
+            log_error "Backlog directory not found: $backlog_dir"
+            exit 3
         fi
 
-        items+=("$priority:$file")
-    done
+        for file in "$backlog_dir"/*.md; do
+            [[ -f "$file" ]] || continue
+
+            local status priority item_phase
+            status=$(get_frontmatter_field "$file" "status")
+            priority=$(get_frontmatter_field "$file" "priority")
+
+            # Auto-detect starting phase from status (skip done/abandoned)
+            item_phase="${from_phase:-$(status_to_phase "$status")}"
+            [[ -n "$item_phase" ]] || continue
+
+            # Priority filter (if specified)
+            if [[ ${#priorities[@]} -gt 0 ]]; then
+                local match="false"
+                for p in "${priorities[@]}"; do
+                    if [[ "$priority" == "$p" ]]; then
+                        match="true"
+                        break
+                    fi
+                done
+                [[ "$match" == "true" ]] || continue
+            fi
+
+            items+=("$priority:$item_phase:$file")
+        done
+    fi
 
     # Sort by priority (P1 < P2 < P3)
     local sorted
@@ -137,16 +180,20 @@ cmd_deliver() {
     done <<< "$sorted"
 
     if [[ ${#items[@]} -eq 0 ]]; then
-        log_info "No designed backlog items found matching filters."
+        log_info "No actionable backlog items found matching filters."
         exit 0
     fi
 
-    log_info "Found ${#items[@]} designed item(s):"
+    log_info "Found ${#items[@]} actionable item(s):"
     for entry in "${items[@]}"; do
-        local file="${entry#*:}"
+        # Format: priority:phase:file
+        local file="${entry#*:}" # phase:file
+        file="${file#*:}"        # file
+        local item_phase="${entry#*:}"
+        item_phase="${item_phase%%:*}"
         local title
         title=$(get_frontmatter_field "$file" "title")
-        log_info "  $(basename "$file"): $title"
+        log_info "  $(basename "$file"): $title (from: $item_phase)"
     done
 
     if [[ "$dry_run" == "true" ]]; then
@@ -157,17 +204,20 @@ cmd_deliver() {
         else
             log_info "Mode: sequential"
         fi
+        if [[ "$verbose_mode" == "true" ]]; then
+            log_info "Verbose logging: enabled"
+        fi
         log_info "(dry run — not executing)"
         exit 0
     fi
 
     # Dispatch to parallel or sequential execution
     if [[ "$parallel_jobs" -gt 0 ]]; then
-        deliver_parallel "$parallel_jobs" "$from_phase" "$through_phase" "$log_dir" "${items[@]}"
+        deliver_parallel "$parallel_jobs" "$through_phase" "$log_dir" "$verbose_mode" "${items[@]}"
         return $?
     fi
 
-    # Execute each item
+    # Execute each item sequentially
     local succeeded=0
     local failed=0
     local failed_items=()
@@ -175,18 +225,25 @@ cmd_deliver() {
     start_time=$(date +%s)
 
     for entry in "${items[@]}"; do
+        # Parse priority:phase:file
         local file="${entry#*:}"
+        file="${file#*:}"
+        local item_phase="${entry#*:}"
+        item_phase="${item_phase%%:*}"
         local title
         title=$(get_frontmatter_field "$file" "title")
 
         log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        log_info "Delivering: $title"
+        log_info "Running: $title ($item_phase → $through_phase)"
         log_info "Item: $file"
         log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-        local pdlc_args=(--from "$from_phase" --through "$through_phase" --lock)
+        local pdlc_args=(--from "$item_phase" --through "$through_phase" --lock)
         if [[ "$trunk_mode" == "true" ]]; then
             pdlc_args+=(--trunk)
+        fi
+        if [[ "$verbose_mode" == "true" ]]; then
+            pdlc_args+=(--verbose)
         fi
         if [[ -n "$log_dir" ]]; then
             pdlc_args+=(--log-dir "$log_dir")
@@ -224,9 +281,9 @@ cmd_deliver() {
 
 deliver_parallel() {
     local max_jobs="$1"
-    local from_phase="$2"
-    local through_phase="$3"
-    local log_dir="$4"
+    local through_phase="$2"
+    local log_dir="$3"
+    local verbose_mode="$4"
     shift 4
     local items=("$@")
 
@@ -238,6 +295,9 @@ deliver_parallel() {
 
     log_info "Parallel mode: ${#items[@]} items, $max_jobs workers"
     log_info "Log directory: $log_dir"
+    if [[ "$verbose_mode" == "true" ]]; then
+        log_info "Verbose logging: enabled"
+    fi
 
     local succeeded=0
     local failed=0
@@ -258,23 +318,42 @@ deliver_parallel() {
     local queue_idx=0
     local total=${#items[@]}
 
-    # Launch initial batch of workers
-    while [[ $queue_idx -lt $total && ${#pids[@]} -lt $max_jobs ]]; do
-        local entry="${items[$queue_idx]}"
+    # Helper: parse entry and launch worker
+    _launch_worker() {
+        local entry="$1"
+        local item_idx="$2"
+        # Parse priority:phase:file
+        local item_phase="${entry#*:}"
+        item_phase="${item_phase%%:*}"
         local file="${entry#*:}"
+        file="${file#*:}"
         local item_basename
         item_basename=$(basename "$file" .md)
         local item_log="$log_dir/${item_basename}.log"
 
-        log_info "Starting [$((queue_idx + 1))/$total]: $item_basename"
+        log_info "Starting [$item_idx/$total]: $item_basename ($item_phase → $through_phase)"
 
-        "$RUN_PDLC" --worktree --trunk --from "$from_phase" --through "$through_phase" \
-            --lock --cleanup-on-failure --log-dir "$log_dir" "$file" \
-            >"$item_log" 2>&1 &
+        local pdlc_args=(--worktree --trunk --from "$item_phase" --through "$through_phase"
+            --lock --cleanup-on-failure --log-dir "$log_dir")
+        if [[ "$verbose_mode" == "true" ]]; then
+            pdlc_args+=(--verbose)
+        fi
+        pdlc_args+=("$file")
 
-        pids+=($!)
-        pid_files+=("$file")
-        pid_logs+=("$item_log")
+        "$RUN_PDLC" "${pdlc_args[@]}" >"$item_log" 2>&1 &
+
+        # Return values via stdout (caller captures)
+        echo "$!:$file:$item_log"
+    }
+
+    # Launch initial batch of workers
+    while [[ $queue_idx -lt $total && ${#pids[@]} -lt $max_jobs ]]; do
+        local worker_info
+        worker_info=$(_launch_worker "${items[$queue_idx]}" "$((queue_idx + 1))")
+        pids+=("${worker_info%%:*}")
+        local rest="${worker_info#*:}"
+        pid_files+=("${rest%%:*}")
+        pid_logs+=("${rest#*:}")
 
         queue_idx=$((queue_idx + 1))
     done
@@ -314,21 +393,12 @@ deliver_parallel() {
 
                 # Fill the slot with next queued item
                 if [[ $queue_idx -lt $total ]]; then
-                    local next_entry="${items[$queue_idx]}"
-                    local next_file="${next_entry#*:}"
-                    local next_basename
-                    next_basename=$(basename "$next_file" .md)
-                    local next_log="$log_dir/${next_basename}.log"
-
-                    log_info "Starting [$((queue_idx + 1))/$total]: $next_basename"
-
-                    "$RUN_PDLC" --worktree --trunk --from "$from_phase" --through "$through_phase" \
-                        --lock --cleanup-on-failure --log-dir "$log_dir" "$next_file" \
-                        >"$next_log" 2>&1 &
-
-                    new_pids+=($!)
-                    new_files+=("$next_file")
-                    new_logs+=("$next_log")
+                    local worker_info
+                    worker_info=$(_launch_worker "${items[$queue_idx]}" "$((queue_idx + 1))")
+                    new_pids+=("${worker_info%%:*}")
+                    local rest="${worker_info#*:}"
+                    new_files+=("${rest%%:*}")
+                    new_logs+=("${rest#*:}")
 
                     queue_idx=$((queue_idx + 1))
                 fi
@@ -594,20 +664,21 @@ Subcommands:
 Run 'run-batch.sh <subcommand> --help' for subcommand options.
 
 Examples:
-  # Deliver all designed items
+  # Run all actionable items (auto-detects phase from status)
   run-batch.sh deliver --log-dir logs/overnight
 
-  # Deliver only P1 and P2 items
+  # Only P1 and P2 items
   run-batch.sh deliver --priority P1 --priority P2
 
   # Preview what would run
   run-batch.sh deliver --dry-run
 
-  # Deliver with trunk-based mode (no PRs)
-  run-batch.sh deliver --trunk --log-dir logs/overnight
+  # Run specific items (pick up from their current stage)
+  run-batch.sh deliver --parallel 2 --verbose \
+    docs/backlog/P2-item-a.md docs/backlog/P2-item-b.md
 
-  # Deliver 3 items in parallel (implies worktree + trunk)
-  run-batch.sh deliver --parallel 3 --log-dir logs/overnight
+  # Deliver 3 items in parallel with verbose traces
+  run-batch.sh deliver --parallel 3 --verbose --log-dir logs/overnight
 
   # Discover several topics overnight
   run-batch.sh discover --log-dir logs/overnight \
