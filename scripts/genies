@@ -1165,6 +1165,110 @@ run_batch_sequential() {
     return 0
 }
 
+# EXIT trap for batch mode — writes partial manifest on crash
+_batch_exit_trap() {
+    if [[ -n "${LOG_DIR:-}" ]]; then
+        write_batch_manifest \
+            "${succeeded_items[@]+"${succeeded_items[@]}"}" \
+            "---" \
+            "${failed_items[@]+"${failed_items[@]}"}" \
+            "---" \
+            "${conflict_items[@]+"${conflict_items[@]}"}"
+    fi
+}
+
+# Recover from a crashed batch run by integrating leftover genie/* branches
+# Reads batch-manifest.json if available to identify succeeded items
+# Without manifest, integrates all genie/* branches
+run_recover() {
+    local manifest="${LOG_DIR:-}/batch-manifest.json"
+    local branches=()
+    local succeeded_slugs=()
+
+    # Source 1: Read manifest if available
+    if [[ -f "$manifest" ]] && command -v jq &>/dev/null; then
+        while IFS= read -r item; do
+            [[ -n "$item" ]] && succeeded_slugs+=("$(basename "$item" .md)")
+        done < <(jq -r '.succeeded[]' "$manifest" 2>/dev/null)
+    fi
+
+    # Source 2: Scan genie/* branches
+    while IFS= read -r branch; do
+        [[ -n "$branch" ]] && branches+=("${branch#genie/}")
+    done < <(git branch --list 'genie/*' --format='%(refname:short)')
+
+    if [[ ${#branches[@]} -eq 0 ]]; then
+        log_info "No genie/* branches found. Nothing to recover."
+        return 0
+    fi
+
+    local has_manifest="false"
+    [[ ${#succeeded_slugs[@]} -gt 0 ]] && has_manifest="true"
+
+    if [[ "$has_manifest" == "false" && -z "${LOG_DIR:-}" ]]; then
+        log_info "No manifest found — integrating all ${#branches[@]} genie/* branches"
+    fi
+
+    local recovered=0
+    local skipped=0
+    local errors=0
+
+    for slug_branch in "${branches[@]}"; do
+        # Priority filter
+        if [[ ${#PRIORITIES[@]} -gt 0 ]]; then
+            local match="false"
+            for p in "${PRIORITIES[@]}"; do
+                [[ "$slug_branch" == "$p"* ]] && { match="true"; break; }
+            done
+            [[ "$match" == "true" ]] || continue
+        fi
+
+        # Check if this branch is in the succeeded list
+        local is_succeeded="false"
+        if [[ "$has_manifest" == "false" ]]; then
+            # No manifest — integrate all
+            is_succeeded="true"
+        else
+            for s in "${succeeded_slugs[@]}"; do
+                # Match slug from manifest (e.g., P0-item) against branch (e.g., P0-item-design)
+                [[ "$slug_branch" == "$s"* || "$s" == *"${slug_branch%-*}"* ]] && { is_succeeded="true"; break; }
+            done
+        fi
+
+        if [[ "$is_succeeded" == "true" ]]; then
+            local ec=0
+            if [[ "${TRUNK_MODE:-false}" == "true" ]]; then
+                session_integrate_trunk "$slug_branch" || ec=$?
+            else
+                session_integrate_pr "$slug_branch" || ec=$?
+            fi
+            if [[ $ec -eq 0 ]]; then
+                log_info "Recovered: $slug_branch"
+                recovered=$((recovered + 1))
+            else
+                log_error "Integration failed (exit $ec): $slug_branch"
+                errors=$((errors + 1))
+            fi
+        else
+            log_info "Skipping (not in succeeded list): $slug_branch"
+            session_cleanup_item "$slug_branch" 2>/dev/null || true
+            skipped=$((skipped + 1))
+        fi
+    done
+
+    log_info "Recovery complete: $recovered integrated, $skipped skipped, $errors errors"
+
+    # Reconcile state if we integrated anything
+    if [[ $recovered -gt 0 ]]; then
+        reconcile_batch_state 2>/dev/null || true
+    fi
+
+    if [[ $errors -gt 0 ]]; then
+        return 1
+    fi
+    return 0
+}
+
 # Execute batch items in parallel with worker pool
 run_batch_parallel() {
     # Ensure log dir exists
@@ -1178,6 +1282,8 @@ run_batch_parallel() {
 
     local succeeded=0
     local failed=0
+    # Note: succeeded_items/failed_items/conflict_items are declared below
+    # and accessed by _batch_exit_trap via bash's dynamic scoping
     local merge_conflicts=0
     local start_time
     start_time=$(date +%s)
@@ -1192,6 +1298,9 @@ run_batch_parallel() {
     local conflict_items=()
     local succeeded_items=()
     local succeeded_slugs=()
+
+    # Register EXIT trap to preserve partial state on crash
+    trap _batch_exit_trap EXIT
 
     local queue_idx=0
     local total=${#BATCH_ITEMS[@]}
@@ -1402,6 +1511,12 @@ run_batch_parallel() {
 
 main() {
     parse_args "$@"
+
+    # Recovery mode: integrate leftover branches from crashed batch
+    if [[ "$RECOVER_MODE" == "true" ]]; then
+        run_recover
+        exit $?
+    fi
 
     # Batch mode check: --parallel, multiple inputs, or no inputs
     if [[ "$PARALLEL_JOBS" -gt 0 || ${#INPUTS[@]} -gt 1 || ${#INPUTS[@]} -eq 0 ]]; then

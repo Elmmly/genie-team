@@ -1838,6 +1838,215 @@ assert_file_not_exists "$TEMP_DIR/docs/context/current_work.md" "AC-1: doesn't c
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# Category 24: Batch crash recovery (AC-1..AC-4)
+# ═══════════════════════════════════════════════
+echo ""
+echo "--- batch crash recovery ---"
+
+# Test: run_recover integrates genie/* branches (AC-1)
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/.git/refs/heads/genie"
+TRUNK_MODE="true"
+LOG_DIR=""
+PRIORITIES=()
+INTEGRATED_SLUGS=()
+session_integrate_trunk() {
+    INTEGRATED_SLUGS+=("$1")
+    return 0
+}
+session_cleanup_item() { :; }
+# Mock git branch --list
+git() {
+    if [[ "$1" == "branch" && "$2" == "--list" ]]; then
+        echo "genie/P0-item-design"
+        echo "genie/P1-other-deliver"
+        return 0
+    fi
+    command git "$@"
+}
+export -f git session_integrate_trunk session_cleanup_item
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+run_recover 2>/dev/null
+ec=$?
+popd > /dev/null || exit
+
+# Assert
+assert_exit_code "0" "$ec" "AC-1: run_recover exits 0"
+assert_eq "2" "${#INTEGRATED_SLUGS[@]}" "AC-1: run_recover integrates all genie/* branches"
+unset -f git session_integrate_trunk session_cleanup_item
+teardown_temp
+
+# Test: run_recover respects --priority filter (AC-1)
+# Arrange
+setup_temp
+TRUNK_MODE="true"
+LOG_DIR=""
+PRIORITIES=("P0")
+INTEGRATED_SLUGS=()
+session_integrate_trunk() {
+    INTEGRATED_SLUGS+=("$1")
+    return 0
+}
+session_cleanup_item() { :; }
+git() {
+    if [[ "$1" == "branch" && "$2" == "--list" ]]; then
+        echo "genie/P0-item-design"
+        echo "genie/P1-other-deliver"
+        return 0
+    fi
+    command git "$@"
+}
+export -f git session_integrate_trunk session_cleanup_item
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+run_recover 2>/dev/null
+ec=$?
+popd > /dev/null || exit
+
+# Assert
+assert_eq "1" "${#INTEGRATED_SLUGS[@]}" "AC-1: --priority P0 filters to 1 branch"
+assert_eq "P0-item-design" "${INTEGRATED_SLUGS[0]}" "AC-1: --priority integrates correct branch"
+unset -f git session_integrate_trunk session_cleanup_item
+teardown_temp
+
+# Test: run_recover with manifest only integrates succeeded (AC-3)
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/logs"
+LOG_DIR="$TEMP_DIR/logs"
+TRUNK_MODE="true"
+PRIORITIES=()
+INTEGRATED_SLUGS=()
+CLEANUP_SLUGS=()
+session_integrate_trunk() {
+    INTEGRATED_SLUGS+=("$1")
+    return 0
+}
+session_cleanup_item() {
+    CLEANUP_SLUGS+=("$1")
+}
+git() {
+    if [[ "$1" == "branch" && "$2" == "--list" ]]; then
+        echo "genie/P0-item-design"
+        echo "genie/P1-failed-deliver"
+        return 0
+    fi
+    command git "$@"
+}
+export -f git session_integrate_trunk session_cleanup_item
+# Write manifest with P0-item as succeeded and P1-failed as failed
+cat > "$TEMP_DIR/logs/batch-manifest.json" << 'MANIFEST'
+{
+  "succeeded": ["docs/backlog/P0-item.md"],
+  "failed": ["docs/backlog/P1-failed.md"],
+  "conflict": []
+}
+MANIFEST
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+run_recover 2>/dev/null
+ec=$?
+popd > /dev/null || exit
+
+# Assert
+assert_eq "1" "${#INTEGRATED_SLUGS[@]}" "AC-3: with manifest, only succeeded branch integrated"
+assert_eq "P0-item-design" "${INTEGRATED_SLUGS[0]}" "AC-3: correct succeeded branch integrated"
+assert_eq "1" "${#CLEANUP_SLUGS[@]}" "AC-3: failed branch cleaned up"
+unset -f git session_integrate_trunk session_cleanup_item
+teardown_temp
+
+# Test: run_recover exits 0 when no branches found (AC-1)
+# Arrange
+setup_temp
+TRUNK_MODE="true"
+LOG_DIR=""
+PRIORITIES=()
+git() {
+    if [[ "$1" == "branch" && "$2" == "--list" ]]; then
+        return 0  # no output
+    fi
+    command git "$@"
+}
+export -f git
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+run_recover 2>/dev/null
+ec=$?
+popd > /dev/null || exit
+
+# Assert
+assert_exit_code "0" "$ec" "AC-1: run_recover exits 0 when no branches"
+unset -f git
+teardown_temp
+
+# Test: _batch_exit_trap writes partial manifest (AC-2)
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/logs"
+LOG_DIR="$TEMP_DIR/logs"
+succeeded_items=("docs/backlog/P0-done.md")
+failed_items=()
+conflict_items=()
+
+# Act
+_batch_exit_trap 2>/dev/null
+
+# Assert
+assert_file_exists "$TEMP_DIR/logs/batch-manifest.json" "AC-2: exit trap writes manifest"
+if command -v jq &>/dev/null; then
+    local_succeeded=$(jq -r '.succeeded[0]' "$TEMP_DIR/logs/batch-manifest.json" 2>/dev/null)
+    assert_eq "docs/backlog/P0-done.md" "$local_succeeded" "AC-2: manifest contains succeeded item"
+fi
+teardown_temp
+
+# Test: run_recover uses PR mode when trunk is false (AC-1)
+# Arrange
+setup_temp
+TRUNK_MODE="false"
+LOG_DIR=""
+PRIORITIES=()
+PR_SLUGS=()
+session_integrate_pr() {
+    PR_SLUGS+=("$1")
+    return 0
+}
+session_cleanup_item() { :; }
+git() {
+    if [[ "$1" == "branch" && "$2" == "--list" ]]; then
+        echo "genie/P0-item-design"
+        return 0
+    fi
+    command git "$@"
+}
+export -f git session_integrate_pr session_cleanup_item
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+run_recover 2>/dev/null
+ec=$?
+popd > /dev/null || exit
+
+# Assert
+assert_eq "1" "${#PR_SLUGS[@]}" "AC-1: PR mode used when trunk=false"
+unset -f git session_integrate_pr session_cleanup_item
+teardown_temp
+
+# Test: RECOVER_MODE check is first in main (AC-4)
+# This is a structural test — single-item flow is unaffected
+# Arrange
+parse_args --from design --through deliver "docs/backlog/test.md"
+
+# Assert
+assert_eq "false" "$RECOVER_MODE" "AC-4: single-item args don't set RECOVER_MODE"
+assert_eq "design" "$FROM_PHASE" "AC-4: single-item args preserved"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 

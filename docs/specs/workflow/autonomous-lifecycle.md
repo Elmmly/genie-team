@@ -243,3 +243,18 @@ Three improvements from 2hearted batch run post-mortem and worktree integration 
 - `tests/test_run_pdlc.sh`: 197 tests (32 new), all passing
 - `tests/test_session.sh`: 58 tests, all passing
 - All 6 test suites: 421 tests, all passing
+
+## Implementation Evidence (Batch Crash Recovery)
+<!-- Appended by /deliver on 2026-02-14 from P1-batch-crash-recovery -->
+
+Crash recovery implementation from 2hearted while-away post-mortem:
+
+### P1-batch-crash-recovery
+- `scripts/genies`: Added `_batch_exit_trap()` — writes partial batch-manifest.json on process exit
+- `scripts/genies`: Added `run_recover()` — scans `genie/*` branches, reads manifest to identify succeeded items, integrates or cleans up
+- `scripts/genies`: Added EXIT trap in `run_batch_parallel()`, wired `RECOVER_MODE` into `main()`
+- 13 new tests in `tests/test_run_pdlc.sh`
+
+### Test Coverage
+- `tests/test_run_pdlc.sh`: 210 tests (13 new), all passing
+- `tests/test_session.sh`: 58 tests, all passing
