@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: shaped-work
 id: P2-script-rename-branding
 title: "Rename PATH Scripts for Genie Team Brand Alignment"
-status: designed
+status: done
 created: "2026-02-14"
 appetite: small
 priority: P2
@@ -14,35 +14,36 @@ acceptance_criteria:
     description: >-
       Primary lifecycle runner renamed from run-pdlc.sh to genies
       (without .sh extension) in scripts/, install.sh, and all documentation
-    status: pending
+    status: met
   - id: AC-2
     description: >-
       All companion scripts drop .sh extension for PATH consistency:
       genie-session.sh → genie-session, run-quality-checks.sh → genie-quality
-    status: pending
+    status: met
   - id: AC-3
     description: >-
       run-batch.sh backwards-compatible wrapper updated to delegate to the
       new primary script name
-    status: pending
+    status: n/a
+    note: run-batch.sh was already deleted in GT-36
   - id: AC-4
     description: >-
       All cross-references updated: README.md, install.sh output messages,
       commands/run.md, specs, backlog items, test files, and archive docs.
       Verified via grep that zero references to old names remain (excluding
       git history and this backlog item).
-    status: pending
+    status: met
   - id: AC-5
     description: >-
       install.sh installs scripts without .sh extension, chmod +x, and the
       PATH setup message reflects the new names
-    status: pending
+    status: met
   - id: AC-6
     description: >-
       Test sourcing updated: test_run_pdlc.sh sources the renamed script
       correctly; test_session.sh sources genie-session correctly.
       All existing tests pass.
-    status: pending
+    status: met
 ---
 
 # Shaped Work Contract: Rename PATH Scripts for Genie Team Brand Alignment

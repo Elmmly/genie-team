@@ -10,7 +10,7 @@ priority: P3
 author: shaper
 spec_ref: docs/specs/workflow/parallel-sessions.md
 depends_on:
-  - docs/backlog/P2-script-rename-branding.md
+  - docs/archive/workflow/2026-02-14_script-rename-branding/P2-script-rename-branding.md
 acceptance_criteria:
   - id: AC-1
     description: >-
