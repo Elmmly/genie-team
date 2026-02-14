@@ -921,9 +921,9 @@ assert_eq "deliver" "$result" "status_to_phase: designed → deliver"
 result=$(status_to_phase "implemented")
 assert_eq "discern" "$result" "status_to_phase: implemented → discern"
 
-# Test: reviewed maps to done
+# Test: reviewed is non-actionable (skipped in batch — already complete)
 result=$(status_to_phase "reviewed")
-assert_eq "done" "$result" "status_to_phase: reviewed → done"
+assert_eq "" "$result" "status_to_phase: reviewed → (skipped)"
 
 # Test: done returns empty (skip)
 result=$(status_to_phase "done")
@@ -1492,6 +1492,350 @@ output=$("$RUN_PDLC" --help 2>&1)
 # Assert
 assert_contains "$output" "session" "AC-1: genies --help mentions session subcommand"
 assert_contains "$output" "quality" "AC-2: genies --help mentions quality subcommand"
+
+# ═══════════════════════════════════════════════
+# Category 21: Retry resilience (P1-retry-resilience)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- retry resilience ---"
+
+# Test: worktree_setup calls session_cleanup_item before session_start (AC-1)
+# Use file-based tracking since worktree_setup runs in command substitution (subshell)
+# Arrange
+setup_temp
+CLEANUP_LOG="$TEMP_DIR/cleanup_calls.log"
+session_cleanup_item() { echo "$1" >> "$CLEANUP_LOG"; }
+session_start() { echo "$TEMP_DIR/fake-worktree"; return 0; }
+FROM_PHASE="deliver"
+# Act
+result=$(worktree_setup "test-item" 2>/dev/null)
+ec=$?
+# Assert
+cleanup_arg=$(cat "$CLEANUP_LOG" 2>/dev/null)
+assert_eq "test-item" "$cleanup_arg" "AC-1: worktree_setup calls session_cleanup_item before session_start"
+assert_eq "0" "$ec" "AC-1: worktree_setup succeeds after cleanup"
+teardown_temp
+
+# Test: worktree_setup still works when session_cleanup_item fails (AC-1)
+# Arrange
+setup_temp
+session_cleanup_item() { return 1; }
+session_start() { echo "$TEMP_DIR/fake-worktree"; return 0; }
+FROM_PHASE="deliver"
+# Act
+result=$(worktree_setup "test-item" 2>/dev/null)
+ec=$?
+# Assert
+assert_eq "0" "$ec" "AC-1: worktree_setup succeeds even when cleanup fails"
+teardown_temp
+
+# Test: status_to_phase returns empty for "reviewed" (AC-2)
+# Arrange/Act
+result=$(status_to_phase "reviewed")
+# Assert
+assert_eq "" "$result" "AC-2: status_to_phase returns empty for reviewed"
+
+# Test: status_to_phase returns empty for "done" (AC-2, existing behavior)
+# Arrange/Act
+result=$(status_to_phase "done")
+# Assert
+assert_eq "" "$result" "AC-2: status_to_phase returns empty for done"
+
+# Test: resolve_batch_items skips reviewed items in backlog scan (AC-2)
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+cat > "$TEMP_DIR/docs/backlog/P1-item-active.md" << 'EOF'
+---
+status: designed
+priority: P1
+title: "Active Item"
+---
+EOF
+cat > "$TEMP_DIR/docs/backlog/P1-item-reviewed.md" << 'EOF'
+---
+status: reviewed
+priority: P1
+title: "Reviewed Item"
+---
+EOF
+cat > "$TEMP_DIR/docs/backlog/P1-item-done.md" << 'EOF'
+---
+status: done
+priority: P1
+title: "Done Item"
+---
+EOF
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+popd > /dev/null || exit
+# Assert
+assert_eq "1" "${#BATCH_ITEMS[@]}" "AC-2: resolve_batch_items skips reviewed and done items"
+assert_contains "${BATCH_ITEMS[0]}" "P1-item-active.md" "AC-2: only active item remains"
+teardown_temp
+
+# Test: resolve_batch_items skips reviewed explicit input (AC-2)
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/reviewed-item.md" << 'EOF'
+---
+status: reviewed
+priority: P1
+title: "Reviewed Explicit"
+---
+EOF
+# Act
+INPUTS=("$TEMP_DIR/reviewed-item.md")
+PRIORITIES=()
+resolve_batch_items
+# Assert
+assert_eq "0" "${#BATCH_ITEMS[@]}" "AC-2: resolve_batch_items skips reviewed explicit input"
+teardown_temp
+
+# Test: acquire_lock overwrites dead PID lock (AC-3)
+# Arrange
+setup_temp
+LOCK_DIR="$TEMP_DIR/locks"
+mkdir -p "$LOCK_DIR"
+input_hash=$(echo -n "test-dead-pid" | shasum | cut -d' ' -f1)
+dead_lock="$LOCK_DIR/${input_hash}.lock"
+echo "99998" > "$dead_lock"
+# Act
+acquire_lock "test-dead-pid" "$LOCK_DIR"
+ec=$?
+# Assert
+assert_exit_code "0" "$ec" "AC-3: acquire_lock overwrites dead PID lock"
+lock_content=$(cat "$dead_lock" 2>/dev/null)
+assert_contains "$lock_content" "$$" "AC-3: lock now contains current PID"
+release_lock 2>/dev/null
+teardown_temp
+
+# Test: single-item mode with --worktree is unchanged (AC-4)
+# Verify parse_args still accepts --worktree without new side effects
+# Arrange/Act
+parse_args --worktree --from deliver --through deliver test-input.md
+# Assert
+assert_eq "true" "$USE_WORKTREE" "AC-4: --worktree flag still works"
+assert_eq "deliver" "$FROM_PHASE" "AC-4: --from still works with --worktree"
+
+# ═══════════════════════════════════════════════
+# Category 22: Minimum-turn guard (P1-minimum-turn-guard)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- minimum-turn guard ---"
+
+# Test: MIN_TURNS array exists with correct defaults (AC-1, AC-2)
+# Arrange/Act — MIN_TURNS should be defined after sourcing genies
+# Assert
+assert_eq "7" "${#MIN_TURNS[@]}" "AC-1: MIN_TURNS array has 7 elements"
+assert_eq "0" "${MIN_TURNS[0]}" "AC-1: discover min turns is 0"
+assert_eq "0" "${MIN_TURNS[1]}" "AC-1: define min turns is 0"
+assert_eq "0" "${MIN_TURNS[2]}" "AC-1: design min turns is 0"
+assert_eq "3" "${MIN_TURNS[3]}" "AC-2: deliver min turns is 3"
+assert_eq "0" "${MIN_TURNS[4]}" "AC-1: discern min turns is 0"
+assert_eq "0" "${MIN_TURNS[5]}" "AC-1: commit min turns is 0"
+assert_eq "0" "${MIN_TURNS[6]}" "AC-1: done min turns is 0"
+
+# Test: get_min_turns returns correct default for deliver (AC-2)
+# Arrange/Act
+result=$(get_min_turns "deliver")
+# Assert
+assert_eq "3" "$result" "AC-2: get_min_turns deliver returns 3"
+
+# Test: get_min_turns returns 0 for discover (AC-1)
+# Arrange/Act
+result=$(get_min_turns "discover")
+# Assert
+assert_eq "0" "$result" "AC-1: get_min_turns discover returns 0"
+
+# Test: --deliver-min-turns overrides default (AC-4)
+# Arrange/Act
+parse_args --deliver-min-turns 5 test-input.md
+result=$(get_min_turns "deliver")
+# Assert
+assert_eq "5" "$result" "AC-4: --deliver-min-turns overrides default"
+
+# Test: check_min_turns returns 0 when turns >= minimum (AC-1)
+# Arrange
+PHASE_NUM_TURNS=5
+# Act
+check_min_turns "deliver" 2>/dev/null
+ec=$?
+# Assert
+assert_exit_code "0" "$ec" "AC-1: check_min_turns passes when turns >= minimum"
+
+# Test: check_min_turns returns 1 when turns < minimum (AC-1)
+# Arrange
+PHASE_NUM_TURNS=1
+# Act
+check_min_turns "deliver" 2>/dev/null
+ec=$?
+# Assert
+assert_exit_code "1" "$ec" "AC-1: check_min_turns fails when turns < minimum"
+
+# Test: check_min_turns always passes for phases with min=0 (AC-1)
+# Arrange
+PHASE_NUM_TURNS=1
+# Act
+check_min_turns "discover" 2>/dev/null
+ec=$?
+# Assert
+assert_exit_code "0" "$ec" "AC-1: check_min_turns passes for discover (min=0)"
+
+# ═══════════════════════════════════════════════
+# Category 23: Post-batch state reconciliation (P2-post-batch-state-update)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- post-batch state reconciliation ---"
+
+# Test: set_frontmatter_field updates existing field (AC-2)
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/test-item.md" << 'EOF'
+---
+status: implemented
+priority: P1
+title: "Test Item"
+---
+# Content
+EOF
+# Act
+set_frontmatter_field "$TEMP_DIR/test-item.md" "status" "done"
+result=$(get_frontmatter_field "$TEMP_DIR/test-item.md" "status")
+# Assert
+assert_eq "done" "$result" "AC-2: set_frontmatter_field updates existing field"
+teardown_temp
+
+# Test: set_frontmatter_field preserves other fields (AC-2)
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/test-item.md" << 'EOF'
+---
+status: implemented
+priority: P1
+title: "Test Item"
+---
+# Content
+EOF
+# Act
+set_frontmatter_field "$TEMP_DIR/test-item.md" "status" "done"
+title=$(get_frontmatter_field "$TEMP_DIR/test-item.md" "title")
+priority=$(get_frontmatter_field "$TEMP_DIR/test-item.md" "priority")
+# Assert
+assert_eq "Test Item" "$title" "AC-2: set_frontmatter_field preserves title"
+assert_eq "P1" "$priority" "AC-2: set_frontmatter_field preserves priority"
+teardown_temp
+
+# Test: reconcile_batch_state updates succeeded items' status (AC-2)
+# Arrange
+setup_temp
+LOG_DIR="$TEMP_DIR/logs"
+mkdir -p "$LOG_DIR"
+mkdir -p "$TEMP_DIR/docs/backlog"
+cat > "$TEMP_DIR/docs/backlog/P1-item-a.md" << 'EOF'
+---
+status: implemented
+priority: P1
+title: "Item A"
+---
+EOF
+cat > "$TEMP_DIR/docs/backlog/P2-item-b.md" << 'EOF'
+---
+status: implemented
+priority: P2
+title: "Item B"
+---
+EOF
+# Write a manifest with one succeeded item
+cat > "$LOG_DIR/batch-manifest.json" << 'EOF'
+{
+  "timestamp": "2026-02-14T00:00:00Z",
+  "succeeded": ["docs/backlog/P1-item-a.md"],
+  "failed": ["docs/backlog/P2-item-b.md"],
+  "conflicts": []
+}
+EOF
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+reconcile_batch_state 2>/dev/null
+popd > /dev/null || exit
+# Assert
+result_a=$(get_frontmatter_field "$TEMP_DIR/docs/backlog/P1-item-a.md" "status")
+result_b=$(get_frontmatter_field "$TEMP_DIR/docs/backlog/P2-item-b.md" "status")
+assert_eq "done" "$result_a" "AC-2: succeeded item status updated to done"
+assert_eq "implemented" "$result_b" "AC-2: failed item status unchanged"
+teardown_temp
+
+# Test: reconcile_batch_state appends to current_work.md (AC-1)
+# Arrange
+setup_temp
+LOG_DIR="$TEMP_DIR/logs"
+mkdir -p "$LOG_DIR"
+mkdir -p "$TEMP_DIR/docs/context"
+mkdir -p "$TEMP_DIR/docs/backlog"
+echo "# Current Work" > "$TEMP_DIR/docs/context/current_work.md"
+cat > "$LOG_DIR/batch-manifest.json" << 'EOF'
+{
+  "timestamp": "2026-02-14T00:00:00Z",
+  "succeeded": ["docs/backlog/P1-ok.md"],
+  "failed": [],
+  "conflicts": []
+}
+EOF
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+reconcile_batch_state 2>/dev/null
+popd > /dev/null || exit
+# Assert
+result=$(cat "$TEMP_DIR/docs/context/current_work.md")
+assert_contains "$result" "Batch Run Summary" "AC-1: current_work.md has batch summary"
+assert_contains "$result" "P1-ok.md" "AC-1: current_work.md lists succeeded item"
+teardown_temp
+
+# Test: reconcile_batch_state skips when no manifest (AC-1)
+# Arrange
+setup_temp
+LOG_DIR="$TEMP_DIR/logs"
+mkdir -p "$LOG_DIR"
+# No manifest file
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+reconcile_batch_state 2>/dev/null
+ec=$?
+popd > /dev/null || exit
+# Assert
+assert_exit_code "0" "$ec" "AC-1: reconcile_batch_state exits 0 when no manifest"
+teardown_temp
+
+# Test: reconcile_batch_state skips current_work.md when it doesn't exist (AC-1)
+# Arrange
+setup_temp
+LOG_DIR="$TEMP_DIR/logs"
+mkdir -p "$LOG_DIR"
+cat > "$LOG_DIR/batch-manifest.json" << 'EOF'
+{
+  "timestamp": "2026-02-14T00:00:00Z",
+  "succeeded": ["docs/backlog/P1-ok.md"],
+  "failed": [],
+  "conflicts": []
+}
+EOF
+# No current_work.md
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+reconcile_batch_state 2>/dev/null
+ec=$?
+popd > /dev/null || exit
+# Assert
+assert_exit_code "0" "$ec" "AC-1: reconcile_batch_state exits 0 when no current_work.md"
+assert_file_not_exists "$TEMP_DIR/docs/context/current_work.md" "AC-1: doesn't create current_work.md"
+teardown_temp
 
 # ═══════════════════════════════════════════════
 # Summary

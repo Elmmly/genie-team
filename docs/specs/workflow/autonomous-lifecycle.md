@@ -142,20 +142,21 @@ discover → define → design → deliver → discern → commit → done
 **Test suite:** 48 tests in `tests/test_run_pdlc.sh`, all passing. `shellcheck` clean.
 
 ## Review Verdict
-<!-- Updated by /discern on 2026-02-12 from autonomous-lifecycle-runner -->
+<!-- Updated by /discern on 2026-02-14 from P1-retry-resilience, P1-minimum-turn-guard, P2-post-batch-state-update -->
 
 **Verdict:** APPROVED
-**ACs verified:** 6/7 met
+**ACs verified:** 7/8 met
 
 | AC | Status | Evidence |
 |----|--------|----------|
-| AC-1 | met | `/run` command with `--from`/`--through`, no confirmation gates, stop-on-BLOCKED |
+| AC-1 | met | `/run` command with `--from`/`--through`, no confirmation gates, stop-on-BLOCKED. Phase completion verification, reordered final phases, per-phase metrics, artifact-aware staging. |
 | AC-2 | met | `genies` chains `claude -p`, parses JSON, exit codes 0/1/2/3, JSON logging |
 | AC-3 | met | `PHASES` array + `phase_index()`, 11 tests for args + validation |
 | AC-4 | met | `--log-dir`, `--lock`, no interactive input, 4 lockfile tests |
-| AC-5 | unmet | Worktree stubs only — P2-session-management dependency not yet delivered |
-| AC-6 | met | `DEFAULT_TURNS`, `get_max_turns()`, `retry_phase()`, override flags, 2 retry tests |
+| AC-5 | unmet | Worktree stubs with pre-cleanup via `session_cleanup_item` — full worktree lifecycle pending P2-session-management |
+| AC-6 | met | `DEFAULT_TURNS` + `MIN_TURNS`, `get_max_turns()` + `get_min_turns()`, `retry_phase()` + `check_min_turns()`, per-phase overrides (`--deliver-turns`, `--deliver-min-turns`). Min-turn retry uses fresh session. |
 | AC-7 | met | Scheduling patterns in shaped contract with cron, CI/CD, GitHub Actions examples |
+| AC-8 | met | Batch scan, status filtering (skip done/reviewed), concurrent worktrees, integration with exit codes 0/1/2/3/4, `batch-manifest.json`, `--recover` flag, `reconcile_batch_state()` for post-integration state updates |
 
 ## Implementation Evidence (Field Test Fixes)
 <!-- Appended by /deliver on 2026-02-13 from GT-34 -->
@@ -214,3 +215,31 @@ Three reliability fixes from 2hearted batch run post-mortem (Feb 13-14, 2026):
 ### Test Coverage
 - `tests/test_run_pdlc.sh`: 148 tests (20 new), all passing
 - `tests/test_session.sh`: 54 tests (2 new), all passing
+
+## Implementation Evidence (Retry Resilience & Batch Improvements)
+<!-- Appended by /deliver on 2026-02-14 from P1-retry-resilience, P1-minimum-turn-guard, P2-post-batch-state-update -->
+
+Three improvements from 2hearted batch run post-mortem and worktree integration protocol:
+
+### P1-retry-resilience (batch retry without manual cleanup)
+- `scripts/genies`: `worktree_setup()` calls `session_cleanup_item` before `session_start` to remove prior failed attempts
+- `scripts/genies`: `status_to_phase()` returns empty for "reviewed" (non-actionable in batch, same as "done")
+- `scripts/genies`: `acquire_lock()` already handles dead PID and stale age — AC-3 confirmed met
+- 8 new tests, 1 updated test in `tests/test_run_pdlc.sh`
+
+### P1-minimum-turn-guard (detect anomalous 1-turn delivers)
+- `scripts/genies`: Added `MIN_TURNS` array `(0 0 0 3 0 0 0)`, `get_min_turns()`, `check_min_turns()`
+- `scripts/genies`: Phase loop checks min turns after success; retries with fresh session if below minimum
+- `scripts/genies`: `--deliver-min-turns` flag for operator override
+- 13 new tests in `tests/test_run_pdlc.sh`
+
+### P2-post-batch-state-update (shared state reconciliation)
+- `scripts/genies`: Added `set_frontmatter_field()` for portable frontmatter updates
+- `scripts/genies`: Added `reconcile_batch_state()` — reads batch-manifest.json, updates backlog statuses, appends to current_work.md
+- `scripts/genies`: Called after `write_batch_manifest` in `run_batch_parallel()`
+- 10 new tests in `tests/test_run_pdlc.sh`
+
+### Test Coverage
+- `tests/test_run_pdlc.sh`: 197 tests (32 new), all passing
+- `tests/test_session.sh`: 58 tests, all passing
+- All 6 test suites: 421 tests, all passing

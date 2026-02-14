@@ -20,6 +20,7 @@ fi
 
 PHASES=(discover define design deliver discern commit "done")
 DEFAULT_TURNS=(50 50 50 100 50 10 20)
+MIN_TURNS=(0 0 0 3 0 0 0)
 
 # Per-phase allowed tools (from CLI contract)
 PHASE_TOOLS=(
@@ -98,15 +99,97 @@ get_frontmatter_field() {
     get_field "$fm" "$field"
 }
 
+# Update a frontmatter field in a file
+# Usage: set_frontmatter_field <file> <field> <value>
+set_frontmatter_field() {
+    local file="$1"
+    local field="$2"
+    local value="$3"
+
+    if [[ ! -f "$file" ]]; then
+        return 1
+    fi
+
+    # Use a temp file for portable sed (macOS + Linux)
+    local tmpfile
+    tmpfile="$(mktemp)"
+    if grep -q "^${field}:" "$file" 2>/dev/null; then
+        sed "s/^${field}:.*/${field}: ${value}/" "$file" > "$tmpfile"
+        mv "$tmpfile" "$file"
+    else
+        rm -f "$tmpfile"
+    fi
+}
+
+# Reconcile shared state after batch integration
+# Reads batch-manifest.json, updates backlog statuses and current_work.md
+# Usage: reconcile_batch_state
+reconcile_batch_state() {
+    local manifest="${LOG_DIR:-}/batch-manifest.json"
+    if [[ ! -f "$manifest" ]]; then
+        return 0
+    fi
+
+    # Parse succeeded items from manifest
+    local succeeded_items=()
+    local failed_items=()
+    if command -v jq &>/dev/null; then
+        while IFS= read -r item; do
+            [[ -n "$item" ]] && succeeded_items+=("$item")
+        done < <(jq -r '.succeeded[]' "$manifest" 2>/dev/null)
+        while IFS= read -r item; do
+            [[ -n "$item" ]] && failed_items+=("$item")
+        done < <(jq -r '.failed[]' "$manifest" 2>/dev/null)
+    fi
+
+    # Update succeeded items' backlog status to done
+    for item in "${succeeded_items[@]+"${succeeded_items[@]}"}"; do
+        [[ -z "$item" ]] && continue
+        if [[ -f "$item" ]]; then
+            local current_status
+            current_status=$(get_frontmatter_field "$item" "status")
+            if [[ "$current_status" == "implemented" || "$current_status" == "reviewed" ]]; then
+                set_frontmatter_field "$item" "status" "done"
+                log_info "Reconciled: $(basename "$item") status → done"
+            fi
+        fi
+    done
+
+    # Append batch summary to current_work.md if it exists
+    local cw_file="docs/context/current_work.md"
+    if [[ -f "$cw_file" ]]; then
+        {
+            echo ""
+            echo "## Batch Run Summary ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            echo ""
+            if [[ ${#succeeded_items[@]} -gt 0 ]]; then
+                echo "**Succeeded:**"
+                for item in "${succeeded_items[@]}"; do
+                    echo "- $item"
+                done
+            fi
+            if [[ ${#failed_items[@]} -gt 0 ]]; then
+                echo ""
+                echo "**Failed:**"
+                for item in "${failed_items[@]}"; do
+                    echo "- $item"
+                done
+            fi
+        } >> "$cw_file"
+        log_info "Appended batch summary to $cw_file"
+    fi
+
+    return 0
+}
+
 # Map backlog item status to the next phase to run
-# Returns empty string for non-actionable statuses (done, abandoned)
+# Returns empty string for non-actionable statuses (done, reviewed, abandoned)
 status_to_phase() {
     local status="$1"
     case "$status" in
         defined|shaped) echo "design" ;;
         designed)       echo "deliver" ;;
         implemented)    echo "discern" ;;
-        reviewed)       echo "done" ;;
         *)              echo "" ;;
     esac
 }
@@ -169,6 +252,9 @@ parse_args() {
     COMMIT_TURNS=""
     DONE_TURNS=""
 
+    # Per-phase min turn overrides
+    DELIVER_MIN_TURNS=""
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --from)              FROM_PHASE="$2"; shift 2 ;;
@@ -197,6 +283,7 @@ parse_args() {
             --discern-turns)     DISCERN_TURNS="$2"; shift 2 ;;
             --commit-turns)      COMMIT_TURNS="$2"; shift 2 ;;
             --done-turns)        DONE_TURNS="$2"; shift 2 ;;
+            --deliver-min-turns) DELIVER_MIN_TURNS="$2"; shift 2 ;;
             -h|--help)
                 echo "Usage: genies [OPTIONS] [<topic|backlog-item-path>...]"
                 echo "       genies session <command> [args]"
@@ -430,6 +517,47 @@ get_max_turns() {
 
     # Default
     echo "${DEFAULT_TURNS[$idx]}"
+}
+
+# Get minimum turns for a phase (override > default)
+# Usage: get_min_turns <phase>
+get_min_turns() {
+    local phase="$1"
+    local idx
+    idx=$(phase_index "$phase")
+
+    # Check per-phase override
+    local override_val=""
+    case "$phase" in
+        deliver) override_val="${DELIVER_MIN_TURNS:-}" ;;
+    esac
+
+    if [[ -n "$override_val" ]]; then
+        echo "$override_val"
+        return
+    fi
+
+    echo "${MIN_TURNS[$idx]}"
+}
+
+# Check if a phase completed with enough turns
+# Usage: check_min_turns <phase>
+# Returns: 0 if turns >= minimum, 1 if below minimum
+check_min_turns() {
+    local phase="$1"
+    local min
+    min=$(get_min_turns "$phase")
+
+    if [[ "$min" -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "${PHASE_NUM_TURNS:-0}" -lt "$min" ]]; then
+        log_info "[$phase] Anomalous: completed in $PHASE_NUM_TURNS turns (minimum: $min)"
+        return 1
+    fi
+
+    return 0
 }
 
 # Build the prompt for a phase invocation
@@ -671,6 +799,8 @@ fi
 
 worktree_setup() {
     local item_slug="$1"
+    # Clean up any prior failed attempt (worktree + branch) before creating new
+    session_cleanup_item "$item_slug" 2>/dev/null || true
     local worktree_path
     worktree_path=$(session_start "$item_slug" "$FROM_PHASE") || {
         log_error "Failed to create worktree for $item_slug"
@@ -1255,6 +1385,9 @@ run_batch_parallel() {
             "${failed_items[@]+"${failed_items[@]}"}" \
             "---" \
             "${conflict_items[@]+"${conflict_items[@]}"}"
+
+        # Reconcile shared state (backlog statuses, current_work.md)
+        reconcile_batch_state
     fi
 
     if [[ $failed -gt 0 || $merge_conflicts -gt 0 ]]; then
@@ -1382,6 +1515,30 @@ main() {
                 fi
             else
                 log_error "Phase '$phase' failed. Stopping."
+                if [[ "$USE_WORKTREE" == "true" && "$CLEANUP_ON_FAILURE" == "true" && -n "$item_slug" ]]; then
+                    cd "${original_dir:-/}"
+                    worktree_teardown_failure "$item_slug"
+                fi
+                exit 1
+            fi
+        fi
+
+        # Check minimum turn threshold
+        if ! check_min_turns "$phase"; then
+            log_info "[$phase] Below minimum turns — retrying with fresh session"
+            SESSION_ID=""
+            run_phase "$phase" "$phase_input"
+            local min_retry_ec=$?
+            if [[ $min_retry_ec -ne 0 ]]; then
+                log_error "Phase '$phase' failed on minimum-turn retry. Stopping."
+                if [[ "$USE_WORKTREE" == "true" && "$CLEANUP_ON_FAILURE" == "true" && -n "$item_slug" ]]; then
+                    cd "${original_dir:-/}"
+                    worktree_teardown_failure "$item_slug"
+                fi
+                exit 1
+            fi
+            if ! check_min_turns "$phase"; then
+                log_error "[$phase] Still below minimum turns after retry ($PHASE_NUM_TURNS < $(get_min_turns "$phase")). Stopping."
                 if [[ "$USE_WORKTREE" == "true" && "$CLEANUP_ON_FAILURE" == "true" && -n "$item_slug" ]]; then
                     cd "${original_dir:-/}"
                     worktree_teardown_failure "$item_slug"
