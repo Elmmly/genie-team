@@ -263,22 +263,22 @@ Same phases, no manual gates. `/discern` is the automated quality gate — stops
 > /run --through define "explore notification patterns"   # Just discover + define
 ```
 
-### Headless/Scheduled (`scripts/run-pdlc.sh`)
+### Headless/Scheduled (`run-pdlc.sh`)
 
-Chains `claude -p` per phase for cron, CI/CD, or GitHub Actions. Best for daily discovery pipelines or overnight delivery.
+Chains `claude -p` per phase for cron, CI/CD, or GitHub Actions. Best for daily discovery pipelines or overnight delivery. Available on PATH after global install.
 
 ```bash
 # Full lifecycle from topic
-scripts/run-pdlc.sh "add password reset"
+run-pdlc.sh "add password reset"
 
 # Discovery pipeline (run nightly, human reviews in morning)
-scripts/run-pdlc.sh --through define "explore auth improvements"
+run-pdlc.sh --through define "explore auth improvements"
 
 # Implement approved items (run after human review)
-scripts/run-pdlc.sh --from design docs/backlog/P2-auth.md
+run-pdlc.sh --from design docs/backlog/P2-auth.md
 
 # With operational flags
-scripts/run-pdlc.sh --lock --log-dir ./logs \
+run-pdlc.sh --lock --log-dir ./logs \
   --from design docs/backlog/P2-auth.md
 ```
 
@@ -310,23 +310,23 @@ Multiple genie-team sessions working on the same repo simultaneously via git wor
 
 ```bash
 # Start a parallel session
-scripts/genie-session start P2-search deliver
+genie-session.sh start P2-search deliver
 # → Creates ../myproject--P2-search on branch genie/P2-search-deliver
 
 # List active sessions
-scripts/genie-session list
+genie-session.sh list
 
 # Finish (push + PR, remove worktree)
-scripts/genie-session finish P2-search
+genie-session.sh finish P2-search
 
 # Or merge directly (trunk-based)
-scripts/genie-session finish P2-search --merge
+genie-session.sh finish P2-search --merge
 
 # Or leave branch for later integration (used by parallel batch)
-scripts/genie-session finish P2-search --leave-branch
+genie-session.sh finish P2-search --leave-branch
 
 # Clean up all merged sessions
-scripts/genie-session cleanup
+genie-session.sh cleanup
 ```
 
 Enable in your project's `CLAUDE.md` by uncommenting `<!-- worktree-enabled -->`.
@@ -366,26 +366,26 @@ The Crafter reads ADRs and C4 diagrams during implementation. The Critic checks 
 
 `/arch:init` documents the system in C4 diagrams showing containers, external systems, and deployment boundaries.
 
-### Batch Execution (`scripts/run-batch.sh`)
+### Batch Execution (`run-batch.sh`)
 
 Run multiple items in parallel with serialized integration:
 
 ```bash
 # Deliver all actionable backlog items with 3 parallel workers, trunk-based
-scripts/run-batch.sh deliver --parallel 3 --trunk --verbose \
+run-batch.sh deliver --parallel 3 --trunk --verbose \
   --log-dir logs/overnight
 
 # Deliver only P1 items (auto-detects phase from status)
-scripts/run-batch.sh deliver --priority P1 --parallel 2 --trunk \
+run-batch.sh deliver --priority P1 --parallel 2 --trunk \
   --verbose --log-dir logs/p1-delivery
 
 # Discover 3 topics in parallel, full lifecycle to trunk
-scripts/run-batch.sh discover --parallel 3 --trunk --verbose \
+run-batch.sh discover --parallel 3 --trunk --verbose \
   --through done --log-dir logs/discovery \
   "topic one" "topic two" "topic three"
 
 # Preview what would run (no execution)
-scripts/run-batch.sh deliver --parallel 3 --dry-run
+run-batch.sh deliver --parallel 3 --dry-run
 ```
 
 Parallel mode uses git worktrees for isolation. Workers leave branches intact after completing, then the batch runner serializes integration (rebase+ff for `--trunk`, push+PR otherwise). Logs in `--log-dir` for post-run inspection.
@@ -396,10 +396,10 @@ For CI/CD integration with `run-pdlc.sh`:
 
 ```bash
 # Nightly discovery pipeline
-0 2 * * * scripts/run-pdlc.sh --through define --lock --log-dir ./logs "explore improvements"
+0 2 * * * run-pdlc.sh --through define --lock --log-dir ./logs "explore improvements"
 
 # Implement approved items (manual trigger or CI)
-scripts/run-pdlc.sh --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
+run-pdlc.sh --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
 ```
 
 ---

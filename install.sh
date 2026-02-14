@@ -62,6 +62,62 @@ log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# PATH configuration
+SCRIPTS_PATH="$GLOBAL_CLAUDE_DIR/scripts"
+PATH_EXPORT_LINE="export PATH=\"\$PATH:\$HOME/.claude/scripts\""
+
+# Detect user's shell profile
+detect_shell_profile() {
+    local shell_name
+    shell_name="$(basename "${SHELL:-/bin/bash}")"
+    case "$shell_name" in
+        zsh)  echo "$HOME/.zshrc" ;;
+        bash)
+            # Prefer .bash_profile on macOS, .bashrc on Linux
+            if [[ -f "$HOME/.bash_profile" ]]; then
+                echo "$HOME/.bash_profile"
+            else
+                echo "$HOME/.bashrc"
+            fi
+            ;;
+        *)    echo "$HOME/.profile" ;;
+    esac
+}
+
+# Add ~/.claude/scripts to PATH if not already present
+setup_scripts_path() {
+    local dry_run="$1"
+
+    # Already on PATH — nothing to do
+    if echo "$PATH" | tr ':' '\n' | grep -qx "$SCRIPTS_PATH"; then
+        log_info "Scripts already on PATH"
+        return 0
+    fi
+
+    local profile
+    profile="$(detect_shell_profile)"
+
+    # Already in profile file — just not active in this shell
+    if [[ -f "$profile" ]] && grep -qF '.claude/scripts' "$profile"; then
+        log_info "PATH entry exists in $profile (restart shell to activate)"
+        return 0
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        log_info "[DRY RUN] Would add scripts to PATH in $profile"
+        return 0
+    fi
+
+    {
+        echo ""
+        echo "# Genie Team scripts (run-pdlc, run-batch, genie-session)"
+        echo "$PATH_EXPORT_LINE"
+    } >> "$profile"
+    log_success "Added scripts to PATH in $profile"
+    log_info "Run: source $profile  (or restart your shell)"
+    return 0
+}
+
 # MCP server configuration
 MCP_SERVER_NAME="imagegen"
 MCP_SERVER_PKG="@fastmcp-me/imagegen-mcp"
@@ -545,6 +601,8 @@ cmd_global() {
             log_info "[DRY RUN] Would install schemas"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install scripts"
+        [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+            setup_scripts_path "true"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install hooks"
         if [[ "$skip_mcp" != "true" ]]; then
@@ -597,6 +655,10 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
         install_hooks "$GLOBAL_CLAUDE_DIR/hooks" "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/hooks" "$force"
 
+    # Add scripts to PATH (so run-batch.sh, run-pdlc.sh work from any project)
+    [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+        setup_scripts_path "$dry_run"
+
     # MCP server installation (scope: user = available to all projects)
     if [[ "$skip_mcp" != "true" ]]; then
         [[ "$install_all" == "true" || "$install_mcp" == "true" ]] && \
@@ -622,10 +684,14 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner),"
-    echo "              run-batch (overnight batch delivery/discovery)"
+    echo "  Scripts:    run-batch.sh (batch execution), run-pdlc.sh (autonomous runner),"
+    echo "              genie-session.sh (parallel worktrees)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
+    echo ""
+    echo "Scripts are on PATH — run from any project directory:"
+    echo "  run-batch.sh deliver --parallel 3 --trunk --verbose"
+    echo "  run-pdlc.sh --through define \"explore auth improvements\""
 }
 
 # Project installation
@@ -908,6 +974,13 @@ cmd_uninstall() {
                     log_success "Removed $dir"
                 fi
             done
+            # Clean up PATH entry from shell profile
+            local profile
+            profile="$(detect_shell_profile)"
+            if [[ -f "$profile" ]] && grep -qF '.claude/scripts' "$profile"; then
+                sed -i'' -e '/# Genie Team scripts/d' -e '/\.claude\/scripts/d' "$profile"
+                log_success "Removed PATH entry from $profile"
+            fi
             if check_claude_cli && check_mcp_installed; then
                 local mcp_scope
                 mcp_scope=$(get_mcp_scope)
