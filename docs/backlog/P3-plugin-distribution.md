@@ -3,12 +3,10 @@ spec_version: "1.0"
 type: shaped-work
 id: plugin-distribution
 title: "Package Genie Team as a Claude Code Plugin"
-status: abandoned
-abandoned: "2026-02-13"
-abandoned_reason: "Premature — audience of one, Claude Code plugin system is new/unstable, install.sh works. Revisit when there's actual user demand or the plugin system stabilizes."
+status: designed
 created: "2026-02-13"
 appetite: medium
-priority: someday
+priority: P3
 target_project: genie-team
 author: shaper
 depends_on: []
@@ -16,25 +14,25 @@ tags: [distribution, plugin, installation, adoption]
 acceptance_criteria:
   - id: AC-1
     description: "A .claude-plugin/plugin.json manifest exists declaring genie-team's commands, skills, agents, hooks, and MCP servers"
-    status: deferred
+    status: pending
   - id: AC-2
     description: "A .claude-plugin/marketplace.json exists enabling installation via '/plugin marketplace add' and '/plugin install'"
-    status: deferred
+    status: pending
   - id: AC-3
     description: "Users can install genie-team with two commands: add marketplace, then install plugin — no shell script execution required"
-    status: deferred
+    status: pending
   - id: AC-4
     description: "Plugin installation produces the same functional result as 'install.sh global --all' (commands, skills, rules, agents, schemas, hooks, MCP)"
-    status: deferred
+    status: pending
   - id: AC-5
     description: "install.sh continues to work as an alternative installation path (not removed)"
-    status: deferred
+    status: pending
   - id: AC-6
     description: "Plugin version matches the VERSION in install.sh and is updated in a single place"
-    status: deferred
+    status: pending
   - id: AC-7
     description: "Command namespacing impact is documented — whether commands become '/genie-team:discover' vs staying '/discover' and what tradeoffs that creates"
-    status: deferred
+    status: pending
 ---
 
 # Shaped Work Contract: Package Genie Team as a Claude Code Plugin
@@ -130,76 +128,80 @@ and the project maintainer managing the distribution pipeline.
 
 ## Overview
 
-Add a Claude Code plugin manifest (`.claude-plugin/plugin.json` + `marketplace.json`) alongside the existing `install.sh`, giving users a native `/plugin install` path. The plugin covers commands, skills, agents, hooks, and MCP servers. Three component types — rules, schemas, and scripts — have no plugin.json equivalent and remain `install.sh`-only, with a post-install setup command (`/genie:setup`) to bridge the gap.
+Make genie-team installable as a Claude Code plugin for a 2-person team (you + one collaborator) before broader distribution. The repo root IS the plugin — the existing directory structure (`commands/`, `agents/`, `skills/`) already matches the plugin layout exactly. Add 4 files: `plugin.json`, `marketplace.json`, `hooks/hooks.json`, `.mcp.json`. Rules and schemas remain `install.sh`-only for now; the second developer runs `install.sh global --rules --schemas` alongside the plugin install.
+
+**Phase 1 (this item):** Validate the plugin experience with 2 people.
+**Phase 2 (future, separate item):** Broader distribution — version sync, README, `/genie:setup` command, cache optimization.
 
 ## Architecture
 
-**Pattern: Dual distribution with shared source.** Both the plugin system and `install.sh` read from the same source directories (`commands/`, `skills/`, `agents/`, etc.). The plugin manifest points to these directories; `install.sh` copies from them. Neither mechanism owns the source — they are parallel distribution channels over the same artifacts.
+**The repo root IS the plugin.** Claude Code's plugin system expects `commands/`, `agents/`, `skills/`, `hooks/` at the plugin root — which is exactly how genie-team is already structured. No restructuring needed.
+
+**Critical constraint:** When a plugin is installed, Claude Code copies the entire plugin directory to a cache. This means:
+- No `../` paths — everything must be self-contained within the repo
+- Hook scripts must use `${CLAUDE_PLUGIN_ROOT}` to reference files in the cached location
+- The entire repo (including `docs/`, `tests/`, etc.) gets cached — acceptable for 2 people, optimize in Phase 2
 
 ```
-┌────────────────────────────────────────────────────┐
-│  Source Artifacts (genie-team repo)                 │
-│  commands/  skills/  agents/  hooks/  schemas/      │
-│  rules/  scripts/  genies/                          │
-└────────────────┬──────────────────┬────────────────┘
-                 │                  │
-     ┌───────────▼──────┐  ┌───────▼────────────┐
-     │  plugin.json      │  │  install.sh         │
-     │  (native path)    │  │  (power-user path)  │
-     │                   │  │                     │
-     │  Commands    ✓    │  │  Commands       ✓   │
-     │  Skills      ✓    │  │  Skills         ✓   │
-     │  Agents      ✓    │  │  Agents         ✓   │
-     │  Hooks       ✓    │  │  Hooks          ✓   │
-     │  MCP servers ✓    │  │  MCP servers    ✓   │
-     │  Rules       ✗    │  │  Rules          ✓   │
-     │  Schemas     ✗    │  │  Schemas        ✓   │
-     │  Scripts     ✗    │  │  Scripts        ✓   │
-     │  Scaffolding ✗    │  │  Scaffolding    ✓   │
-     └──────────────────┘  └─────────────────────┘
+genie-team/                    ← this IS the plugin root
+├── .claude-plugin/
+│   ├── plugin.json            ← NEW (manifest)
+│   └── marketplace.json       ← NEW (catalog for /plugin marketplace add)
+├── commands/                  ← EXISTS (29 .md files → plugin commands)
+├── agents/                    ← EXISTS (7 .md files → plugin agents)
+├── skills/                    ← EXISTS (9 dirs with SKILL.md → plugin skills)
+├── hooks/
+│   ├── hooks.json             ← NEW (plugin hook configuration)
+│   ├── track-command.sh       ← EXISTS
+│   ├── track-artifacts.sh     ← EXISTS
+│   └── reinject-context.sh    ← EXISTS
+├── .mcp.json                  ← NEW (MCP server configuration)
+├── rules/                     ← EXISTS (no plugin field — install.sh only)
+├── schemas/                   ← EXISTS (no plugin field — install.sh only)
+├── install.sh                 ← EXISTS (alternative/complement path)
+└── ...
 ```
 
-### Component Mapping
+### Component Coverage
 
-| Component | install.sh target | plugin.json field | Gap? |
-|-----------|------------------|-------------------|------|
-| Commands (30+ `.md` files) | `.claude/commands/` | `"commands"` | No |
-| Skills (8 SKILL.md dirs) | `.claude/skills/` | `"skills"` | No |
-| Agents (7 `.md` files) | `.claude/agents/` | `"agents"` | No |
-| Hooks (3 `.sh` scripts + settings merge) | `.claude/hooks/` + `settings.json` | `"hooks"` | No |
-| MCP (imagegen) | `claude mcp add` | `"mcpServers"` | No |
-| Rules (7 `.md` files) | `.claude/rules/` | — | **Yes** — no `rules` field in plugin.json |
-| Schemas (7 `.md` files) | `./schemas/` | — | **Yes** — no `schemas` field |
-| Scripts (2 `.sh` files) | `./scripts/` | — | **Yes** — no `scripts` field |
-| Project scaffolding (`docs/` dirs) | `mkdir -p docs/{backlog,specs,...}` | — | **Yes** — not plugin content |
+| Component | Plugin handles? | Notes |
+|-----------|:-:|-------|
+| Commands (29 `.md` files) | Yes | Namespaced as `/genie:command` |
+| Skills (9 SKILL.md dirs) | Yes | Auto-activated by Claude |
+| Agents (7 `.md` files) | Yes | Available via Task tool |
+| Hooks (3 `.sh` scripts) | Yes | Via `hooks/hooks.json` + `${CLAUDE_PLUGIN_ROOT}` |
+| MCP (imagegen) | Yes | Via `.mcp.json` at root |
+| Rules (7 `.md` files) | **No** | No plugin field — `install.sh global --rules` |
+| Schemas (7 `.md` files) | **No** | No plugin field — `install.sh global --schemas` |
+| Scripts (`run-pdlc.sh`, etc.) | **No** | Orchestrator utilities — `install.sh global --scripts` |
+| Project scaffolding (`docs/` dirs) | **No** | `install.sh project` |
 
-### Gap Resolution Strategy
+**Gap resolution for Phase 1:** The second developer runs:
+```bash
+# Plugin install (commands, agents, skills, hooks, MCP)
+/plugin marketplace add nolan/genie-team
+/plugin install genie@genie-team --scope user
 
-Three components have no plugin.json equivalent. Rather than forcing them into the plugin format, the design accepts the gap and provides a clean bridge:
+# Gap fill (rules, schemas)
+git clone git@github.com:nolan/genie-team.git ~/genie-team
+cd ~/genie-team && ./install.sh global --rules --schemas
+```
 
-1. **Rules** — Bundled as a `rules/` directory in the plugin repo. After plugin install, users run `/genie:setup` (a command included in the plugin) which copies rules to `.claude/rules/`. This is a one-time setup step.
-
-2. **Schemas** — Referenced by commands and agents via relative paths. Commands already contain the schema content inline (e.g., "Schema: `schemas/shaped-work-contract.schema.md` v1.0"). For plugin users, schemas are available in the plugin's installed directory and can be read by agents. `/genie:setup` copies them to `./schemas/` for projects that want local copies.
-
-3. **Scripts** (`genie-session.sh`, `run-pdlc.sh`) — These are orchestrator utilities (ADR-001), not core plugin functionality. They remain `install.sh`-only. Plugin users who need headless orchestration use `install.sh global --scripts`.
-
-4. **Project scaffolding** — `docs/` directories are project setup, not distribution. `/genie:setup` handles this (or users run `install.sh project` for the full scaffolding).
+This is pragmatic for 2 people. Phase 2 adds a `/genie:setup` command to eliminate the gap-fill step.
 
 ### Namespacing
 
-Plugin-installed commands are namespaced: `/discover` becomes `/genie-team:discover`. This is a significant UX change.
+Plugin name: **`genie`**. All commands become `/genie:command`:
 
-**Mitigation:** Use a short plugin name. `genie` instead of `genie-team` yields `/genie:discover` — which reads naturally and is only 6 characters longer than `/discover`. The colon already appears in existing commands (`/context:load`, `/brand:image`), so the pattern is familiar.
+| install.sh path | Plugin path |
+|----------------|-------------|
+| `/discover` | `/genie:discover` |
+| `/deliver` | `/genie:deliver` |
+| `/commit` | `/genie:commit` |
+| `/context:load` | `/genie:context:load` |
+| `/brand:image` | `/genie:brand:image` |
 
-**Plugin name decision: `genie`** — commands become `/genie:discover`, `/genie:deliver`, `/genie:commit`, etc.
-
-**Exception:** Some commands already use colons: `/context:load` becomes `/genie:context:load` (double-colon). This is awkward but functional. The alternative — flattening to `/genie:context-load` — changes the command name, violating the no-gos.
-
-**Documentation approach:** README and `/genie:help` list both forms:
-```
-Plugin path:     /genie:discover [topic]
-install.sh path: /discover [topic]
-```
+The colon pattern is already familiar from existing sub-commands (`/context:load`, `/brand:image`). Double-colons (`/genie:context:load`) are awkward but functional.
 
 ## Component Design
 
@@ -211,62 +213,90 @@ install.sh path: /discover [topic]
   "version": "2.0.0",
   "description": "Structured AI workflows for product discovery and delivery. 7 specialist genies, 30+ commands, TDD enforcement, and architecture governance.",
   "author": {
-    "name": "Nolan Patterson",
-    "email": "nolan@elmmly.com"
+    "name": "Nolan Patterson"
   },
   "repository": "https://github.com/nolan/genie-team",
   "license": "MIT",
-  "keywords": ["workflow", "tdd", "architecture", "product-discovery", "genies"],
-  "commands": "../.claude/commands/",
-  "agents": "../agents/",
-  "skills": "../.claude/skills/",
-  "hooks": "./hooks.json",
-  "mcpServers": "./mcp-config.json"
+  "keywords": ["workflow", "tdd", "architecture", "product-discovery", "genies"]
 }
 ```
 
-**Path convention:** Paths are relative to `.claude-plugin/`. Commands, agents, and skills point back to the existing source directories so there is no duplication.
+No explicit `commands`, `agents`, `skills` fields needed — the plugin system auto-discovers directories at the plugin root when they follow the default naming convention.
 
-### 2. Hooks Configuration — `.claude-plugin/hooks.json`
+### 2. Marketplace Manifest — `.claude-plugin/marketplace.json`
 
 ```json
 {
-  "UserPromptSubmit": [
+  "name": "genie-team",
+  "owner": {
+    "name": "Nolan Patterson"
+  },
+  "plugins": [
     {
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash .claude/hooks/track-command.sh"
-        }
-      ]
-    }
-  ],
-  "PostToolUse": [
-    {
-      "matcher": "Write",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash .claude/hooks/track-artifacts.sh"
-        }
-      ]
-    }
-  ],
-  "SessionStart": [
-    {
-      "matcher": "compact|clear",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "bash .claude/hooks/reinject-context.sh"
-        }
-      ]
+      "name": "genie",
+      "source": ".",
+      "description": "Structured AI workflows for product discovery and delivery"
     }
   ]
 }
 ```
 
-### 3. MCP Configuration — `.claude-plugin/mcp-config.json`
+Self-contained marketplace: the repo is both the marketplace and the single plugin. Install commands:
+
+```bash
+# From GitHub (second developer)
+/plugin marketplace add nolan/genie-team
+/plugin install genie@genie-team --scope user
+
+# Local development (you)
+/plugin marketplace add ./path/to/genie-team
+/plugin install genie@genie-team --scope user
+```
+
+### 3. Hooks Configuration — `hooks/hooks.json`
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/track-command.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/track-artifacts.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/reinject-context.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Key: `${CLAUDE_PLUGIN_ROOT}` resolves to the plugin's cached install location, ensuring hook scripts are found after caching.
+
+### 4. MCP Configuration — `.mcp.json`
 
 ```json
 {
@@ -280,126 +310,68 @@ install.sh path: /discover [topic]
 }
 ```
 
-**Note:** MCP env vars use `${VAR}` syntax for runtime resolution. Users must have `GOOGLE_API_KEY` in their shell environment for image generation to work.
-
-### 4. Marketplace Manifest — `.claude-plugin/marketplace.json`
-
-```json
-{
-  "name": "genie-team",
-  "owner": {
-    "name": "Nolan Patterson",
-    "email": "nolan@elmmly.com"
-  },
-  "plugins": [
-    {
-      "name": "genie",
-      "source": ".",
-      "description": "Structured AI workflows for product discovery and delivery",
-      "version": "2.0.0"
-    }
-  ]
-}
-```
-
-The marketplace is the repo itself. Users add it as:
-```bash
-/plugin marketplace add nolan/genie-team
-/plugin install genie@genie-team --scope user
-```
-
-Or for local development:
-```bash
-/plugin marketplace add ./path/to/genie-team
-/plugin install genie@genie-team --scope project
-```
-
-### 5. Setup Command — `commands/genie-setup.md`
-
-A new command `/genie:setup` (or `/setup` via install.sh) bridges the gap for plugin users:
-
-```markdown
-# /genie:setup
-
-Post-installation setup for plugin users. Copies components that the plugin
-system cannot distribute natively.
-
-## Behavior
-
-1. Copy rules from plugin source to `.claude/rules/`
-2. Copy schemas to `./schemas/`
-3. Create project scaffolding directories (`docs/backlog/`, `docs/specs/`, etc.)
-4. Report what was set up
-
-## When to Use
-
-After `/plugin install genie@genie-team` — run once per project.
-Not needed if installed via `install.sh project` (which handles all of this).
-```
-
-### 6. Version Synchronization
-
-Single source of truth: `VERSION` file at repo root.
-
-```
-2.0.0
-```
-
-Both `install.sh` and `.claude-plugin/plugin.json` read from this file:
-- `install.sh`: reads `VERSION` at startup (replace hardcoded `VERSION="2.0.0"`)
-- `plugin.json`: a pre-release script (`scripts/sync-version.sh`) updates the version field in both JSON files before tagging a release
-
-**Trade-off:** plugin.json requires a literal version string (not a file reference). The sync script is necessary to keep them aligned. This is acceptable because version bumps happen at release time, not during development.
+Second developer needs `GOOGLE_API_KEY` in their shell environment for image generation (Designer genie). Not required for core workflow.
 
 ## AC Mapping
 
-| AC | Approach | Files |
-|----|----------|-------|
-| AC-1 | Create plugin.json with commands, skills, agents, hooks, mcpServers fields pointing to existing source dirs | `.claude-plugin/plugin.json` |
-| AC-2 | Create marketplace.json with repo-as-marketplace pattern | `.claude-plugin/marketplace.json` |
-| AC-3 | Two-command install: `/plugin marketplace add` + `/plugin install genie@genie-team` | `.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json` |
-| AC-4 | Plugin covers commands, skills, agents, hooks, MCP. Rules, schemas, scaffolding handled by `/genie:setup`. Scripts remain install.sh-only. | `.claude-plugin/*`, `commands/genie-setup.md` |
-| AC-5 | install.sh unchanged — no modifications | `install.sh` (no changes) |
-| AC-6 | `VERSION` file at repo root; sync script updates JSON files pre-release | `VERSION`, `scripts/sync-version.sh` |
-| AC-7 | Plugin name `genie` yields `/genie:discover` etc. Documented in README with both forms. | `README.md`, `commands/genie-help.md` |
+| AC | Phase 1 approach | Files |
+|----|-----------------|-------|
+| AC-1 | Create plugin.json — plugin system auto-discovers commands/, agents/, skills/ at root | `.claude-plugin/plugin.json` |
+| AC-2 | Create marketplace.json with self-contained repo-as-marketplace pattern | `.claude-plugin/marketplace.json` |
+| AC-3 | Two-command install: `/plugin marketplace add nolan/genie-team` + `/plugin install genie@genie-team` | Both manifests |
+| AC-4 | Plugin covers commands, skills, agents, hooks, MCP. Rules + schemas via `install.sh global --rules --schemas` | `.claude-plugin/*`, `hooks/hooks.json`, `.mcp.json` |
+| AC-5 | install.sh unchanged — no modifications | No changes needed |
+| AC-6 | **Deferred to Phase 2.** Version is hardcoded in both plugin.json and install.sh. Manual sync for 2 people. | — |
+| AC-7 | Namespacing tested empirically during Phase 1. Plugin name `genie` → `/genie:discover` etc. | `.claude-plugin/plugin.json` |
 
 ## Implementation Guidance
 
 **Sequence:**
-1. Create `VERSION` file at repo root with `2.0.0`
-2. Create `.claude-plugin/plugin.json` with relative paths to existing source dirs
-3. Create `.claude-plugin/hooks.json` (extracted from install.sh's merge_hook_config)
-4. Create `.claude-plugin/mcp-config.json` (extracted from install.sh's MCP setup)
-5. Create `.claude-plugin/marketplace.json`
-6. Create `commands/genie-setup.md` — post-install setup command
-7. Create `scripts/sync-version.sh` — version sync utility
-8. Update `install.sh` to read version from `VERSION` file instead of hardcoded string
-9. Update README with plugin installation instructions alongside install.sh
-10. Test: install via plugin system, run `/genie:setup`, verify all components work
+1. Create `.claude-plugin/plugin.json` (manifest)
+2. Create `.claude-plugin/marketplace.json` (catalog)
+3. Create `hooks/hooks.json` (hook config with `${CLAUDE_PLUGIN_ROOT}`)
+4. Create `.mcp.json` at repo root (MCP server config)
+5. Test locally: `claude --plugin-dir .` — verify commands, skills, agents load
+6. Test marketplace flow: `/plugin marketplace add .` → `/plugin install genie@genie-team`
+7. Validate: `/plugin validate .` — check for structural errors
+8. Push to GitHub; second developer tests from remote
 
-**Key considerations:**
-- Paths in plugin.json are relative to `.claude-plugin/` — use `../` to reach repo root dirs
-- Hook scripts must be copied to `.claude/hooks/` by the plugin loader (verify this works)
-- MCP env vars use `${VAR}` syntax — document that GOOGLE_API_KEY must be in the user's environment
-- Test namespaced commands thoroughly: `/genie:discover`, `/genie:deliver`, `/genie:context:load`
+**Test checklist for Phase 1 validation:**
+- [ ] `claude --plugin-dir .` loads without errors
+- [ ] `/genie:discover test-topic` invokes Scout
+- [ ] `/genie:deliver` invokes Crafter
+- [ ] `/genie:commit` creates conventional commit
+- [ ] `/genie:context:load` works (double-colon)
+- [ ] Hooks fire: `track-command.sh` on prompt submit, `track-artifacts.sh` on Write
+- [ ] Second developer installs from GitHub marketplace
+- [ ] Second developer can run `/genie:discover` successfully
+- [ ] install.sh still works alongside plugin (no conflicts)
 
-**Test strategy:**
-- Install via plugin on a fresh project → verify commands are available as `/genie:*`
-- Run `/genie:setup` → verify rules, schemas, and docs/ directories are created
-- Run `/genie:discover test-topic` → verify full workflow functions
-- Run `install.sh global` on same system → verify no conflicts
-- Verify MCP imagegen works through plugin-installed config
+**What to learn from Phase 1:**
+- Does the plugin cache include too much (docs/, tests/)? If so, Phase 2 needs `.claudeignore` or directory restructuring
+- Do hooks using `${CLAUDE_PLUGIN_ROOT}` work reliably?
+- Is the gap-fill step (`install.sh --rules --schemas`) acceptable friction, or does Phase 2 need a `/genie:setup` command?
+- Are double-colon commands (`/genie:context:load`) confusing enough to warrant renaming?
 
 ## Risks
 
 | Risk | L | I | Mitigation |
 |------|---|---|------------|
-| Plugin system changes in future Claude Code versions | Med | Med | Plugin manifest is simple JSON; `install.sh` remains as fallback |
-| Namespacing confuses existing users | Med | Low | Document both forms; existing install.sh users unaffected |
-| Hook scripts not found at expected paths after plugin install | Low | High | Test hook execution path; hooks.json uses paths relative to plugin install location |
-| Version drift between plugin.json and install.sh | Low | Med | sync-version.sh + CI check that versions match |
-| MCP env vars not resolved in plugin context | Low | High | Test MCP config with `${VAR}` syntax; document env setup requirement |
+| Hook scripts not found via `${CLAUDE_PLUGIN_ROOT}` after caching | Med | High | Test during Phase 1 before second developer onboarding |
+| Plugin cache bloat (entire repo including docs/tests) | Low | Low | Acceptable for 2 people; optimize in Phase 2 if needed |
+| MCP env vars not resolved in plugin context | Low | High | Test `.mcp.json` with `${GOOGLE_API_KEY}` syntax; document env setup |
+| Double-colon commands confuse users | Low | Low | Monitor in Phase 1; consider command renaming in Phase 2 if problematic |
+| install.sh and plugin coexist with conflicts | Low | Med | Test both on same machine; plugin uses cache, install.sh uses `.claude/` |
+
+## Phase 2 Roadmap (future, separate backlog item)
+
+When Phase 1 validates the plugin experience:
+- **Version sync**: `VERSION` file + `scripts/sync-version.sh`
+- **`/genie:setup` command**: Eliminate the gap-fill step for rules/schemas/scaffolding
+- **README update**: Plugin as primary install path, install.sh as alternative
+- **Cache optimization**: `.claudeignore` or directory restructuring to exclude docs/tests
+- **Team auto-install**: `.claude/settings.json` with `extraKnownMarketplaces` for target projects
 
 ## Routing
 
-Ready for Crafter. All changes are new file creation (plugin manifests, setup command, version sync) with one small modification (install.sh reads VERSION file). No architectural unknowns.
+Ready for Crafter. 4 new files to create, no modifications to existing files. Test-first: `claude --plugin-dir .` validates the structure before committing.
