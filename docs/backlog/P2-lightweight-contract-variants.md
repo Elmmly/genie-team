@@ -14,10 +14,10 @@ acceptance_criteria:
     description: "Shaped work contract schema supports a work_type field with values: feature (default), migration, correction"
     status: pending
   - id: AC-2
-    description: "Migration contracts require: source_of_truth (path), file_scope (array of globs), and grep-verifiable acceptance criteria"
+    description: "Migration contracts require: source_of_truth (path) and file_scope (array of globs) in frontmatter; body template recommends grep-verifiable ACs where feasible"
     status: pending
   - id: AC-3
-    description: "Correction contracts require: source_of_truth (path), drift_description, and are appetite: small only"
+    description: "Correction contracts require: source_of_truth (path) in frontmatter and appetite: small only; drift description is a body template convention, not a validated field"
     status: pending
   - id: AC-4
     description: "Feature contracts retain current full template (problem, appetite, goals, risks, options) unchanged"
@@ -26,7 +26,7 @@ acceptance_criteria:
     description: "Shaper selects work_type based on input characteristics: spec-driven value replacement → migration, spec-drift fix → correction, everything else → feature"
     status: pending
   - id: AC-6
-    description: "Critic review for migration/correction work validates against source_of_truth rather than requiring full product-quality review"
+    description: "Critic review for migration/correction work validates against source_of_truth rather than requiring full product-quality review; discern command reads work_type and adjusts review scope"
     status: pending
   - id: AC-7
     description: "Existing shaped work contracts (work_type absent) validate as feature type (backward compatible)"
@@ -65,7 +65,7 @@ The operator adapted by omitting sections or using them awkwardly ("riskiest ass
 
 | Assumption | Type | Test |
 |------------|------|------|
-| Three work types cover the practical taxonomy | value | Review past 20 shaped contracts — do they all map to feature, migration, or correction? |
+| Three work types cover the practical taxonomy | value | Reviewed ~15 archived contracts: all map to feature (majority), migration (P0-consolidate-genies, brand migrations), or correction (follow-up CSS fixes). Cleanup/tidy work uses separate /diagnose→/tidy workflow and doesn't produce shaped contracts. Taxonomy holds. |
 | Shaper can reliably distinguish work types from input | feasibility | Test with 5 example inputs: brand migration, CSS fix, new feature, refactor, performance improvement |
 | Lighter templates won't encourage skipping important analysis | viability | Correction template still requires source_of_truth reference — cannot be used for genuinely complex work |
 
@@ -76,6 +76,10 @@ The operator adapted by omitting sections or using them awkwardly ("riskiest ass
 | A: `work_type` field in schema + Shaper template variants | Clean, backward compatible, Shaper-controlled | Requires Shaper prompt changes + schema update + Critic adaptation | Recommended |
 | B: Separate `/quickfix` command (distinct from `/bugfix`) | Clear UX separation | Yet another command; risks confusion with `/bugfix` | Not recommended — extend existing contracts instead |
 | C: Let operators skip sections manually (no schema change) | Zero effort | No guidance on what to skip; inconsistent contracts; Critic doesn't know to adapt review | Status quo — already proven insufficient |
+
+## Dependencies
+
+- **Complements GT-33** (P3-spec-driven-bugfix): The `correction` work type here is for the full lifecycle path (`/define → /deliver`). GT-33's `/bugfix --spec` is the fast path for the same class of work. They're complementary — when GT-33 lands, `/bugfix --spec` could optionally produce a correction contract. Neither blocks the other.
 
 ## Behavioral Delta
 
@@ -231,7 +235,31 @@ source_of_truth: "{path to spec/brand guide/ADR}"
 - **correction** — Drift review: Verify the specific value now matches source_of_truth. Verify no regression. Skip: code quality deep-dive, architecture review.
 ```
 
-### 4. Precommit validation — `scripts/validate/validate-frontmatter.sh`
+### 4. Discern command — `commands/discern.md`
+
+**Add to Context Loading section (after "READ (automatic)"):**
+
+```markdown
+- Backlog frontmatter field `work_type` → adapt review scope (see Review Checklist)
+```
+
+**Add to Review Checklist section, before item 1:**
+
+```markdown
+0. Read `work_type` from backlog frontmatter (default: `feature` if absent)
+```
+
+**Add after Review Checklist:**
+
+```markdown
+### Work Type Review Scope
+
+- **feature** — Full checklist (items 1-9 above)
+- **migration** — Items 1-2 (ACs + spec ACs), plus: verify all values match source_of_truth, verify file_scope coverage (no files missed), run grep verification from ACs. Skip: items 5-6 (security/performance deep-dive), item 8 (risk assessment).
+- **correction** — Items 1-2 (ACs + spec ACs), plus: verify the specific value now matches source_of_truth, verify no regression. Skip: items 3-8 (code quality deep-dive, security, performance, error handling, risk assessment).
+```
+
+### 5. Precommit validation — `scripts/validate/validate-frontmatter.sh`
 
 **Add validation for new fields:**
 - If `work_type` present: validate enum value
@@ -248,7 +276,7 @@ source_of_truth: "{path to spec/brand guide/ADR}"
 | AC-3 | Correction variant requires `source_of_truth`, constrains `appetite: small` | `schemas/shaped-work-contract.schema.md` |
 | AC-4 | Feature template unchanged; `work_type` defaults to `feature` when absent | `schemas/shaped-work-contract.schema.md` |
 | AC-5 | Shaper Work Type Selection judgment rule with input signal detection | `agents/shaper.md` |
-| AC-6 | Critic Work Type Review Adaptation section | `agents/critic.md` |
+| AC-6 | Critic Work Type Review Adaptation section + discern command review scope | `agents/critic.md`, `commands/discern.md` |
 | AC-7 | Validation: missing `work_type` treated as `feature` | `schemas/shaped-work-contract.schema.md`, `scripts/validate/validate-frontmatter.sh` |
 
 ## Implementation Guidance
@@ -257,7 +285,10 @@ source_of_truth: "{path to spec/brand guide/ADR}"
 1. `schemas/shaped-work-contract.schema.md` — add fields, variants, validation rules
 2. `agents/shaper.md` — add work type selection judgment rule + templates
 3. `agents/critic.md` — add work type review adaptation
-4. `scripts/validate/validate-frontmatter.sh` — add validation for new fields
+4. `commands/discern.md` — add work_type context loading + review scope adaptation
+5. `scripts/validate/validate-frontmatter.sh` — add conditional validation for new fields
+
+**Validation script note:** The current script does flat checks (required-per-type, enum values). Conditional validation ("if `work_type` is `migration` then `source_of_truth` must be present") requires a new function pattern — e.g., `conditional_required_for()` keyed on `type:work_type` pairs. This is a structural expansion, not a trivial addition.
 
 **Test strategy:**
 - Validate existing contracts (no `work_type`) still pass schema validation
