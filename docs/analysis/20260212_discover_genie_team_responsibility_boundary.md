@@ -18,9 +18,9 @@ author: navigator + scout
 
 Two new capabilities move genie-team from "toolkit requiring a human foreman" to "fully autonomous PDLC engine":
 
-1. **Session Management (Delivered)** — `scripts/genie-session.sh` with worktree-based isolation, parallel sessions, PR creation, and sourceable functions for external scripts.
+1. **Session Management (Delivered)** — `scripts/genie-session` with worktree-based isolation, parallel sessions, PR creation, and sourceable functions for external scripts.
 
-2. **Autonomous Lifecycle Runner (Designed)** — `/run` command + `scripts/run-pdlc.sh` for headless/cron execution with phase ranges (`--from`/`--through`), automated quality gates, per-phase turn limits, and structured logging.
+2. **Autonomous Lifecycle Runner (Designed)** — `/run` command + `scripts/genies` for headless/cron execution with phase ranges (`--from`/`--through`), automated quality gates, per-phase turn limits, and structured logging.
 
 **Before:** Genie-team was the workshop, but the foreman was always a human.
 **After:** Genie-team IS the autonomous delivery engine.
@@ -41,7 +41,7 @@ Two new capabilities move genie-team from "toolkit requiring a human foreman" to
 | GitHub Actions CI | Production |
 | Autonomous execution rules (PR mode + trunk-based mode) | Production |
 | **Session management (worktree lifecycle, parallel sessions)** | **Production** |
-| **Autonomous lifecycle runner (`/run`, `run-pdlc.sh`)** | **Designed** |
+| **Autonomous lifecycle runner (`/run`, `genies`)** | **Designed** |
 | **Phase range execution (`--from`/`--through`)** | **Designed** |
 | **Scheduled/cron-compatible headless execution** | **Designed** |
 | **Automated quality gate (BLOCKED stops, APPROVED continues)** | **Designed** |
@@ -144,7 +144,7 @@ acceptance_criteria:
 
 ### Genie Team's Completion Signal
 
-When genie-team finishes work (via `run-pdlc.sh` or interactive commands), it produces:
+When genie-team finishes work (via `genies` or interactive commands), it produces:
 
 | Signal | Source | Format |
 |--------|--------|--------|
@@ -161,7 +161,7 @@ Per ADR-001 (Thin Orchestrator), external orchestrators invoke genie-team via th
 
 ```bash
 # The ONLY interface an orchestrator needs
-scripts/run-pdlc.sh [--from phase] [--through phase] [--worktree] <topic|item.md>
+scripts/genies [--from phase] [--through phase] [--worktree] <topic|item.md>
 ```
 
 Or for more control:
@@ -200,8 +200,8 @@ archived in docs/archive/   →     Work complete
 | Code quality | Yes | No | Completion signal |
 | TDD, architecture | Yes | No | — |
 | Document trail | Yes | No | Git repo (read-only for others) |
-| Session management | Yes | No | `genie-session.sh` |
-| Autonomous execution | Yes | No | `run-pdlc.sh` |
+| Session management | Yes | No | `genie-session` |
+| Autonomous execution | Yes | No | `genies` |
 | Quality gates | Yes | No | APPROVED/BLOCKED in output |
 | Technical metrics | Yes | No | Runner logs |
 | Git writes | Yes | No | Genie-team commits; others read |
@@ -219,7 +219,7 @@ archived in docs/archive/   →     Work complete
 
 Genie-team's architecture is correct for its role. No changes needed to support external orchestrators — the CLI contract (ADR-001) and document trail already provide everything an orchestrator needs to:
 
-1. **Dispatch work** — invoke `run-pdlc.sh` or `claude -p`
+1. **Dispatch work** — invoke `genies` or `claude -p`
 2. **Monitor progress** — read runner logs, check process liveness
 3. **Read results** — parse exit codes, read backlog frontmatter, find PRs
 4. **Track capabilities** — read spec statuses and AC completion
@@ -234,7 +234,7 @@ The only optional addition is a `docs/MANIFEST.yaml` (auto-generated summary of 
 ┌──────────────────────────────────────────────────────────────┐
 │  EXTERNAL ORCHESTRATOR (portfolio platform, cron, CI/CD, human)│
 │                                                               │
-│  Dispatches: run-pdlc.sh --from X --through Y item.md        │
+│  Dispatches: genies --from X --through Y item.md        │
 │  Reads:      docs/backlog/ (work) + docs/specs/ (capabilities)│
 └──────────────────────────────────┬───────────────────────────┘
                                    │

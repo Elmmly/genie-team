@@ -1,6 +1,6 @@
 #!/bin/bash
-# Run all quality validation scripts against specified files.
-# Usage: scripts/run-quality-checks.sh <file1> [file2] ...
+# genie-quality — Run all quality validation scripts against specified files.
+# Usage: genie-quality <file1> [file2] ...
 # Exit: 0 if all pass, 1 if any fail
 
 set -euo pipefail

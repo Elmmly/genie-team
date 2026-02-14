@@ -33,7 +33,7 @@ acceptance_criteria:
   - id: AC-5
     description: "Runner implements worktree lifecycle for parallel execution: create worktree before run, cleanup on success, preserve-or-cleanup on failure with retry convention"
     status: partial
-    notes: "Worktree stubs in place with TODO markers. Will source genie-session.sh when P2-session-management delivers."
+    notes: "Worktree stubs in place with TODO markers. Will source genie-session when P2-session-management delivers."
   - id: AC-6
     description: "Runner implements responsible execution: per-phase turn limits from CLI contract defaults, automatic single retry with --resume on phase exhaustion, stop-and-report when retry also exhausts. Logs token usage and turn counts per phase for transparency. Users can override per-phase limits (e.g. --deliver-turns 200)."
     status: met
@@ -97,12 +97,12 @@ The core design question is what happens when `/discern` returns BLOCKED mid-cyc
   - Documentation and scheduling examples (~0.5 day)
 - **Boundaries:**
   - New `/run` command for in-session autonomous lifecycle
-  - New bash runner script (`scripts/run-pdlc.sh`)
+  - New bash runner script (`scripts/genies`)
   - Worktree lifecycle management within the runner
   - Cron/CI scheduling documentation
   - Tests for the runner script
 - **No-gos:**
-  - No job queue, process pool, or concurrent dispatch coordinator — the runner handles ONE lifecycle at a time; parallelism is the user's/orchestrator's responsibility (run multiple `run-pdlc.sh` instances)
+  - No job queue, process pool, or concurrent dispatch coordinator — the runner handles ONE lifecycle at a time; parallelism is the user's/orchestrator's responsibility (run multiple `genies` instances)
   - No dashboard, UI, or notification system
   - No changes to existing genie-team commands (`/discover`, `/define`, etc.)
   - No retry logic for BLOCKED verdicts — stop and escalate
@@ -119,12 +119,12 @@ The core design question is what happens when `/discern` returns BLOCKED mid-cyc
 **Outcome hypothesis:** "A `/run` command + headless runner script will make genie-team's PDLC runnable in configurable phase ranges — from daily discover+define pipelines to full overnight delivery — without changing any existing commands."
 
 **Success signals:**
-- Daily cron runs `run-pdlc.sh --through define "review codebase quality"` — human finds fresh shaped contracts in `docs/backlog/` each morning
+- Daily cron runs `genies --through define "review codebase quality"` — human finds fresh shaped contracts in `docs/backlog/` each morning
 - User runs `/run --from design docs/backlog/P2-auth.md` on an approved shaped contract — comes back to a PR
 - Full lifecycle: `/run "add password reset"` runs end-to-end, creating a reviewed PR
 - Runner stops cleanly at `--through` boundary — exit 0, artifacts written, no dangling state
 - Runner fails gracefully when `/discern` returns BLOCKED — preserves worktree, exits code 1, logs where it stopped
-- Two parallel `run-pdlc.sh --worktree` instances on different backlog items complete without conflicts
+- Two parallel `genies --worktree` instances on different backlog items complete without conflicts
 
 ## Risks & Assumptions
 
@@ -171,29 +171,29 @@ Behavior:
 
 **Why `/run` not `/feature --auto`:** `/discover` (Scout) is the phase that identifies features and enhancements. Using `/feature` as the autonomous command creates a circular naming — invoking a "feature" command to discover what features exist. `/run` is lifecycle-agnostic and works for any PDLC work (quality improvements, maintenance, features).
 
-### Headless Runner (`scripts/run-pdlc.sh`)
+### Headless Runner (`scripts/genies`)
 
 ```bash
 # Full lifecycle from topic
-scripts/run-pdlc.sh "add password reset"
+scripts/genies "add password reset"
 
 # Phase range: discover + define only (daily cron)
-scripts/run-pdlc.sh --through define "improve error handling"
+scripts/genies --through define "improve error handling"
 
 # Phase range: design + deliver on existing shaped item
-scripts/run-pdlc.sh --from design --through deliver docs/backlog/P2-auth.md
+scripts/genies --from design --through deliver docs/backlog/P2-auth.md
 
 # Phase range: review + close on implemented item
-scripts/run-pdlc.sh --from discern docs/backlog/P2-auth.md
+scripts/genies --from discern docs/backlog/P2-auth.md
 
 # With worktree isolation (for parallel execution)
-scripts/run-pdlc.sh --worktree --through define "add password reset"
+scripts/genies --worktree --through define "add password reset"
 
 # With higher turn limit for deliver phase
-scripts/run-pdlc.sh --deliver-turns 200 "add password reset"
+scripts/genies --deliver-turns 200 "add password reset"
 
 # Cron mode (log to file, lockfile)
-scripts/run-pdlc.sh --log-dir /var/log/genie --lock --through define "add password reset"
+scripts/genies --log-dir /var/log/genie --lock --through define "add password reset"
 ```
 
 **Phase range model:**
@@ -226,7 +226,7 @@ Runner internals:
 
 ```bash
 # crontab: 6 AM daily — discover and shape new opportunities
-0 6 * * * /path/to/run-pdlc.sh \
+0 6 * * * /path/to/genies \
   --through define \
   --log-dir /var/log/genie \
   --lock \
@@ -246,7 +246,7 @@ Human reviews shaped contracts in `docs/backlog/` during the day.
 # run-approved.sh:
 #!/bin/bash
 for item in $(grep -rl 'status: shaped' docs/backlog/*.md); do
-  /path/to/run-pdlc.sh \
+  /path/to/genies \
     --from design --through deliver \
     --worktree \
     --log-dir /var/log/genie \
@@ -261,7 +261,7 @@ Human reviews PRs on Monday morning.
 
 ```bash
 # After reviewing a PR, run discern + commit + done
-/path/to/run-pdlc.sh --from discern docs/backlog/P2-auth.md
+/path/to/genies --from discern docs/backlog/P2-auth.md
 ```
 
 ### Exit Code Convention
@@ -292,7 +292,7 @@ cd "../${repo}--${job_id}"
 
 ## Options (Ranked)
 
-### Option 1: `/run` + `run-pdlc.sh` (Recommended)
+### Option 1: `/run` + `genies` (Recommended)
 
 - **Description:** New `/run` command for in-session autonomous use AND new runner script for headless use. Two tools for two contexts.
 - **Pros:** `/run` is lifecycle-agnostic (not limited to "features"); runner is independent bash for cron/CI; each tool optimized for its context
@@ -301,7 +301,7 @@ cd "../${repo}--${job_id}"
 
 ### Option 2: Runner script only
 
-- **Description:** Only build `run-pdlc.sh`. In-session users just call it manually or use existing `/feature` with manual gates.
+- **Description:** Only build `genies`. In-session users just call it manually or use existing `/feature` with manual gates.
 - **Pros:** Single artifact, simpler
 - **Cons:** No in-session autonomous mode; users must use a terminal to run the script
 - **Appetite fit:** Smaller — 2-3 days
@@ -317,15 +317,15 @@ cd "../${repo}--${job_id}"
 
 - **Builds on:** P1-autonomous-execution-readiness (safety rules, CLI contract)
 - **Builds on:** P2-parallel-sessions-git-worktrees (worktree isolation, install.sh detection)
-- **Sources:** P2-session-management (`scripts/genie-session.sh`) for worktree lifecycle functions — runner delegates session_start/finish/cleanup instead of reimplementing
+- **Sources:** P2-session-management (`scripts/genie-session`) for worktree lifecycle functions — runner delegates session_start/finish/cleanup instead of reimplementing
 - **Requires:** `claude` CLI available in PATH (standard genie-team requirement)
 - **Requires:** `jq` for JSON parsing in runner script (common CLI tool)
-- **Optional:** `gh` CLI for PR creation (graceful fallback via genie-session.sh)
+- **Optional:** `gh` CLI for PR creation (graceful fallback via genie-session)
 
 ## Routing
 
 - [x] **Architect** — Design the runner script architecture, phase chaining protocol, error handling strategy, and worktree lifecycle management
-- [ ] **Crafter** — Build and test both `/run` and `run-pdlc.sh`
+- [ ] **Crafter** — Build and test both `/run` and `genies`
 
 **Rationale:** The runner script involves real bash code with error handling, exit codes, file locking, and worktree management. The Architect designed the state machine (which phase → which next, how to handle each failure mode) before the Crafter implements. `/run` is prompt engineering but was designed alongside the runner for behavioral consistency.
 
@@ -346,7 +346,7 @@ cd "../${repo}--${job_id}"
 Two complementary artifacts deliver autonomous PDLC execution:
 
 1. **`/run` command** (`commands/run.md`) — in-session autonomous lifecycle with phase ranges
-2. **`scripts/run-pdlc.sh`** — headless runner for cron/CI, chaining `claude -p` per phase per ADR-001
+2. **`scripts/genies`** — headless runner for cron/CI, chaining `claude -p` per phase per ADR-001
 
 Both share the same phase range model (`--from`/`--through`), state tracking (backlog item as state machine), and gate protocol (stop on BLOCKED).
 
@@ -395,7 +395,7 @@ When `--from` is `design` or later, the user provides `item_path` directly as in
 
 ### Phase Chaining Protocol
 
-#### Headless runner (`scripts/run-pdlc.sh`)
+#### Headless runner (`scripts/genies`)
 
 Each phase is a `claude -p` invocation. Phases are chained via `--resume` for context continuity:
 
@@ -478,10 +478,10 @@ Phase hits --max-turns limit
 **User overrides for known-large phases:**
 ```bash
 # Override a specific phase
-run-pdlc.sh --deliver-turns 200 "add complex feature"
+genies --deliver-turns 200 "add complex feature"
 
 # Override all phases
-run-pdlc.sh --turns-per-phase 80 "add complex feature"
+genies --turns-per-phase 80 "add complex feature"
 ```
 
 **Transparency logging after each phase:**
@@ -509,12 +509,12 @@ Users calibrate over time from logs — they learn "a medium-appetite item costs
 
 ### Worktree Lifecycle
 
-When `--worktree` is specified, the runner delegates worktree operations to `genie-session.sh` (from P2-session-management) rather than reimplementing them. This keeps worktree ceremony DRY between interactive human sessions and autonomous runs.
+When `--worktree` is specified, the runner delegates worktree operations to `genie-session` (from P2-session-management) rather than reimplementing them. This keeps worktree ceremony DRY between interactive human sessions and autonomous runs.
 
 **Runner sources session functions:**
 ```bash
-# In run-pdlc.sh:
-source "$(dirname "$0")/genie-session.sh"
+# In genies:
+source "$(dirname "$0")/genie-session"
 ```
 
 **Setup sequence:**
@@ -545,7 +545,7 @@ cd "$worktree_dir"
 | Phase failure or BLOCKED | Log worktree path. Preserve by default. `--cleanup-on-failure` → `session_finish "$item_slug" --force` |
 | Turn exhaustion after retry | Same as phase failure — preserve for debugging. |
 
-**What genie-session.sh provides (from P2-session-management):**
+**What genie-session provides (from P2-session-management):**
 - `session_start` — worktree + branch creation with naming conventions
 - `session_finish` — PR/merge workflow + worktree removal + branch cleanup
 - `session_cleanup_item` — remove prior failed attempts for an item
@@ -560,7 +560,7 @@ cd "$worktree_dir"
 - Turn limits and retry
 - Verdict detection
 
-**P2 parallel-sessions conventions (enforced by genie-session.sh):**
+**P2 parallel-sessions conventions (enforced by genie-session):**
 - Safety rules: never force-push, never modify files outside worktree
 - MCP scope: global install uses `user` scope (shared across worktrees)
 - Agent memory: symlinked to main worktree's `.claude/agent-memory/`
@@ -589,13 +589,13 @@ Markdown prompt definition (same format as `/feature`, `/bugfix`, etc.)
 
 **Key difference from `/feature`:** No "Ready to shape? (y/n)" gates. Phases flow directly. `/feature` remains the interactive shortcut.
 
-### Component 2: Runner script (`scripts/run-pdlc.sh`) — CREATE
+### Component 2: Runner script (`scripts/genies`) — CREATE
 
 Pure bash + jq. Executable. Distributable via `install.sh`.
 
 **Interface:**
 ```bash
-run-pdlc.sh [OPTIONS] <topic|backlog-item-path>
+genies [OPTIONS] <topic|backlog-item-path>
 
 Phase range:
   --from <phase>          Start phase (default: discover)
@@ -627,7 +627,7 @@ log_phase_usage()      — Record turns used, tokens consumed, phase duration
 acquire_lock()         — Lockfile acquisition with stale detection
 release_lock()         — Lockfile cleanup (via trap)
 log()                  — Structured logging (JSON to file when --log-dir, text to stderr otherwise)
-# Worktree ops delegated to genie-session.sh (sourced):
+# Worktree ops delegated to genie-session (sourced):
 # session_start(), session_finish(), session_cleanup_item(), session_worktree_path()
 ```
 
@@ -662,18 +662,18 @@ Same framework as existing `tests/test_worktree.sh`. Tests mock `claude -p` outp
 
 ### Component 4: `install.sh` — MODIFY
 
-Add `scripts/` directory to distribution. In `cmd_project()`, copy `scripts/run-pdlc.sh` and `scripts/genie-session.sh` (from P2-session-management) to target project's `scripts/` directory with `chmod +x`. Runner sources genie-session.sh at runtime for worktree operations.
+Add `scripts/` directory to distribution. In `cmd_project()`, copy `scripts/genies` and `scripts/genie-session` (from P2-session-management) to target project's `scripts/` directory with `chmod +x`. Runner sources genie-session at runtime for worktree operations.
 
 ## AC Mapping
 
 | AC | Approach | Components |
 |----|----------|------------|
 | AC-1 | `/run` command with --from/--through, no confirmation gates, /discern as automated gate | commands/run.md |
-| AC-2 | run-pdlc.sh chains claude -p per phase, parses JSON, structured logging, exit codes | scripts/run-pdlc.sh |
-| AC-3 | --from/--through flags with PHASES array index calculation | scripts/run-pdlc.sh, commands/run.md |
-| AC-4 | --log-dir, --lock flags, lockfile with stale detection, no interactive input | scripts/run-pdlc.sh |
-| AC-5 | Delegates to genie-session.sh (session_start, session_finish, session_cleanup_item); --cleanup-on-failure flag | scripts/run-pdlc.sh + scripts/genie-session.sh |
-| AC-6 | Per-phase --max-turns defaults, retry_phase() on exhaustion, log_phase_usage(), --deliver-turns overrides | scripts/run-pdlc.sh |
+| AC-2 | genies chains claude -p per phase, parses JSON, structured logging, exit codes | scripts/genies |
+| AC-3 | --from/--through flags with PHASES array index calculation | scripts/genies, commands/run.md |
+| AC-4 | --log-dir, --lock flags, lockfile with stale detection, no interactive input | scripts/genies |
+| AC-5 | Delegates to genie-session (session_start, session_finish, session_cleanup_item); --cleanup-on-failure flag | scripts/genies + scripts/genie-session |
+| AC-6 | Per-phase --max-turns defaults, retry_phase() on exhaustion, log_phase_usage(), --deliver-turns overrides | scripts/genies |
 | AC-7 | Scheduling patterns section in shaped contract (already drafted) + README | docs/ |
 
 ## Pattern Adherence
@@ -703,8 +703,8 @@ Add `scripts/` directory to distribution. In `cmd_project()`, copy `scripts/run-
 
 1. **`commands/run.md`** — Prompt definition. Test interactively. (~0.5 day)
 2. **`tests/test_run_pdlc.sh`** — Failing tests for runner core (RED). (~0.5 day)
-3. **`scripts/run-pdlc.sh`** — Implement runner to pass tests (GREEN). Core phase chaining without worktree support first. (~1.5 days)
-4. **Worktree integration** — Source `genie-session.sh` (from P2-session-management) for worktree ops. If session-management isn't delivered yet, implement minimal worktree functions inline with a `# TODO: refactor to source genie-session.sh` marker. (~0.5 day)
+3. **`scripts/genies`** — Implement runner to pass tests (GREEN). Core phase chaining without worktree support first. (~1.5 days)
+4. **Worktree integration** — Source `genie-session` (from P2-session-management) for worktree ops. If session-management isn't delivered yet, implement minimal worktree functions inline with a `# TODO: refactor to source genie-session` marker. (~0.5 day)
 5. **`install.sh`** — Add scripts/ to distribution. (~0.25 day)
 6. **Documentation** — Verify scheduling examples work against real projects. (~0.25 day)
 
@@ -726,14 +726,14 @@ Unit tests (`tests/test_run_pdlc.sh`) mock `claude -p` and test the runner's log
 
 | # | Scenario | Project | Command | Validates |
 |---|----------|---------|---------|-----------|
-| 1 | Discover+define a new topic | 2hearted | `run-pdlc.sh --through define "evaluate API rate limiting"` | Phase range, artifact path parsing, clean exit 0 |
-| 2 | Design an existing shaped item | motiviate | `run-pdlc.sh --from design --through design P1-test-mode-infrastructure.md` | Single-phase on existing item, backlog status update |
-| 3 | Full lifecycle in worktree | 2hearted | `run-pdlc.sh --worktree "add health check endpoint"` | Worktree create/cleanup, PR creation, branch naming |
-| 4 | Parallel worktree runs | 2hearted | Two `run-pdlc.sh --worktree --through define` in parallel | No conflicts, independent branches, both exit 0 |
-| 5 | BLOCKED verdict handling | motiviate | `run-pdlc.sh --from deliver` on item with intentionally weak design | Discern returns BLOCKED, runner exits 1, worktree preserved |
-| 6 | Turn exhaustion + retry | either | `run-pdlc.sh --deliver-turns 5` (artificially low) | Retry once, then stop-and-report on double exhaustion |
+| 1 | Discover+define a new topic | 2hearted | `genies --through define "evaluate API rate limiting"` | Phase range, artifact path parsing, clean exit 0 |
+| 2 | Design an existing shaped item | motiviate | `genies --from design --through design P1-test-mode-infrastructure.md` | Single-phase on existing item, backlog status update |
+| 3 | Full lifecycle in worktree | 2hearted | `genies --worktree "add health check endpoint"` | Worktree create/cleanup, PR creation, branch naming |
+| 4 | Parallel worktree runs | 2hearted | Two `genies --worktree --through define` in parallel | No conflicts, independent branches, both exit 0 |
+| 5 | BLOCKED verdict handling | motiviate | `genies --from deliver` on item with intentionally weak design | Discern returns BLOCKED, runner exits 1, worktree preserved |
+| 6 | Turn exhaustion + retry | either | `genies --deliver-turns 5` (artificially low) | Retry once, then stop-and-report on double exhaustion |
 | 7 | In-session `/run` | either | `/run --through define "add observability"` | In-session autonomous flow, no confirmation prompts |
-| 8 | Lock contention | either | Two `run-pdlc.sh --lock` on same item simultaneously | Second instance exits 3, first completes |
+| 8 | Lock contention | either | Two `genies --lock` on same item simultaneously | Second instance exits 3, first completes |
 
 **Integration test workflow:**
 ```bash
@@ -743,7 +743,7 @@ cd /Users/nolan/code/genie-team
 
 # 2. Run a scoped test (discover+define only — no code changes, safe)
 cd /Users/nolan/code/2hearted
-scripts/run-pdlc.sh --through define "evaluate API rate limiting"
+scripts/genies --through define "evaluate API rate limiting"
 
 # 3. Verify artifacts
 ls docs/analysis/*rate_limiting*   # Discovery output
@@ -751,7 +751,7 @@ ls docs/backlog/*rate-limiting*    # Shaped contract
 git log --oneline -3               # Session produced commits (if trunk-based)
 
 # 4. Test worktree isolation
-scripts/run-pdlc.sh --worktree --through define "add request validation"
+scripts/genies --worktree --through define "add request validation"
 git worktree list                  # Should show new worktree
 git branch -a | grep genie/       # Should show new branch
 ```
@@ -769,11 +769,11 @@ git branch -a | grep genie/       # Should show new branch
 
 | Scenario | Expected |
 |----------|----------|
-| `run-pdlc.sh "topic"` (no flags) | Runs all 7 phases, exit 0 |
-| `run-pdlc.sh --through define "topic"` | Runs discover+define only, exit 0 |
-| `run-pdlc.sh --from design item.md` | Runs design through done, exit 0 |
-| `run-pdlc.sh --from design "topic string"` | Validation error, exit 3 |
-| `run-pdlc.sh --from design --through define` | Validation error (from after through), exit 3 |
+| `genies "topic"` (no flags) | Runs all 7 phases, exit 0 |
+| `genies --through define "topic"` | Runs discover+define only, exit 0 |
+| `genies --from design item.md` | Runs design through done, exit 0 |
+| `genies --from design "topic string"` | Validation error, exit 3 |
+| `genies --from design --through define` | Validation error (from after through), exit 3 |
 | Phase returns non-zero exit code | Stop, exit 1 |
 | /discern returns BLOCKED | Stop, exit 1, preserve worktree |
 | /discern returns APPROVED | Continue to commit+done, exit 0 |
@@ -787,7 +787,7 @@ git branch -a | grep genie/       # Should show new branch
 ## Routing
 
 - [x] **Architect** — Design complete
-- [x] **Crafter** — Build and test `/run` command and `run-pdlc.sh`
+- [x] **Crafter** — Build and test `/run` command and `genies`
 
 ---
 
@@ -799,7 +799,7 @@ git branch -a | grep genie/       # Should show new branch
 
 | File | Type | Purpose |
 |------|------|---------|
-| `scripts/run-pdlc.sh` | Script | Headless PDLC runner (bash + jq) |
+| `scripts/genies` | Script | Headless PDLC runner (bash + jq) |
 | `commands/run.md` | Command | `/run` prompt definition |
 | `.claude/commands/run.md` | Command | Installed copy for distribution |
 | `tests/test_run_pdlc.sh` | Test | 48 tests across 10 categories |
@@ -831,7 +831,7 @@ git branch -a | grep genie/       # Should show new branch
 
 3. **`"done"` quoted in PHASES array** — `done` is a bash keyword; must be quoted in array literal to avoid `SC1010` shellcheck warning.
 
-4. **Worktree stubs** — Inline stubs with TODO markers for `worktree_setup()`, `worktree_teardown_success()`, `worktree_teardown_failure()`. Will source `genie-session.sh` when P2-session-management is delivered.
+4. **Worktree stubs** — Inline stubs with TODO markers for `worktree_setup()`, `worktree_teardown_success()`, `worktree_teardown_failure()`. Will source `genie-session` when P2-session-management is delivered.
 
 ## Verification
 
@@ -839,7 +839,7 @@ git branch -a | grep genie/       # Should show new branch
 $ bash tests/test_run_pdlc.sh
 Tests: 48 | Passed: 48 | Failed: 0
 
-$ shellcheck scripts/run-pdlc.sh
+$ shellcheck scripts/genies
 (clean)
 
 $ ./install.sh project /tmp/test --scripts --dry-run
@@ -854,14 +854,14 @@ $ ./install.sh project /tmp/test --scripts --dry-run
 
 ## Summary
 
-Solid implementation of the autonomous lifecycle runner. The headless runner (`scripts/run-pdlc.sh`) is well-structured with clean function decomposition, comprehensive error handling, and bash 3 compatibility. The `/run` command prompt definition follows established patterns. Test coverage is thorough at 48 tests across 10 functional categories. Two minor issues found; no blockers.
+Solid implementation of the autonomous lifecycle runner. The headless runner (`scripts/genies`) is well-structured with clean function decomposition, comprehensive error handling, and bash 3 compatibility. The `/run` command prompt definition follows established patterns. Test coverage is thorough at 48 tests across 10 functional categories. Two minor issues found; no blockers.
 
 ## Acceptance Criteria
 
 | AC | Status | Notes |
 |----|--------|-------|
 | AC-1 | Pass | `/run` command created with `--from`/`--through` flags, no confirmation gates, `/discern` as automated quality gate with stop-on-BLOCKED |
-| AC-2 | Pass | `run-pdlc.sh` chains `claude -p` per phase, parses JSON via `jq`, exit codes 0/1/2/3, structured JSON logging via `--log-dir` |
+| AC-2 | Pass | `genies` chains `claude -p` per phase, parses JSON via `jq`, exit codes 0/1/2/3, structured JSON logging via `--log-dir` |
 | AC-3 | Pass | Phase range model via `PHASES` array + `phase_index()`, validated by 8 parse_args + 3 validate_args tests |
 | AC-4 | Pass | No interactive input, `--log-dir` JSON logging, `--lock` lockfile with SHA hash key + stale detection + PID tracking |
 | AC-5 | Partial | Worktree stubs with TODO markers. Acceptable — P2-session-management is a parallel dependency. Stubs return 1 (fail-safe). |
@@ -883,14 +883,14 @@ Solid implementation of the autonomous lifecycle runner. The headless runner (`s
 
 | # | Issue | Severity | Location | Fix |
 |---|-------|----------|----------|-----|
-| 1 | `log_phase_usage()` is defined but never called in `main()` | Minor | `run-pdlc.sh:402-416`, `main()` | Add call after each phase completes — data is available from `jq` parse. Low risk to defer. |
-| 2 | `run_phase()` returns 1 for all non-zero claude exits, losing the original exit code (e.g. exit 2 for turn exhaustion) | Minor | `run-pdlc.sh:338-342` | The `main()` retry logic at line 552 checks `$ec -eq 2` but `run_phase` always returns 1. Retry path is unreachable from `main()` — currently only testable via direct `retry_phase()` call. Fix: propagate claude's exit code from `run_phase`. |
+| 1 | `log_phase_usage()` is defined but never called in `main()` | Minor | `genies:402-416`, `main()` | Add call after each phase completes — data is available from `jq` parse. Low risk to defer. |
+| 2 | `run_phase()` returns 1 for all non-zero claude exits, losing the original exit code (e.g. exit 2 for turn exhaustion) | Minor | `genies:338-342` | The `main()` retry logic at line 552 checks `$ec -eq 2` but `run_phase` always returns 1. Retry path is unreachable from `main()` — currently only testable via direct `retry_phase()` call. Fix: propagate claude's exit code from `run_phase`. |
 
 ## Test Coverage
 
 - **Tests:** 48 across 10 categories
 - **Function coverage:** All public functions tested (phase_index, parse_args, validate_args, parse_artifact_path, parse_artifact_fallback, detect_verdict, acquire_lock, release_lock, build_phase_prompt, run_phase, retry_phase, main)
-- **Integration tests:** 3 end-to-end tests via subprocess execution of `run-pdlc.sh`
+- **Integration tests:** 3 end-to-end tests via subprocess execution of `genies`
 - **Edge cases covered:** Invalid phase names, stale locks, dead process locks, double turn exhaustion, BLOCKED/CHANGES REQUESTED/missing verdict
 - **Missing:** `log_phase_usage()` untested (not called), `get_max_turns()` not directly tested (tested indirectly via `run_phase`)
 
@@ -929,7 +929,7 @@ APPROVED → `/commit` then `/done docs/backlog/P2-autonomous-lifecycle-runner.m
 **Recommended follow-up (non-blocking):**
 1. Fix issue #2 (propagate claude exit code from `run_phase`) before real-world integration testing
 2. Wire up `log_phase_usage()` calls in `main()` loop
-3. Complete AC-5 when P2-session-management delivers `genie-session.sh`
+3. Complete AC-5 when P2-session-management delivers `genie-session`
 
 ---
 

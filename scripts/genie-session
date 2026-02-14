@@ -1,10 +1,10 @@
 #!/bin/bash
-# genie-session.sh — Session management for parallel worktree sessions
+# genie-session — Session management for parallel worktree sessions
 #
 # Wraps git worktree ceremony into memorable commands and sourceable functions.
 # Operates in two modes:
-#   CLI mode:     ./genie-session.sh start P2-search deliver
-#   Library mode: source genie-session.sh; session_start "P2-search" "deliver"
+#   CLI mode:     genie-session start P2-search deliver
+#   Library mode: source genie-session; session_start "P2-search" "deliver"
 #
 # Function contract (locked by P2-autonomous-lifecycle-runner design):
 #   session_start <item> <phase>           → 0=success, 1=failure; stdout=path
@@ -603,7 +603,7 @@ session_cleanup() {
 }
 
 # ── Source Guard ───────────────────────────────────────────────
-# When sourced by another script (e.g., run-pdlc.sh), only function
+# When sourced by another script (e.g., genies), only function
 # definitions are loaded — the CLI dispatcher below is skipped.
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

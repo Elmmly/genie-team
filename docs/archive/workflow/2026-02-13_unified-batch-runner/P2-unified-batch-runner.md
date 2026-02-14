@@ -2,7 +2,7 @@
 spec_version: "1.0"
 type: shaped-work
 id: GT-36
-title: "Unified Batch Runner in run-pdlc.sh"
+title: "Unified Batch Runner in genies"
 status: done
 created: "2026-02-13"
 appetite: small
@@ -13,7 +13,7 @@ tags: [workflow, autonomous, batch, parallel, runner]
 acceptance_criteria:
   - id: AC-1
     description: >-
-      run-pdlc.sh accepts --parallel N flag. When set (or when multiple inputs
+      genies accepts --parallel N flag. When set (or when multiple inputs
       are provided, or when no inputs are provided), the script enters batch
       mode: scans docs/backlog/ for actionable items, auto-detects starting
       phase from each item's frontmatter status, and processes them. Without
@@ -23,7 +23,7 @@ acceptance_criteria:
     status: pending
   - id: AC-2
     description: >-
-      run-pdlc.sh batch mode supports --priority P1|P2|P3 (repeatable) to
+      genies batch mode supports --priority P1|P2|P3 (repeatable) to
       filter backlog items, --dry-run to preview without executing,
       --continue-on-failure to not stop on first failure, and
       --topics-file to load discovery topics from a file. All existing
@@ -33,9 +33,9 @@ acceptance_criteria:
   - id: AC-3
     description: >-
       run-batch.sh becomes a thin backwards-compatible wrapper that delegates
-      to run-pdlc.sh. Existing invocations (run-batch.sh deliver ...,
+      to genies. Existing invocations (run-batch.sh deliver ...,
       run-batch.sh discover ...) continue to work by translating subcommands
-      to the equivalent run-pdlc.sh flags.
+      to the equivalent genies flags.
     status: pending
 ---
 
@@ -45,7 +45,7 @@ acceptance_criteria:
 
 The headless runner has two scripts with different interfaces for the same job:
 
-- `run-pdlc.sh` — single item, structured flags, well-tested (48 tests)
+- `genies` — single item, structured flags, well-tested (48 tests)
 - `run-batch.sh` — batch execution, requires `deliver` or `discover` subcommand,
   duplicates parallel execution logic, no tests
 
@@ -56,9 +56,9 @@ the script crashes silently due to `set -euo pipefail`.
 
 The user's desired UX is a single entry point:
 ```bash
-run-pdlc.sh --parallel 3 --trunk          # process all actionable backlog items
-run-pdlc.sh --parallel 3 docs/backlog/P1-item.md docs/backlog/P2-item.md
-run-pdlc.sh docs/backlog/P1-item.md       # single item, unchanged
+genies --parallel 3 --trunk          # process all actionable backlog items
+genies --parallel 3 docs/backlog/P1-item.md docs/backlog/P2-item.md
+genies docs/backlog/P1-item.md       # single item, unchanged
 ```
 
 **Who's affected:** Any operator running overnight batch execution or parallel
@@ -67,24 +67,24 @@ delivery. The two-script model adds cognitive load and the `run-batch.sh` bugs
 
 ## Appetite & Boundaries
 
-- **Appetite:** Small (1-2 days) — move existing batch logic into run-pdlc.sh,
+- **Appetite:** Small (1-2 days) — move existing batch logic into genies,
   thin wrapper for run-batch.sh
 - **No-gos:**
-  - Do NOT change run-pdlc.sh's single-item execution path (existing 48 tests
+  - Do NOT change genies's single-item execution path (existing 48 tests
     must pass unchanged)
-  - Do NOT change genie-session.sh (worktree lifecycle functions stay as-is)
+  - Do NOT change genie-session (worktree lifecycle functions stay as-is)
   - Do NOT change the claude -p invocation interface
   - Do NOT delete run-batch.sh (keep as backwards-compat wrapper)
 - **Fixed elements:**
-  - `scripts/run-pdlc.sh` is the primary artifact
+  - `scripts/genies` is the primary artifact
   - `scripts/run-batch.sh` becomes a thin wrapper
-  - `scripts/genie-session.sh` integration functions unchanged
-  - Parallel worker model: each worker is a single-item run-pdlc.sh invocation
+  - `scripts/genie-session` integration functions unchanged
+  - Parallel worker model: each worker is a single-item genies invocation
     in an isolated worktree
 
 ## Goals & Outcomes
 
-One script, one entry point. `run-pdlc.sh` handles single items and batch
+One script, one entry point. `genies` handles single items and batch
 execution. Operators don't need to know about subcommands or choose between
 scripts. Batch mode auto-detects item status and starting phase.
 
@@ -93,12 +93,12 @@ scripts. Batch mode auto-detects item status and starting phase.
 **Spec:** docs/specs/workflow/autonomous-lifecycle.md
 
 ### Current Behavior
-- AC-2: Headless runner script (run-pdlc.sh) chains claude -p invocations per
+- AC-2: Headless runner script (genies) chains claude -p invocations per
   phase for a SINGLE item. Batch execution requires separate run-batch.sh script.
 - AC-3: Runner supports phase ranges via --from and --through for single items.
 
 ### Proposed Changes
-- AC-2: Headless runner script (run-pdlc.sh) chains claude -p invocations per
+- AC-2: Headless runner script (genies) chains claude -p invocations per
   phase for single items AND batch execution. Accepts --parallel N for concurrent
   processing. Scans backlog for actionable items when no input provided.
 - AC-3: Runner supports phase ranges AND batch mode. --from/--through apply to
@@ -120,17 +120,17 @@ multiple. This belongs in the same script.
 
 | Assumption | Type | Test |
 |------------|------|------|
-| Batch logic fits cleanly in run-pdlc.sh without bloating it | feasibility | Measure line count delta; target <350 lines added |
+| Batch logic fits cleanly in genies without bloating it | feasibility | Measure line count delta; target <350 lines added |
 | Existing 48 single-item tests pass without modification | feasibility | Run make test after changes |
-| Parallel workers can self-spawn (run-pdlc.sh calls itself) | feasibility | Already works — run-batch.sh does this today |
+| Parallel workers can self-spawn (genies calls itself) | feasibility | Already works — run-batch.sh does this today |
 | run-batch.sh wrapper maintains backwards compat | usability | Test old invocations against new wrapper |
 
 ## Options
 
 | Option | Pros | Cons | Recommendation |
 |--------|------|------|----------------|
-| A: Move batch into run-pdlc.sh, wrapper for run-batch.sh | Single entry point, one set of tests, clean | Larger run-pdlc.sh (~1050 lines) | **Recommended** |
-| B: Keep separate scripts, add --parallel to run-pdlc.sh as delegation | Smaller diff | Still two scripts, delegation adds complexity | Not recommended |
+| A: Move batch into genies, wrapper for run-batch.sh | Single entry point, one set of tests, clean | Larger genies (~1050 lines) | **Recommended** |
+| B: Keep separate scripts, add --parallel to genies as delegation | Smaller diff | Still two scripts, delegation adds complexity | Not recommended |
 | C: Delete run-batch.sh entirely | Simplest | Breaks existing automation | Not recommended |
 
 ## Routing
@@ -145,14 +145,14 @@ multiple. This belongs in the same script.
 ## Overview
 
 Move batch orchestration (backlog scanning, parallel worker pool, serialized
-merge integration) from `run-batch.sh` into `run-pdlc.sh`. The single-item
+merge integration) from `run-batch.sh` into `genies`. The single-item
 execution path is untouched — batch mode is additive code that dispatches to
 the existing single-item path for each worker. `run-batch.sh` becomes a ~30
 line wrapper. No ADRs needed — follows existing ADR-001 pattern.
 
 ## Architecture
 
-**Pattern: Self-spawning batch.** When `run-pdlc.sh` enters batch mode, it
+**Pattern: Self-spawning batch.** When `genies` enters batch mode, it
 resolves a list of items, then spawns copies of itself as workers — each
 running a single item in an isolated worktree. This is exactly what
 `run-batch.sh` already does. The parallel worker pool, slot-filling poll loop,
@@ -167,7 +167,7 @@ and serialized integration phase move verbatim.
 
 ## Component Design
 
-### `scripts/run-pdlc.sh` — 4 change areas
+### `scripts/genies` — 4 change areas
 
 **Area 1: New helper functions (after line 89)**
 
@@ -203,7 +203,7 @@ Five functions moved/adapted from `run-batch.sh`:
    Poll loop with 5-second sleep. Integration phase after all workers complete.
 
 4. `integrate_items()` — Serialize merge/PR for succeeded items. Source
-   `genie-session.sh` for `session_integrate_trunk`/`session_integrate_pr`.
+   `genie-session` for `session_integrate_trunk`/`session_integrate_pr`.
 
 5. `print_batch_summary()` / `print_batch_parallel_summary()` — Batch completion
    reporting (moved from `run-batch.sh`).
@@ -239,20 +239,20 @@ main() {
 
 ```bash
 #!/bin/bash
-# Backwards-compatible wrapper — delegates to run-pdlc.sh
-# See run-pdlc.sh --help for full options.
+# Backwards-compatible wrapper — delegates to genies
+# See genies --help for full options.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 case "${1:-}" in
-    deliver)  shift; exec "$SCRIPT_DIR/run-pdlc.sh" "$@" ;;
-    discover) shift; exec "$SCRIPT_DIR/run-pdlc.sh" --through define "$@" ;;
+    deliver)  shift; exec "$SCRIPT_DIR/genies" "$@" ;;
+    discover) shift; exec "$SCRIPT_DIR/genies" --through define "$@" ;;
     help|-h|--help)
-        echo "run-batch.sh is now a wrapper for run-pdlc.sh." >&2
-        echo "See: run-pdlc.sh --help" >&2
-        exec "$SCRIPT_DIR/run-pdlc.sh" --help
+        echo "run-batch.sh is now a wrapper for genies." >&2
+        echo "See: genies --help" >&2
+        exec "$SCRIPT_DIR/genies" --help
         ;;
-    *)        exec "$SCRIPT_DIR/run-pdlc.sh" "$@" ;;
+    *)        exec "$SCRIPT_DIR/genies" "$@" ;;
 esac
 ```
 
@@ -272,7 +272,7 @@ New test section `--- batch mode ---`:
 |----|----------|------------|
 | AC-1 | Add --parallel flag, batch mode detection in main(), parallel worker pool | Areas 2, 3, 4 |
 | AC-2 | Add batch flags to parse_args(), resolve_batch_items() handles filtering | Areas 2, 3 |
-| AC-3 | Replace run-batch.sh with wrapper that delegates to run-pdlc.sh | run-batch.sh |
+| AC-3 | Replace run-batch.sh with wrapper that delegates to genies | run-batch.sh |
 
 ## Implementation Guidance
 
@@ -297,8 +297,8 @@ New test section `--- batch mode ---`:
 **Test strategy:**
 - `make test` — all 283 existing tests pass
 - New batch tests: parse_args, status_to_phase, get_frontmatter_field
-- Dry-run from genie-team: `run-pdlc.sh --dry-run`
-- Dry-run from 2hearted: `cd ~/code/2hearted && run-pdlc.sh --parallel 3 --trunk --dry-run`
+- Dry-run from genie-team: `genies --dry-run`
+- Dry-run from 2hearted: `cd ~/code/2hearted && genies --parallel 3 --trunk --dry-run`
 - Backwards compat: `run-batch.sh deliver --dry-run`
 
 ## Risks
@@ -307,7 +307,7 @@ New test section `--- batch mode ---`:
 |------|---|---|------------|
 | parse_args INPUTS change breaks existing tests | Low | High | Tests use `parse_args "topic"` → still sets `INPUTS[0]="topic"` |
 | Self-spawning path resolution fails in worktrees | Low | Med | Use absolute path via BASH_SOURCE |
-| Batch functions bloat run-pdlc.sh beyond maintainability | Low | Low | ~300 lines added, clearly sectioned |
+| Batch functions bloat genies beyond maintainability | Low | Low | ~300 lines added, clearly sectioned |
 
 ## Routing
 
@@ -319,12 +319,12 @@ Ready for Crafter. Existing code to move, well-understood patterns.
 
 ## Summary
 
-All 4 design areas implemented in `scripts/run-pdlc.sh`, `scripts/run-batch.sh`
+All 4 design areas implemented in `scripts/genies`, `scripts/run-batch.sh`
 replaced with thin wrapper, and 33 new tests added to `tests/test_run_pdlc.sh`.
 
 ## Changes
 
-### `scripts/run-pdlc.sh` — 4 change areas
+### `scripts/genies` — 4 change areas
 
 **Area 1: Helper functions (after `get_field`)**
 Added `get_frontmatter_field()` (wraps `extract_frontmatter` + `get_field`) and
@@ -357,8 +357,8 @@ check → parallel or sequential execution. Single-item path unchanged.
 
 ### `scripts/run-batch.sh` — replaced with ~35 line wrapper
 
-Backwards-compatible: `deliver` subcommand → `run-pdlc.sh`, `discover` →
-`run-pdlc.sh --through define`, no subcommand → `run-pdlc.sh`. All flags
+Backwards-compatible: `deliver` subcommand → `genies`, `discover` →
+`genies --through define`, no subcommand → `genies`. All flags
 pass through.
 
 ### `tests/test_run_pdlc.sh` — 33 new tests
@@ -373,9 +373,9 @@ pass through.
 ## Validation
 
 - `make test` — 333 tests pass across all 6 test suites (up from 283)
-- Single item: `run-pdlc.sh docs/backlog/P2-item.md` works unchanged
-- Dry-run: `run-pdlc.sh --dry-run` finds 6 actionable items
-- Priority filter: `run-pdlc.sh --priority P1 --priority P2 --dry-run` filters correctly
-- Parallel dry-run: `run-pdlc.sh --parallel 3 --trunk --dry-run` shows parallel mode
+- Single item: `genies docs/backlog/P2-item.md` works unchanged
+- Dry-run: `genies --dry-run` finds 6 actionable items
+- Priority filter: `genies --priority P1 --priority P2 --dry-run` filters correctly
+- Parallel dry-run: `genies --parallel 3 --trunk --dry-run` shows parallel mode
 - Backwards compat: `run-batch.sh deliver --dry-run` delegates correctly
 - Backwards compat: `run-batch.sh --parallel 3 --trunk --dry-run` works

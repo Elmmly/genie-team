@@ -35,7 +35,7 @@ Options:
   --agents            Install agents only
   --genies            Install genie specs only (project only)
   --schemas           Install schemas only
-  --scripts           Install scripts only (genie-session.sh)
+  --scripts           Install scripts only (genies, genie-session)
   --hooks             Install hooks only (context re-injection)
   --mcp               Install MCP server only (imagegen for Designer genie)
   --all               Install everything (default, includes MCP)
@@ -110,7 +110,7 @@ setup_scripts_path() {
 
     {
         echo ""
-        echo "# Genie Team scripts (run-pdlc, genie-session)"
+        echo "# Genie Team scripts (genies, genie-session)"
         echo "$PATH_EXPORT_LINE"
     } >> "$profile"
     log_success "Added scripts to PATH in $profile"
@@ -413,7 +413,7 @@ install_genies() {
     fi
 }
 
-# Install scripts (genie-session.sh, etc.)
+# Install scripts (genies, genie-session, genie-quality)
 install_scripts() {
     local dest="$1"
     local force="$2"
@@ -426,8 +426,8 @@ install_scripts() {
     mkdir -p "$dest"
     local count=0
 
-    for script in "$SCRIPT_DIR/scripts"/*.sh; do
-        if [[ -f "$script" ]]; then
+    for script in "$SCRIPT_DIR/scripts"/*; do
+        if [[ -f "$script" && -x "$script" ]]; then
             local filename=$(basename "$script")
             local target_file="$dest/$filename"
 
@@ -647,7 +647,7 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$GLOBAL_CLAUDE_DIR/schemas" "$force"
 
-    # Scripts installation (genie-session.sh, etc.)
+    # Scripts installation (genies, genie-session, genie-quality)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         install_scripts "$GLOBAL_CLAUDE_DIR/scripts" "$force"
 
@@ -655,7 +655,7 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
         install_hooks "$GLOBAL_CLAUDE_DIR/hooks" "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/hooks" "$force"
 
-    # Add scripts to PATH (so run-pdlc.sh, genie-session.sh work from any project)
+    # Add scripts to PATH (so genies, genie-session work from any project)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         setup_scripts_path "$dry_run"
 
@@ -684,13 +684,13 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    run-pdlc.sh (autonomous runner + batch), genie-session.sh (parallel worktrees)"
+    echo "  Scripts:    genies (autonomous runner + batch), genie-session (parallel worktrees)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
     echo ""
     echo "Scripts are on PATH — run from any project directory:"
-    echo "  run-pdlc.sh --parallel 3 --trunk --verbose"
-    echo "  run-pdlc.sh --through define \"explore auth improvements\""
+    echo "  genies --parallel 3 --trunk --verbose"
+    echo "  genies --through define \"explore auth improvements\""
 }
 
 # Project installation
@@ -819,7 +819,7 @@ cmd_project() {
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$project_path/schemas" "$force"
 
-    # Scripts installation (genie-session.sh, etc.)
+    # Scripts installation (genies, genie-session, genie-quality)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         install_scripts "$project_path/scripts" "$force"
 
@@ -885,7 +885,7 @@ cmd_project() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    run-pdlc (autonomous runner + batch), genie-session (parallel sessions)"
+    echo "  Scripts:    genies (autonomous runner + batch), genie-session (parallel sessions)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }

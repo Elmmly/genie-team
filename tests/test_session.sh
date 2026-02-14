@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tests for scripts/genie-session.sh — Session management for parallel worktree sessions
+# Tests for scripts/genie-session — Session management for parallel worktree sessions
 # Run: bash tests/test_session.sh
 #
 # Covers backlog ACs: AC-1 through AC-8
@@ -10,7 +10,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-SESSION_SH="$PROJECT_DIR/scripts/genie-session.sh"
+SESSION_SH="$PROJECT_DIR/scripts/genie-session"
 
 # Test counters
 TESTS_RUN=0
@@ -123,7 +123,7 @@ assert_dir_not_exists() {
     fi
 }
 
-# ── Source genie-session.sh ────────────────────────────────────
+# ── Source genie-session ───────────────────────────────────────
 
 if [[ -f "$SESSION_SH" ]]; then
     source "$SESSION_SH"
@@ -131,7 +131,7 @@ if [[ -f "$SESSION_SH" ]]; then
     # Clear git env vars set by pre-commit (they override -C and break temp repo commands)
     unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 else
-    echo -e "${RED}ERROR${NC} genie-session.sh not found at $SESSION_SH"
+    echo -e "${RED}ERROR${NC} genie-session not found at $SESSION_SH"
     echo "Tests require the implementation to exist (even if incomplete)."
     exit 2
 fi

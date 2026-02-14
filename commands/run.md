@@ -312,6 +312,6 @@ codebase with unarchived backlog items is an incomplete lifecycle.
 - `/run` is lifecycle-agnostic: works for features, maintenance, quality improvements
 - Conversation context is preserved across all phases (single session)
 - The backlog item's frontmatter `status` field tracks progression
-- For headless/cron use, see `scripts/run-pdlc.sh`
-- For overnight batch execution, use `run-pdlc.sh --parallel N` (scans backlog, auto-detects phases)
+- For headless/cron use, see `scripts/genies` (available on PATH after global install)
+- For overnight batch execution, use `genies --parallel N` (scans backlog, auto-detects phases)
 - For large-appetite items, consider splitting: `--through design` then `--from deliver` in separate sessions to avoid context limits

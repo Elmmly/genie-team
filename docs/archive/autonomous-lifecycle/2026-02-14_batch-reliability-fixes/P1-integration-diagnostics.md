@@ -40,7 +40,7 @@ When `session_integrate_trunk` fails during batch integration, the error message
 
 **Evidence:** 2hearted batch run (Feb 13-14, 2026) — P2-personality-profiler-onboarding completed all PDLC phases (discover through discern) but was never merged to main. The batch log shows only "Integration failed" with no further detail. Manual investigation was required to determine whether the branch existed, whether there was a conflict, or whether the integration was never attempted.
 
-**Root cause:** `_gs_find_branch` in `genie-session.sh` returns exit code 1 silently when no branch matches the expected pattern. The integration loop in `run-pdlc.sh` (lines ~1060-1075) distinguishes exit code 2 (rebase conflict) from exit code 1 (generic failure), but doesn't distinguish "no branch found" from "merge failed" from "checkout failed" — they're all exit 1. After a batch of 4-12 items, the operator has no quick way to know which items need re-integration vs. which had execution failures.
+**Root cause:** `_gs_find_branch` in `genie-session` returns exit code 1 silently when no branch matches the expected pattern. The integration loop in `genies` (lines ~1060-1075) distinguishes exit code 2 (rebase conflict) from exit code 1 (generic failure), but doesn't distinguish "no branch found" from "merge failed" from "checkout failed" — they're all exit 1. After a batch of 4-12 items, the operator has no quick way to know which items need re-integration vs. which had execution failures.
 
 ## Appetite & Boundaries
 
@@ -75,7 +75,7 @@ When `session_integrate_trunk` fails during batch integration, the error message
 
 Three changes:
 
-### 1. Distinct exit codes in `genie-session.sh`
+### 1. Distinct exit codes in `genie-session`
 
 Update `session_integrate_trunk` to return specific exit codes:
 - 0 = success
@@ -86,7 +86,7 @@ Update `session_integrate_trunk` to return specific exit codes:
 
 Update `_gs_find_branch` to distinguish "no branch" (exit 1) from "git error" (exit 3).
 
-### 2. Integration loop diagnostics in `run-pdlc.sh`
+### 2. Integration loop diagnostics in `genies`
 
 Update the integration loop to log specific failure reasons based on exit codes:
 ```
@@ -110,7 +110,7 @@ After batch completion, write a `batch-manifest.json` to the log directory:
 
 ### 3. `--recover` flag
 
-Add `--recover` to `run-pdlc.sh` that:
+Add `--recover` to `genies` that:
 - Scans for existing `genie/*` branches that haven't been merged
 - Runs only the integration phase (rebase + merge) for each, sequentially
 - Supports `--priority` slug-prefix filtering (e.g., `--priority P1` matches `genie/P1-*`)
@@ -122,7 +122,7 @@ Add `--recover` to `run-pdlc.sh` that:
 |---|---|---|---|
 | Distinct exit codes + manifest (proposed) | Complete solution, enables automation | Medium effort across two scripts | **Recommended** |
 | Log-only diagnostics (no manifest, no flag) | Simpler, faster to implement | No machine-readable output, no recovery path | Good start, but incomplete |
-| Separate integration script | Clean separation | Duplicates integration logic from run-pdlc.sh | Not recommended |
+| Separate integration script | Clean separation | Duplicates integration logic from genies | Not recommended |
 
 ## Routing
 
@@ -135,13 +135,13 @@ Add `--recover` to `run-pdlc.sh` that:
 
 ## Overview
 
-Three coordinated changes: (1) distinct exit codes from `session_integrate_trunk` in `genie-session.sh`, (2) diagnostic error messages and batch manifest in `run-pdlc.sh`'s integration loop, and (3) a new `--recover` flag for recovery runs. All changes are additive — the happy path is unchanged.
+Three coordinated changes: (1) distinct exit codes from `session_integrate_trunk` in `genie-session`, (2) diagnostic error messages and batch manifest in `genies`'s integration loop, and (3) a new `--recover` flag for recovery runs. All changes are additive — the happy path is unchanged.
 
 ## Architecture
 
 **Pattern: Structured exit codes as a function contract.**
 
-The integration functions use exit codes as a machine-readable contract between `genie-session.sh` (library) and `run-pdlc.sh` (orchestrator). The orchestrator translates exit codes into human-readable log messages and machine-readable manifest entries.
+The integration functions use exit codes as a machine-readable contract between `genie-session` (library) and `genies` (orchestrator). The orchestrator translates exit codes into human-readable log messages and machine-readable manifest entries.
 
 **Exit code scheme for `session_integrate_trunk`:**
 
@@ -153,7 +153,7 @@ The integration functions use exit codes as a machine-readable contract between 
 | 3 | Checkout failed | (was exit 1) | **new distinct code** |
 | 4 | Merge failed | (was exit 1) | **new distinct code** |
 
-**Backwards compatibility:** Exit codes 0, 1, 2 are unchanged. The integration loop in `run-pdlc.sh` currently only checks for `ec == 2` (rebase conflict) vs everything else. After this change, it checks all five codes. Callers outside `run-pdlc.sh` that use `session_integrate_trunk` and only check `0 vs non-zero` are unaffected — non-zero still means failure.
+**Backwards compatibility:** Exit codes 0, 1, 2 are unchanged. The integration loop in `genies` currently only checks for `ec == 2` (rebase conflict) vs everything else. After this change, it checks all five codes. Callers outside `genies` that use `session_integrate_trunk` and only check `0 vs non-zero` are unaffected — non-zero still means failure.
 
 **Call site audit for `_gs_find_branch`** (no changes needed):
 - `_gs_finish_force` (line 174): `|| true` — ignores errors, unaffected
@@ -167,7 +167,7 @@ No changes to `_gs_find_branch` itself — the function already returns 0 (found
 
 ## Component Design
 
-### 1. `scripts/genie-session.sh` — Distinct exit codes for `session_integrate_trunk`
+### 1. `scripts/genie-session` — Distinct exit codes for `session_integrate_trunk`
 
 **Replace `session_integrate_trunk()` (lines 398-432):**
 
@@ -215,7 +215,7 @@ session_integrate_trunk() {
 - Error messages now include the item name consistently
 - No changes to exit 0 (success), exit 1 (no branch), or exit 2 (rebase conflict)
 
-### 2. `scripts/run-pdlc.sh` — Diagnostic integration loop
+### 2. `scripts/genies` — Diagnostic integration loop
 
 **Replace the trunk integration block in `run_batch_parallel()` (lines 1060-1075):**
 
@@ -248,7 +248,7 @@ session_integrate_trunk() {
 
 **Key change:** The `case` statement maps each exit code to a human-readable reason. The existing distinction between rebase conflicts (count in `merge_conflicts`) and other failures (count in `failed`) is preserved.
 
-### 3. `scripts/run-pdlc.sh` — Batch manifest (AC-2)
+### 3. `scripts/genies` — Batch manifest (AC-2)
 
 **New function `write_batch_manifest()`** — add to the Batch Mode Functions section (after `print_batch_parallel_summary`):
 
@@ -330,7 +330,7 @@ failed_reasons+=("failed-integration:$reason")
 
 Then use the reason in manifest entries. This requires extending the tracking arrays — a minor refactor of the poll loop to capture failure reasons alongside item paths.
 
-### 4. `scripts/run-pdlc.sh` — `--recover` flag (AC-3)
+### 4. `scripts/genies` — `--recover` flag (AC-3)
 
 **Add to `parse_args()` (line ~170):**
 
@@ -478,16 +478,16 @@ Add after `parse_args`, before the batch mode check:
 
 | AC | Approach | Files |
 |----|----------|-------|
-| AC-1 | `session_integrate_trunk` returns distinct exit codes (1/2/3/4). Integration loop maps codes to human-readable messages via `case` statement. | `scripts/genie-session.sh`, `scripts/run-pdlc.sh` |
-| AC-2 | `write_batch_manifest()` writes JSON manifest to `$LOG_DIR/batch-manifest.json` after batch completion. Each item has `slug`, `status`, optional `reason` and `branch`. | `scripts/run-pdlc.sh` |
-| AC-3 | `--recover` flag triggers `run_recover()` which scans for unmerged `genie/*` branches, filters by `--priority` slug prefix, runs integration sequentially, and writes manifest. Respects `--trunk`, `--continue-on-failure`, and `--log-dir`. | `scripts/run-pdlc.sh` |
+| AC-1 | `session_integrate_trunk` returns distinct exit codes (1/2/3/4). Integration loop maps codes to human-readable messages via `case` statement. | `scripts/genie-session`, `scripts/genies` |
+| AC-2 | `write_batch_manifest()` writes JSON manifest to `$LOG_DIR/batch-manifest.json` after batch completion. Each item has `slug`, `status`, optional `reason` and `branch`. | `scripts/genies` |
+| AC-3 | `--recover` flag triggers `run_recover()` which scans for unmerged `genie/*` branches, filters by `--priority` slug prefix, runs integration sequentially, and writes manifest. Respects `--trunk`, `--continue-on-failure`, and `--log-dir`. | `scripts/genies` |
 
 ## Implementation Guidance
 
 **Sequence:**
-1. Update `session_integrate_trunk` exit codes in `genie-session.sh` (smallest change, unlocks AC-1)
+1. Update `session_integrate_trunk` exit codes in `genie-session` (smallest change, unlocks AC-1)
 2. Add tests for new exit codes in `tests/test_session.sh`
-3. Update integration loop in `run-pdlc.sh` with diagnostic `case` statement
+3. Update integration loop in `genies` with diagnostic `case` statement
 4. Add `write_batch_manifest()` function
 5. Wire manifest into `run_batch_parallel()` completion
 6. Add `--recover` and `--priority` flags to `parse_args()`
@@ -496,13 +496,13 @@ Add after `parse_args`, before the batch mode check:
 
 **Test strategy:**
 
-For `genie-session.sh` exit codes:
+For `genie-session` exit codes:
 - Test `session_integrate_trunk` with no matching branch → exit 1
 - Test with rebase conflict → exit 2 (existing test, verify still passes)
 - Test with checkout failure → exit 3 (mock `git checkout` to fail)
 - Test with merge failure → exit 4 (mock `git merge --ff-only` to fail)
 
-For `run-pdlc.sh` diagnostics:
+For `genies` diagnostics:
 - Test integration loop logs correct reason for each exit code
 - Test `write_batch_manifest` produces valid JSON with expected fields
 - Test `--recover` is parsed correctly
@@ -517,7 +517,7 @@ For backwards compat:
 
 | Risk | L | I | Mitigation |
 |------|---|---|------------|
-| Exit code 3/4 break callers that check specific codes | Low | Low | Audit shows no callers check for specific non-zero codes except the integration loop in run-pdlc.sh (which we're updating). All other callers use `\|\| true` or `\|\| { return 1; }`. |
+| Exit code 3/4 break callers that check specific codes | Low | Low | Audit shows no callers check for specific non-zero codes except the integration loop in genies (which we're updating). All other callers use `\|\| true` or `\|\| { return 1; }`. |
 | `--recover` races with active batch workers | Low | Med | Recovery is a post-batch tool. Document: "Do not run while batch workers are active." |
 | Manifest JSON format breaks with special chars in slugs | Low | Low | Slugs come from backlog filenames (alphanumeric + hyphens). No special character risk in practice. |
 | Branch slug extraction regex fails for multi-hyphen items | Med | Med | `sed 's|-[^-]*$||'` strips only the last `-{phase}` segment. Multi-hyphen items like `P1-social-authentication` → `P1-social-authentication` (correct). But `P1-auth-deliver` → `P1-auth` (strips `-deliver` correctly). |
@@ -579,12 +579,12 @@ No blocking issues found.
 
 | File | Change |
 |------|--------|
-| `scripts/genie-session.sh` | Updated `session_integrate_trunk`: checkout failure returns exit 3, merge failure returns exit 4 (was both exit 1) |
-| `scripts/run-pdlc.sh` | Updated integration loop with `case` statement mapping exit codes 0-4 to diagnostic messages |
-| `scripts/run-pdlc.sh` | Added `write_batch_manifest()` function — writes JSON manifest to `$LOG_DIR/batch-manifest.json` |
-| `scripts/run-pdlc.sh` | Added `write_batch_manifest` call after batch summary in `run_batch_parallel()` |
-| `scripts/run-pdlc.sh` | Added `--recover` flag to `parse_args()` with `RECOVER_MODE` default |
-| `scripts/run-pdlc.sh` | Added `--recover` to help text |
+| `scripts/genie-session` | Updated `session_integrate_trunk`: checkout failure returns exit 3, merge failure returns exit 4 (was both exit 1) |
+| `scripts/genies` | Updated integration loop with `case` statement mapping exit codes 0-4 to diagnostic messages |
+| `scripts/genies` | Added `write_batch_manifest()` function — writes JSON manifest to `$LOG_DIR/batch-manifest.json` |
+| `scripts/genies` | Added `write_batch_manifest` call after batch summary in `run_batch_parallel()` |
+| `scripts/genies` | Added `--recover` flag to `parse_args()` with `RECOVER_MODE` default |
+| `scripts/genies` | Added `--recover` to help text |
 | `tests/test_session.sh` | 2 new tests: exit code 3 on checkout failure, exit code 4 on merge failure |
 | `tests/test_run_pdlc.sh` | 7 new tests: write_batch_manifest JSON structure, empty items; --recover default/set/with-priority |
 

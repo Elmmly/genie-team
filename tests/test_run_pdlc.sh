@@ -1,5 +1,5 @@
 #!/bin/bash
-# Tests for scripts/run-pdlc.sh — autonomous PDLC runner
+# Tests for scripts/genies — autonomous PDLC runner
 # Run: bash tests/test_run_pdlc.sh
 #
 # TDD Phase 1: All tests written first (RED). Implementation follows.
@@ -9,7 +9,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-RUN_PDLC="$PROJECT_DIR/scripts/run-pdlc.sh"
+RUN_PDLC="$PROJECT_DIR/scripts/genies"
 MOCK_CLAUDE="$SCRIPT_DIR/fixtures/mock_claude.sh"
 MOCK_RESPONSES="$SCRIPT_DIR/fixtures/mock_claude_responses"
 
@@ -129,20 +129,20 @@ assert_file_not_exists() {
 }
 
 # ─────────────────────────────────────────────
-# Source run-pdlc.sh for unit testing functions
+# Source genies script for unit testing functions
 # ─────────────────────────────────────────────
 
 if [[ -f "$RUN_PDLC" ]]; then
-    # shellcheck disable=SC2034  # Used by run-pdlc.sh source guard
-    RUN_PDLC_SOURCED=true
+    # shellcheck disable=SC2034  # Used by genies source guard
+    GENIES_SOURCED=true
     # shellcheck source=/dev/null
     source "$RUN_PDLC"
-    # run-pdlc.sh sets -e; disable it — test harness manages its own exit codes
+    # genies sets -e; disable it — test harness manages its own exit codes
     set +e
 else
-    echo -e "${RED}ERROR${NC} run-pdlc.sh not found at $RUN_PDLC"
+    echo -e "${RED}ERROR${NC} genies not found at $RUN_PDLC"
     echo "Tests require the implementation to exist (even if incomplete)."
-    echo "Create a minimal scripts/run-pdlc.sh to start TDD."
+    echo "Create a minimal scripts/genies to start TDD."
     exit 2
 fi
 
@@ -168,7 +168,7 @@ teardown_temp() {
     fi
 }
 
-echo "=== run-pdlc.sh Tests ==="
+echo "=== genies Tests ==="
 echo ""
 
 # ═══════════════════════════════════════════════
@@ -712,7 +712,7 @@ setup_temp
 NO_RESUME="false"
 TURNS_PER_PHASE=""
 VERBOSE_LOGGING="false"
-# shellcheck disable=SC2034  # Used by sourced run-pdlc.sh
+# shellcheck disable=SC2034  # Used by sourced genies
 DISCOVER_TURNS=""
 # Act
 run_phase "discover" "test topic"
@@ -734,7 +734,7 @@ touch "$TEMP_DIR/fail_responses/discover_fail"
 export MOCK_CLAUDE_RESPONSES_DIR="$TEMP_DIR/fail_responses"
 NO_RESUME="false"
 TURNS_PER_PHASE=""
-# shellcheck disable=SC2034  # Used by sourced run-pdlc.sh
+# shellcheck disable=SC2034  # Used by sourced genies
 DISCOVER_TURNS=""
 # Act
 run_phase "discover" "test topic"
@@ -1186,7 +1186,7 @@ log_phase_usage() { :; }
 # Mock git status to report changes
 git() {
     if [[ "$1" == "status" && "$2" == "--porcelain" ]]; then
-        echo "M scripts/run-pdlc.sh"
+        echo "M scripts/genies"
         return 0
     fi
     command git "$@"

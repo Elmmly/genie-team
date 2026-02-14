@@ -35,7 +35,7 @@ acceptance_criteria:
     description: >-
       /run command tracks and reports per-phase metrics in its completion
       summary: turn count and artifact count per phase; headless
-      run-pdlc.sh already has log_phase_usage — this covers in-session /run
+      genies already has log_phase_usage — this covers in-session /run
     status: pending
 ---
 
@@ -65,7 +65,7 @@ use:
    them. The session-state.md already tracks `artifacts_written` but the commit
    phase doesn't reference it.
 
-4. **No per-phase metrics in /run output:** The headless `run-pdlc.sh` logs
+4. **No per-phase metrics in /run output:** The headless `genies` logs
    per-phase usage via `log_phase_usage`, but the in-session `/run` command
    only shows total cost. Can't identify which phases are expensive without
    parsing the full session log.
@@ -80,7 +80,7 @@ turns), 2x `gh auth status` failures cascading to 6x sibling tool errors,
 - **Appetite:** Small (1-2 days) — all changes are markdown prompt edits to
   commands, not code changes
 - **No-gos:**
-  - Do NOT modify `run-pdlc.sh` (headless runner already handles these correctly)
+  - Do NOT modify `genies` (headless runner already handles these correctly)
   - Do NOT change the phase sequence or gate behavior
   - Do NOT add new commands or scripts
   - Do NOT modify the spec's acceptance criteria — these are prompt-level fixes
@@ -106,7 +106,7 @@ can see per-phase cost without parsing raw logs.
 - AC-1: `/run` runs specified phase range without confirmation gates, using
   `/discern` as automated quality gate
 - AC-6: Logs token usage and turn counts per phase for transparency (met via
-  `run-pdlc.sh` but not in-session `/run`)
+  `genies` but not in-session `/run`)
 
 ### Proposed Changes
 
@@ -115,7 +115,7 @@ can see per-phase cost without parsing raw logs.
   guidance that `/commit` phase MUST NOT use `--force-with-lease` or `--force`.
 - AC-6 (no change to spec wording): Add per-phase metric tracking to in-session
   `/run` command's completion summary, matching the transparency already provided
-  by `run-pdlc.sh`'s `log_phase_usage`.
+  by `genies`'s `log_phase_usage`.
 
 ### Additional Changes (not in spec scope)
 

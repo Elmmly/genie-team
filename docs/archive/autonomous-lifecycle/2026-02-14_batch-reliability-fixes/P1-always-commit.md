@@ -38,7 +38,7 @@ acceptance_criteria:
 
 ## Problem
 
-When `--through` is set to a phase before `commit` (e.g., `--through define`, `--through discover`), the commit phase (index 5) is never reached. The phase loop in `run-pdlc.sh` runs from `from_idx` to `through_idx` only. In worktree mode, artifacts written to the worktree filesystem are lost when the worktree is removed after the run completes.
+When `--through` is set to a phase before `commit` (e.g., `--through define`, `--through discover`), the commit phase (index 5) is never reached. The phase loop in `genies` runs from `from_idx` to `through_idx` only. In worktree mode, artifacts written to the worktree filesystem are lost when the worktree is removed after the run completes.
 
 **Evidence:** 2hearted batch run (Feb 13-14, 2026) — Batch 4 ran 3 discovery items (`--through discover`) at ~$10 total cost. All three completed discovery and wrote analysis artifacts to their worktrees. Because `--through discover` stops at phase index 0 and commit is phase index 5, the artifacts were never committed. When the worktrees were cleaned up, the work was lost.
 
@@ -67,11 +67,11 @@ Every PDLC run that produces artifacts commits them before exiting, regardless o
 | Artifacts exist as uncommitted files after phase execution | feasibility | Run `--through discover` and check `git status` |
 | Commit phase is idempotent (safe to run even if nothing changed) | feasibility | Run commit with clean working tree — should no-op |
 | Double-commit protection works via `git status --porcelain` | feasibility | Run `--through commit` and verify only one commit |
-| Worktree teardown happens after the phase loop | feasibility | Read `run-pdlc.sh` worktree lifecycle flow |
+| Worktree teardown happens after the phase loop | feasibility | Read `genies` worktree lifecycle flow |
 
 ## Solution Sketch
 
-After the phase loop completes in `run-pdlc.sh`, always run commit if there are uncommitted changes (`git status --porcelain`) — regardless of `--through` value. Skip if `--through` already included the commit phase (index >= 5) to avoid double-commit.
+After the phase loop completes in `genies`, always run commit if there are uncommitted changes (`git status --porcelain`) — regardless of `--through` value. Skip if `--through` already included the commit phase (index >= 5) to avoid double-commit.
 
 Specifically:
 1. After the `for phase in ...` loop exits, check if `through_idx < commit_idx`
@@ -100,7 +100,7 @@ This is a ~10-line change in the phase loop exit path plus a documentation updat
 
 ## Overview
 
-Add a post-loop utility commit to `run-pdlc.sh` that fires after the phase range completes whenever `--through` didn't already include the commit phase. The commit is gated by `git status --porcelain` — no changes means no commit. This applies to single-item mode; batch workers already use single-item mode via `$SELF` recursion so they inherit the behavior automatically.
+Add a post-loop utility commit to `genies` that fires after the phase range completes whenever `--through` didn't already include the commit phase. The commit is gated by `git status --porcelain` — no changes means no commit. This applies to single-item mode; batch workers already use single-item mode via `$SELF` recursion so they inherit the behavior automatically.
 
 ## Architecture
 
@@ -120,7 +120,7 @@ PHASES=(discover define design deliver discern commit "done")
 
 ## Component Design
 
-### 1. `scripts/run-pdlc.sh` — Post-loop utility commit (single-item mode)
+### 1. `scripts/genies` — Post-loop utility commit (single-item mode)
 
 **Location:** After the phase loop `done` (line ~1263), before the worktree teardown block (line ~1266).
 
@@ -163,7 +163,7 @@ PHASES=(discover define design deliver discern commit "done")
 - Input resolution: `item_path` for define+ phases, `analysis_path` for discover-only, `INPUT` as final fallback
 - `git status --porcelain` is the gate — zero-cost when nothing changed
 
-### 2. `scripts/run-pdlc.sh` — Batch parallel workers
+### 2. `scripts/genies` — Batch parallel workers
 
 **No changes needed.** Each batch worker invokes `$SELF` with `--worktree --finish-mode --leave-branch`, which enters `main()` → single-item mode. The post-loop utility commit fires inside each worker's subprocess before `--leave-branch` detaches the worktree.
 
@@ -194,20 +194,20 @@ After the existing `/commit` entry, update the diagram comment to indicate the u
 
 | AC | Approach | Files |
 |----|----------|-------|
-| AC-1 | Post-loop utility commit fires when `through_idx < commit_idx` and `git status --porcelain` has output. Worktree mode: commit runs before `worktree_teardown_success`. | `scripts/run-pdlc.sh` |
-| AC-2 | Same mechanism — discover writes to `docs/analysis/`, define writes to `docs/backlog/`. Both produce uncommitted files detected by `git status --porcelain`. | `scripts/run-pdlc.sh` |
-| AC-3 | When `--through done`, `through_idx=6 >= commit_idx=5`, so `through_idx < commit_idx` is false → utility commit skipped. Commit already ran in the normal loop at index 5. | `scripts/run-pdlc.sh` |
-| AC-4 | Same check: `--through commit` → `through_idx=5`, not less than `commit_idx=5` → skipped. `--through done` → `through_idx=6` → skipped. `git status --porcelain` as secondary gate catches edge cases where commit ran but nothing changed. | `scripts/run-pdlc.sh` |
+| AC-1 | Post-loop utility commit fires when `through_idx < commit_idx` and `git status --porcelain` has output. Worktree mode: commit runs before `worktree_teardown_success`. | `scripts/genies` |
+| AC-2 | Same mechanism — discover writes to `docs/analysis/`, define writes to `docs/backlog/`. Both produce uncommitted files detected by `git status --porcelain`. | `scripts/genies` |
+| AC-3 | When `--through done`, `through_idx=6 >= commit_idx=5`, so `through_idx < commit_idx` is false → utility commit skipped. Commit already ran in the normal loop at index 5. | `scripts/genies` |
+| AC-4 | Same check: `--through commit` → `through_idx=5`, not less than `commit_idx=5` → skipped. `--through done` → `through_idx=6` → skipped. `git status --porcelain` as secondary gate catches edge cases where commit ran but nothing changed. | `scripts/genies` |
 
 ## Implementation Guidance
 
 **Sequence:**
-1. Add post-loop utility commit block to `run-pdlc.sh` (between phase loop and worktree teardown)
+1. Add post-loop utility commit block to `genies` (between phase loop and worktree teardown)
 2. Add tests to `tests/test_run_pdlc.sh` for each AC
 3. Update `commands/run.md` documentation
 
 **Test strategy:**
-- Test utility commit fires: source `run-pdlc.sh`, mock `run_phase` and `git status --porcelain`, set `through_idx=0`, verify `run_phase "commit"` is called
+- Test utility commit fires: source `genies`, mock `run_phase` and `git status --porcelain`, set `through_idx=0`, verify `run_phase "commit"` is called
 - Test utility commit skipped when `--through done`: set `through_idx=6`, verify `run_phase "commit"` is NOT called
 - Test utility commit skipped when `--through commit`: set `through_idx=5`, verify NOT called
 - Test utility commit skipped when no changes: mock `git status --porcelain` to return empty, verify NOT called
@@ -258,8 +258,8 @@ No blocking issues. Design is minimal and focused — exactly what's needed to p
 
 | File | Change |
 |------|--------|
-| `scripts/run-pdlc.sh` | Added `maybe_utility_commit()` function — checks `through_idx < commit_idx` and `git status --porcelain`, runs commit as post-phase utility |
-| `scripts/run-pdlc.sh` | Inserted `maybe_utility_commit` call after phase loop, before worktree teardown |
+| `scripts/genies` | Added `maybe_utility_commit()` function — checks `through_idx < commit_idx` and `git status --porcelain`, runs commit as post-phase utility |
+| `scripts/genies` | Inserted `maybe_utility_commit` call after phase loop, before worktree teardown |
 | `commands/run.md` | Added "Commit as utility" note to Phase Range Model section |
 | `tests/test_run_pdlc.sh` | 4 new tests: fires when through < commit with changes, skipped when through=done, skipped when through=commit, skipped when no changes |
 

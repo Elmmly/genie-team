@@ -68,7 +68,7 @@ sessions about what work is active vs complete.
 - **No-gos:**
   - Do NOT modify `commands/done.md` (already has Autonomous Safety section)
   - Do NOT modify `commands/commit.md` (already has safety rules)
-  - Do NOT modify `scripts/run-pdlc.sh` (headless runner has its own phase
+  - Do NOT modify `scripts/genies` (headless runner has its own phase
     tracking)
   - Do NOT add scripts, hooks, or new commands
 - **Fixed elements:**

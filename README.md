@@ -88,7 +88,7 @@ This scans for existing specs, ADRs, diagrams, and backlog items, then recommend
 | **MCP** | Yes | Yes | Image generation server (Designer genie via Gemini) |
 | **Rules** | — | Yes | Always-on constraints (workflow, code quality, conventions) |
 | **Schemas** | — | Yes | Document format definitions (ADR, spec, shaped contract) |
-| **Scripts** | — | Yes | `genie-session.sh` (parallel worktrees), `run-pdlc.sh` (headless runner) |
+| **Scripts** | — | Yes | `genies` (headless runner), `genie-session` (parallel worktrees) |
 
 <details>
 <summary>All script install options</summary>
@@ -101,7 +101,7 @@ This scans for existing specs, ADRs, diagrams, and backlog items, then recommend
 ./install.sh global --rules          # Rules only
 ./install.sh global --hooks          # Hooks only (context re-injection)
 ./install.sh global --schemas        # Schemas only
-./install.sh global --scripts        # Scripts only (genie-session, run-pdlc)
+./install.sh global --scripts        # Scripts only (genies, genie-session)
 ./install.sh global --mcp            # MCP server only (imagegen)
 ./install.sh project /path/to/app    # Full project install
 ./install.sh project --skip-mcp      # Everything except MCP
@@ -263,22 +263,28 @@ Same phases, no manual gates. `/discern` is the automated quality gate — stops
 > /run --through define "explore notification patterns"   # Just discover + define
 ```
 
-### Headless/Scheduled (`run-pdlc.sh`)
+### Headless/Scheduled (`genies`)
 
 Chains `claude -p` per phase for cron, CI/CD, or GitHub Actions. Best for daily discovery pipelines or overnight delivery. Available on PATH after global install.
 
 ```bash
 # Full lifecycle from topic
-run-pdlc.sh "add password reset"
+genies "add password reset"
 
-# Discovery pipeline (run nightly, human reviews in morning)
-run-pdlc.sh --through define "explore auth improvements"
+# Discovery pipeline — have the genies explore and shape improvement areas
+genies --through define \
+  "identify 3-5 opportunities to improve the product UX" \
+  "identify 3-5 foundational improvements for reliability and performance" \
+  "identify 3-5 developer experience improvements"
 
 # Implement approved items (run after human review)
-run-pdlc.sh --from design docs/backlog/P2-auth.md
+genies --from design docs/backlog/P2-auth.md
+
+# Deliver everything in the backlog while you're away from the keyboard
+genies --parallel 3 --trunk --verbose --log-dir logs/overnight
 
 # With operational flags
-run-pdlc.sh --lock --log-dir ./logs \
+genies --lock --log-dir ./logs \
   --from design docs/backlog/P2-auth.md
 ```
 
@@ -310,23 +316,23 @@ Multiple genie-team sessions working on the same repo simultaneously via git wor
 
 ```bash
 # Start a parallel session
-genie-session.sh start P2-search deliver
+genie-session start P2-search deliver
 # → Creates ../myproject--P2-search on branch genie/P2-search-deliver
 
 # List active sessions
-genie-session.sh list
+genie-session list
 
 # Finish (push + PR, remove worktree)
-genie-session.sh finish P2-search
+genie-session finish P2-search
 
 # Or merge directly (trunk-based)
-genie-session.sh finish P2-search --merge
+genie-session finish P2-search --merge
 
 # Or leave branch for later integration (used by parallel batch)
-genie-session.sh finish P2-search --leave-branch
+genie-session finish P2-search --leave-branch
 
 # Clean up all merged sessions
-genie-session.sh cleanup
+genie-session cleanup
 ```
 
 Enable in your project's `CLAUDE.md` by uncommenting `<!-- worktree-enabled -->`.
@@ -368,38 +374,44 @@ The Crafter reads ADRs and C4 diagrams during implementation. The Critic checks 
 
 ### Batch Execution
 
-Run multiple items in parallel with serialized integration — all through `run-pdlc.sh`:
+Run multiple items in parallel with serialized integration — all through `genies`:
 
 ```bash
 # Deliver all actionable backlog items with 3 parallel workers, trunk-based
-run-pdlc.sh --parallel 3 --trunk --verbose \
+genies --parallel 3 --trunk --verbose \
   --log-dir logs/overnight
 
 # Deliver only P1 items (auto-detects phase from status)
-run-pdlc.sh --priority P1 --parallel 2 --trunk \
+genies --priority P1 --parallel 2 --trunk \
   --verbose --log-dir logs/p1-delivery
 
-# Discover 3 topics in parallel, full lifecycle to trunk
-run-pdlc.sh --parallel 3 --trunk --verbose \
+# Have the genies discover and shape improvement areas in parallel
+genies --parallel 3 --trunk --verbose \
   --through define --log-dir logs/discovery \
-  "topic one" "topic two" "topic three"
+  "identify 3-5 ways to improve the onboarding experience" \
+  "identify 3-5 performance and reliability improvements" \
+  "identify 3-5 ways to reduce developer friction"
 
 # Preview what would run (no execution)
-run-pdlc.sh --parallel 3 --dry-run
+genies --parallel 3 --dry-run
 ```
 
 Parallel mode uses git worktrees for isolation. Workers leave branches intact after completing, then the runner serializes integration (rebase+ff for `--trunk`, push+PR otherwise). Logs in `--log-dir` for post-run inspection.
 
 ### Scheduling with the Headless Runner
 
-For CI/CD integration with `run-pdlc.sh`:
+For CI/CD integration with `genies`:
 
 ```bash
-# Nightly discovery pipeline
-0 2 * * * run-pdlc.sh --through define --lock --log-dir ./logs "explore improvements"
+# Nightly discovery pipeline — genies explore and shape improvement opportunities
+0 2 * * * genies --through define --lock --log-dir ./logs \
+  "identify 3-5 opportunities to improve the product experience"
 
-# Implement approved items (manual trigger or CI)
-run-pdlc.sh --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
+# Weekend delivery — genies work through the entire backlog while you're away
+0 22 * * 5 genies --parallel 3 --trunk --lock --log-dir ./logs/weekend
+
+# Implement specific approved items (manual trigger or CI)
+genies --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
 ```
 
 ---
@@ -510,8 +522,9 @@ genie-team/
 ├── schemas/             # Document format schemas
 ├── genies/              # Genie specs, system prompts, templates
 ├── scripts/
-│   ├── genie-session.sh # Parallel session lifecycle
-│   └── run-pdlc.sh      # Headless lifecycle runner
+│   ├── genies           # Headless lifecycle runner
+│   ├── genie-session    # Parallel session lifecycle
+│   └── genie-quality    # Quality validation checks
 ├── templates/           # Project templates (CLAUDE.md)
 ├── tests/               # Test suite
 └── install.sh           # Installation script
@@ -580,4 +593,4 @@ The "genie" framing for AI coding assistants comes from Beck's writing on his [T
 
 ---
 
-Last updated: 2026-02-13
+Last updated: 2026-02-14

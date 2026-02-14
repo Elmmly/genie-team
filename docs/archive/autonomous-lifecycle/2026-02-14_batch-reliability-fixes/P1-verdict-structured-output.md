@@ -39,11 +39,11 @@ acceptance_criteria:
 
 ## Problem
 
-The `detect_verdict()` function in `run-pdlc.sh` greps free-text Claude output for `APPROVED|BLOCKED|CHANGES REQUESTED`. This is fragile — the critic writes a structured review document with "Verdict: APPROVED" embedded in markdown, but the orchestrator parses the raw `claude -p` stdout which includes preamble, thinking tokens, and formatting. The regex `grep -oE 'APPROVED|BLOCKED|CHANGES REQUESTED'` can miss the verdict if it's buried in context, or match a false positive if "APPROVED" appears in discussion text.
+The `detect_verdict()` function in `genies` greps free-text Claude output for `APPROVED|BLOCKED|CHANGES REQUESTED`. This is fragile — the critic writes a structured review document with "Verdict: APPROVED" embedded in markdown, but the orchestrator parses the raw `claude -p` stdout which includes preamble, thinking tokens, and formatting. The regex `grep -oE 'APPROVED|BLOCKED|CHANGES REQUESTED'` can miss the verdict if it's buried in context, or match a false positive if "APPROVED" appears in discussion text.
 
 **Evidence:** 2hearted batch run (Feb 13-14, 2026) — P0-social-authentication completed all work ($15 in API costs) but the verdict couldn't be parsed from the critic's output. The pipeline stopped with `[ERROR] Could not parse verdict from /discern output`. The critic had written "APPROVED" in the review document but the orchestrator couldn't extract it from the raw output stream.
 
-**Root cause:** The contract between `/discern` (critic) and `run-pdlc.sh` (orchestrator) is implicit — the critic writes natural language and the orchestrator hopes to find a keyword. There's no machine-readable interface between the two.
+**Root cause:** The contract between `/discern` (critic) and `genies` (orchestrator) is implicit — the critic writes natural language and the orchestrator hopes to find a keyword. There's no machine-readable interface between the two.
 
 ## Appetite & Boundaries
 
@@ -68,7 +68,7 @@ Verdict extraction becomes reliable by reading a structured field instead of par
 | `/discern` can write frontmatter fields (not just append markdown) | feasibility | Test Edit tool on YAML frontmatter in a backlog item |
 | Claude reliably follows "update frontmatter" instructions in prompts | feasibility | Run `/discern` on a test item with the updated prompt |
 | Frontmatter field survives multiple `/discern` runs (re-review) | feasibility | Run `/discern` twice on same item, check field is updated not duplicated |
-| `get_frontmatter_field` already exists in run-pdlc.sh | feasibility | Check existing helper functions |
+| `get_frontmatter_field` already exists in genies | feasibility | Check existing helper functions |
 
 ## Solution Sketch
 
@@ -76,7 +76,7 @@ Two changes:
 
 1. **`commands/discern.md`** — Add instruction: after writing the review verdict, update the backlog item's YAML frontmatter to include `verdict: APPROVED|BLOCKED|CHANGES_REQUESTED`. This makes the verdict machine-readable.
 
-2. **`scripts/run-pdlc.sh` `detect_verdict()`** — Change primary detection to read the backlog item's frontmatter `verdict` field using the existing `get_frontmatter_field` helper. Fall back to regex parsing of Claude output only if the frontmatter field is absent.
+2. **`scripts/genies` `detect_verdict()`** — Change primary detection to read the backlog item's frontmatter `verdict` field using the existing `get_frontmatter_field` helper. Fall back to regex parsing of Claude output only if the frontmatter field is absent.
 
 The detection priority becomes:
 1. Read `verdict:` from backlog item frontmatter (reliable, structured)
@@ -110,7 +110,7 @@ Two-sided change: the critic writes a machine-readable `verdict:` field to the b
 
 The current implicit contract (critic writes free text, orchestrator greps for keywords) is replaced with a structured contract:
 - **Producer** (`/discern` via `commands/discern.md`): writes `verdict: APPROVED|BLOCKED|CHANGES_REQUESTED` to backlog frontmatter
-- **Consumer** (`detect_verdict()` in `run-pdlc.sh`): reads `verdict` from frontmatter using existing `get_frontmatter_field` helper
+- **Consumer** (`detect_verdict()` in `genies`): reads `verdict` from frontmatter using existing `get_frontmatter_field` helper
 - **Fallback**: regex parsing of Claude output (preserved for backwards compat)
 
 The frontmatter field is the single source of truth. It's auditable (in the document trail), queryable (`grep "verdict:" docs/backlog/*.md`), and survives re-reviews (the field is overwritten, not appended).
@@ -138,7 +138,7 @@ This is a single-line addition to the prompt. The critic already modifies frontm
 - `BLOCKED` — critical issues, cannot proceed
 - `CHANGES_REQUESTED` — issues found, fixable (underscore, not space, for YAML safety)
 
-### 2. `scripts/run-pdlc.sh` — Updated `detect_verdict()`
+### 2. `scripts/genies` — Updated `detect_verdict()`
 
 **Replace the current function (lines 320-336):**
 
@@ -182,7 +182,7 @@ detect_verdict() {
 - `CHANGES_REQUESTED` normalized to `CHANGES REQUESTED` for display consistency (the rest of the code already uses the space-separated form)
 - Original regex fallback preserved verbatim
 
-### 3. `scripts/run-pdlc.sh` — Updated call site
+### 3. `scripts/genies` — Updated call site
 
 **Location:** The discern case in the phase loop (line ~1249).
 
@@ -203,14 +203,14 @@ Single change: pass `item_path` as the second argument. The `${item_path:-}` def
 | AC | Approach | Files |
 |----|----------|-------|
 | AC-1 | Add `verdict:` to the frontmatter update list in `/discern`'s Context Writing section. The critic already updates frontmatter fields during review — this adds one more. | `commands/discern.md` |
-| AC-2 | `detect_verdict()` reads frontmatter first via `get_frontmatter_field`. Primary source before regex fallback. | `scripts/run-pdlc.sh` |
-| AC-3 | Original `grep -oE 'APPROVED\|BLOCKED\|CHANGES REQUESTED'` preserved verbatim as fallback when frontmatter field is absent (empty `fm_verdict` → skip to regex). | `scripts/run-pdlc.sh` |
-| AC-4 | Existing tests call `detect_verdict "$output"` with one argument. The new function signature is `detect_verdict <output> [item_path]` — the second arg is optional with default `""`. When empty, frontmatter path is skipped and the function falls through to the original regex logic. All existing test calls work unchanged. | `scripts/run-pdlc.sh`, `tests/test_run_pdlc.sh` |
+| AC-2 | `detect_verdict()` reads frontmatter first via `get_frontmatter_field`. Primary source before regex fallback. | `scripts/genies` |
+| AC-3 | Original `grep -oE 'APPROVED\|BLOCKED\|CHANGES REQUESTED'` preserved verbatim as fallback when frontmatter field is absent (empty `fm_verdict` → skip to regex). | `scripts/genies` |
+| AC-4 | Existing tests call `detect_verdict "$output"` with one argument. The new function signature is `detect_verdict <output> [item_path]` — the second arg is optional with default `""`. When empty, frontmatter path is skipped and the function falls through to the original regex logic. All existing test calls work unchanged. | `scripts/genies`, `tests/test_run_pdlc.sh` |
 
 ## Implementation Guidance
 
 **Sequence:**
-1. Update `detect_verdict()` in `run-pdlc.sh` (add `item_path` parameter, frontmatter read, preserve fallback)
+1. Update `detect_verdict()` in `genies` (add `item_path` parameter, frontmatter read, preserve fallback)
 2. Update call site at line ~1249 to pass `item_path`
 3. Add new tests for frontmatter-based verdict detection
 4. Verify existing `detect_verdict` tests still pass (backwards compat)
@@ -269,8 +269,8 @@ No blocking issues. Elegant two-sided change — producer writes structured fiel
 
 | File | Change |
 |------|--------|
-| `scripts/run-pdlc.sh` | Updated `detect_verdict()` with optional `item_path` parameter; reads frontmatter `verdict` field via `get_frontmatter_field` as primary source, falls back to regex |
-| `scripts/run-pdlc.sh` | Updated call site at discern phase to pass `"${item_path:-}"` as second argument |
+| `scripts/genies` | Updated `detect_verdict()` with optional `item_path` parameter; reads frontmatter `verdict` field via `get_frontmatter_field` as primary source, falls back to regex |
+| `scripts/genies` | Updated call site at discern phase to pass `"${item_path:-}"` as second argument |
 | `commands/discern.md` | Added `verdict: APPROVED\|BLOCKED\|CHANGES_REQUESTED` to Context Writing UPDATE list |
 | `tests/test_run_pdlc.sh` | 9 new tests: frontmatter APPROVED/BLOCKED/CHANGES_REQUESTED, normalization, fallback to regex, exit code 1 on no verdict |
 

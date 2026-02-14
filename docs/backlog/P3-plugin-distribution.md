@@ -173,7 +173,7 @@ genie-team/                    ← this IS the plugin root
 | MCP (imagegen) | Yes | Via `.mcp.json` at root |
 | Rules (7 `.md` files) | **No** | No plugin field — `install.sh global --rules` |
 | Schemas (7 `.md` files) | **No** | No plugin field — `install.sh global --schemas` |
-| Scripts (`run-pdlc.sh`, etc.) | **No** | Orchestrator utilities — `install.sh global --scripts` |
+| Scripts (`genies`, etc.) | **No** | Orchestrator utilities — `install.sh global --scripts` |
 | Project scaffolding (`docs/` dirs) | **No** | `install.sh project` |
 
 **Gap resolution for Phase 1:** The second developer runs:

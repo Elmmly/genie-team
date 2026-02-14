@@ -30,7 +30,7 @@ acceptance_criteria:
     description: "A `session cleanup` command removes all finished sessions (worktrees whose branches have been merged) in a single operation"
     status: pending
   - id: AC-5
-    description: "The script exposes sourceable functions with documented signatures and return codes: session_start(), session_finish(), session_worktree_path(), session_cleanup_item() — enabling the autonomous runner to source genie-session.sh and call functions directly without subshell overhead"
+    description: "The script exposes sourceable functions with documented signatures and return codes: session_start(), session_finish(), session_worktree_path(), session_cleanup_item() — enabling the autonomous runner to source genie-session and call functions directly without subshell overhead"
     status: pending
   - id: AC-6
     description: "Session finish in PR mode uses `gh pr create` with a conventional title and body that references the backlog item; falls back to merge instructions if gh CLI is unavailable"
@@ -59,7 +59,7 @@ acceptance_criteria:
 
 **Evidence:**
 - The parallel-sessions spec (6/6 ACs met) established worktree isolation but explicitly deferred lifecycle management: "Worktree lifecycle management is the user's or orchestrator's responsibility"
-- The autonomous runner design (P2-autonomous-lifecycle-runner, status: designed) explicitly sources `genie-session.sh` for worktree lifecycle — it calls `session_start()`, `session_finish()`, `session_worktree_path()`, and `session_cleanup_item()`. These function signatures are locked in the runner's design.
+- The autonomous runner design (P2-autonomous-lifecycle-runner, status: designed) explicitly sources `genie-session` for worktree lifecycle — it calls `session_start()`, `session_finish()`, `session_worktree_path()`, and `session_cleanup_item()`. These function signatures are locked in the runner's design.
 - The forward-compatibility table in the parallel-sessions spec identified "No worktree cleanup convention for failed autonomous runs" as Critical severity
 
 **What's actually missing:** A thin convenience layer that wraps git worktree ceremony into memorable commands, handles the PR/merge workflow, and is reusable by the autonomous runner.
@@ -222,8 +222,8 @@ Resolve conflicts, then run:
 The script exposes sourceable functions with documented return codes. When sourced (not executed), it provides the function API without running the CLI dispatcher.
 
 ```bash
-# In run-pdlc.sh:
-source "$(dirname "$0")/genie-session.sh"
+# In genies:
+source "$(dirname "$0")/genie-session"
 
 # Clean up prior failed attempt before retry
 session_cleanup_item "$item_slug"      # Returns 0 (even if no prior session)
@@ -257,7 +257,7 @@ This means the autonomous runner doesn't reinvent worktree lifecycle — it call
 
 ### Distribution
 
-- Script lives at `scripts/genie-session.sh`
+- Script lives at `scripts/genie-session`
 - `install.sh` copies to target project's `scripts/` directory
 - For global installs: scripts go to `~/.claude/scripts/` (or user adds to PATH)
 
@@ -268,7 +268,7 @@ This means the autonomous runner doesn't reinvent worktree lifecycle — it call
 | `gh` CLI is available for PR creation | Feasibility | Medium | Graceful fallback to manual instructions when gh is missing |
 | Users have push access to create PRs | Feasibility | High | Standard development workflow |
 | Worktree naming convention won't collide | Feasibility | High | Includes item slug which is unique per backlog item |
-| Autonomous runner will reuse session functions | Value | High | Runner design (status: designed) explicitly sources genie-session.sh with 4 function signatures locked |
+| Autonomous runner will reuse session functions | Value | High | Runner design (status: designed) explicitly sources genie-session with 4 function signatures locked |
 | Source mode (sourced vs executed) works reliably in bash | Feasibility | High | Standard bash pattern — guard main logic with `[[ "${BASH_SOURCE[0]}" == "${0}" ]]` |
 | Return codes + stdout/stderr separation is sufficient for runner integration | Feasibility | High | Runner only needs path strings (stdout) and success/failure (return code) |
 
@@ -281,7 +281,7 @@ This means the autonomous runner doesn't reinvent worktree lifecycle — it call
 
 ## Options (Ranked)
 
-### Option 1: Standalone `genie-session.sh` script (Recommended)
+### Option 1: Standalone `genie-session` script (Recommended)
 
 - **Description:** New script in `scripts/` with start/list/finish/cleanup subcommands. Sourceable by the autonomous runner.
 - **Pros:** Standalone, testable, reusable, focused. Ships immediately without waiting for the runner.
@@ -305,7 +305,7 @@ This means the autonomous runner doesn't reinvent worktree lifecycle — it call
 ## Dependencies
 
 - **Builds on:** P2-parallel-sessions-git-worktrees (worktree isolation, branch naming, safety rules)
-- **Feeds into:** P2-autonomous-lifecycle-runner (status: designed) — runner's design explicitly sources `genie-session.sh` for:
+- **Feeds into:** P2-autonomous-lifecycle-runner (status: designed) — runner's design explicitly sources `genie-session` for:
   - `session_start()` — worktree + branch creation
   - `session_finish()` — PR/merge + worktree cleanup (including `--force` for failure cleanup)
   - `session_worktree_path()` — resolve worktree directory
@@ -316,7 +316,7 @@ This means the autonomous runner doesn't reinvent worktree lifecycle — it call
 ## Routing
 
 - [ ] **Architect** — Design function signatures, error handling, and integration surface for the runner
-- [ ] **Crafter** — Build and test `genie-session.sh`
+- [ ] **Crafter** — Build and test `genie-session`
 
 **Rationale:** Small scope with clear patterns from install.sh. Architect designs the function interface that both humans and the runner will use. Crafter implements with TDD.
 
@@ -345,32 +345,32 @@ author: architect
 ac_mapping:
   - ac_id: AC-1
     approach: "session_start() creates worktree + branch via git worktree add, prints path to stdout, prints next steps to stderr"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
   - ac_id: AC-2
     approach: "session_list() parses git worktree list --porcelain, filters for genie/ branches, checks merge status via git branch --merged"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
   - ac_id: AC-3
     approach: "session_finish() dispatches to _gs_finish_pr(), _gs_finish_merge(), or _gs_finish_force() based on flags"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
   - ac_id: AC-4
     approach: "session_cleanup() iterates genie/ worktrees, filters to merged branches, calls session_cleanup_item() for each"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
   - ac_id: AC-5
     approach: "Source guard pattern: functions defined at top level, CLI dispatcher gated by BASH_SOURCE check"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
   - ac_id: AC-6
     approach: "_gs_finish_pr() checks for gh CLI availability, falls back to manual instructions with compare URL"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
   - ac_id: AC-7
     approach: "session_cleanup_item() uses git worktree remove --force and git branch -D, always returns 0"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
   - ac_id: AC-8
     approach: "session_finish --force delegates to _gs_finish_force() which skips all checks and force-removes"
-    components: ["scripts/genie-session.sh"]
+    components: ["scripts/genie-session"]
 components:
-  - name: "genie-session.sh"
+  - name: "genie-session"
     action: create
-    files: ["scripts/genie-session.sh"]
+    files: ["scripts/genie-session"]
   - name: "install.sh"
     action: modify
     files: ["install.sh"]
@@ -381,7 +381,7 @@ components:
 
 ## Overview
 
-A single bash script (`scripts/genie-session.sh`) that wraps git worktree ceremony into memorable commands and sourceable functions. The script operates in two modes: CLI mode (subcommand dispatch for human users) and library mode (sourced by the autonomous runner for direct function calls). No new dependencies beyond bash and git; `gh` CLI is optional for PR creation.
+A single bash script (`scripts/genie-session`) that wraps git worktree ceremony into memorable commands and sourceable functions. The script operates in two modes: CLI mode (subcommand dispatch for human users) and library mode (sourced by the autonomous runner for direct function calls). No new dependencies beyond bash and git; `gh` CLI is optional for PR creation.
 
 ## Architecture
 
@@ -391,7 +391,7 @@ The script uses the same source guard pattern as `install.sh`:
 
 ```bash
 #!/bin/bash
-# genie-session.sh — Session management for parallel worktree sessions
+# genie-session — Session management for parallel worktree sessions
 
 set -euo pipefail
 
@@ -423,7 +423,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 ```
 
-When sourced (e.g., by `run-pdlc.sh`), the `if` block is skipped and only the function definitions are loaded. When executed directly, the CLI dispatcher routes to the appropriate function.
+When sourced (e.g., by `genies`), the `if` block is skipped and only the function definitions are loaded. When executed directly, the CLI dispatcher routes to the appropriate function.
 
 ### Naming Conventions (Locked)
 
@@ -729,7 +729,7 @@ Human user:
       → stdout: https://github.com/org/repo/pull/42
 
 Autonomous runner:
-  source genie-session.sh
+  source genie-session
   session_cleanup_item "$item"
   session_start "$item" "run"
   worktree_dir=$(session_worktree_path "$item")
@@ -758,13 +758,13 @@ Add a new `cmd_scripts()` helper (or fold into existing `cmd_project()` / `cmd_g
 
 ```
 1. Create scripts/ directory in target if it doesn't exist
-2. Copy scripts/genie-session.sh to target scripts/
+2. Copy scripts/genie-session to target scripts/
 3. chmod +x on the copied script
 4. For global install: copy to ~/.claude/scripts/ (user adds to PATH)
 5. For project install: copy to {project}/scripts/
 ```
 
-This aligns with the runner design which expects both `scripts/genie-session.sh` and `scripts/run-pdlc.sh` to live in the same directory and be copied by install.sh.
+This aligns with the runner design which expects both `scripts/genie-session` and `scripts/genies` to live in the same directory and be copied by install.sh.
 
 ### install.sh flag
 
@@ -776,7 +776,7 @@ Add `--scripts` flag alongside existing `--commands`, `--skills`, etc. Include s
 
 ```
 scripts/
-└── genie-session.sh     # ~250-300 lines
+└── genie-session     # ~250-300 lines
 tests/
 └── test_session.sh      # ~200-250 lines (follows test_worktree.sh patterns)
 install.sh               # Modified: add scripts distribution
@@ -784,7 +784,7 @@ install.sh               # Modified: add scripts distribution
 
 ### Implementation Sequence
 
-1. **Create `scripts/genie-session.sh` skeleton** — source guard, configuration constants, helper stubs, public function stubs, CLI dispatcher
+1. **Create `scripts/genie-session` skeleton** — source guard, configuration constants, helper stubs, public function stubs, CLI dispatcher
 2. **Implement internal helpers** — `_gs_repo_name`, `_gs_default_branch`, `_gs_worktree_dir`, `_gs_branch_name`, `_gs_is_merged`, `_gs_find_branch`, logging
 3. **Implement `session_start`** — the simplest public function, good first TDD target
 4. **Implement `session_worktree_path`** — second simplest, needed by other functions
@@ -825,7 +825,7 @@ Tests should follow the same harness pattern as `tests/test_worktree.sh` (assert
 ## Routing
 
 - [x] **Architect** — Design complete
-- [ ] **Crafter** — Build and test `scripts/genie-session.sh` with TDD
+- [ ] **Crafter** — Build and test `scripts/genie-session` with TDD
 
 **Next:** `/deliver docs/backlog/P2-session-management.md`
 
@@ -839,7 +839,7 @@ Tests should follow the same harness pattern as `tests/test_worktree.sh` (assert
 
 ## What Was Built
 
-### scripts/genie-session.sh (~310 lines)
+### scripts/genie-session (~310 lines)
 
 Single bash script implementing the full session management API:
 
@@ -940,8 +940,8 @@ Clean implementation of all 8 backlog ACs and all 5 spec ACs. The script follows
 | 1 | Major | `README.md` | Parallel Sessions section showed manual git commands, no mention of `genie-session` | Added full session management documentation early in README |
 | 2 | Major | `README.md` | "What Gets Installed" table missing Scripts row, install options missing `--scripts` | Added Scripts row and `--scripts` to install options |
 | 3 | Major | `templates/CLAUDE.md` | Parallel Sessions section showed only raw git commands | Updated to reference `genie-session` commands |
-| 4 | Minor | `README.md:153-174` | Structure tree missing `scripts/` directory | Added `scripts/` with `genie-session.sh` |
-| 5 | Minor | `genie-session.sh:203` | Merge error said "Switch first" without showing the command | Added `git checkout` command to error message |
+| 4 | Minor | `README.md:153-174` | Structure tree missing `scripts/` directory | Added `scripts/` with `genie-session` |
+| 5 | Minor | `genie-session:203` | Merge error said "Switch first" without showing the command | Added `git checkout` command to error message |
 
 ## Test Coverage
 

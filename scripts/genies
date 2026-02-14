@@ -1,6 +1,7 @@
 #!/bin/bash
-# Headless PDLC runner — chains claude -p per phase for autonomous lifecycle execution
-# Usage: run-pdlc.sh [OPTIONS] <topic|backlog-item-path>
+# genies — Headless PDLC runner for Genie Team
+# Chains claude -p per phase for autonomous lifecycle execution
+# Usage: genies [OPTIONS] <topic|backlog-item-path>
 #
 # Exit codes:
 #   0  Completed through --through phase
@@ -9,7 +10,7 @@
 #   3  Input validation error (bad args, missing file, lock held)
 
 # Only set strict mode when running directly (not sourced for testing)
-if [[ "${RUN_PDLC_SOURCED:-false}" != "true" ]]; then
+if [[ "${GENIES_SOURCED:-false}" != "true" ]]; then
     set -euo pipefail
 fi
 
@@ -197,15 +198,15 @@ parse_args() {
             --commit-turns)      COMMIT_TURNS="$2"; shift 2 ;;
             --done-turns)        DONE_TURNS="$2"; shift 2 ;;
             -h|--help)
-                echo "Usage: run-pdlc.sh [OPTIONS] [<topic|backlog-item-path>...]"
+                echo "Usage: genies [OPTIONS] [<topic|backlog-item-path>...]"
                 echo ""
                 echo "Single item (one input, no --parallel):"
-                echo "  run-pdlc.sh [OPTIONS] <topic|backlog-item-path>"
+                echo "  genies [OPTIONS] <topic|backlog-item-path>"
                 echo ""
                 echo "Batch mode (triggers: --parallel, multiple inputs, or no inputs):"
-                echo "  run-pdlc.sh --parallel 3 --trunk      # scan backlog, 3 workers"
-                echo "  run-pdlc.sh --dry-run                  # preview actionable items"
-                echo "  run-pdlc.sh item1.md item2.md          # specific items"
+                echo "  genies --parallel 3 --trunk      # scan backlog, 3 workers"
+                echo "  genies --dry-run                  # preview actionable items"
+                echo "  genies item1.md item2.md          # specific items"
                 echo ""
                 echo "Phase range:"
                 echo "  --from <phase>          Start phase (default: discover)"
@@ -653,12 +654,12 @@ release_lock() {
     fi
 }
 
-# Source genie-session.sh for worktree lifecycle management
+# Source genie-session for worktree lifecycle management
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 SELF="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
-GENIE_SESSION="$SCRIPT_DIR/genie-session.sh"
+GENIE_SESSION="$SCRIPT_DIR/genie-session"
 if [[ -f "$GENIE_SESSION" ]]; then
-    # shellcheck source=genie-session.sh
+    # shellcheck source=genie-session
     source "$GENIE_SESSION"
 fi
 
@@ -1435,7 +1436,7 @@ main() {
 }
 
 # Support sourcing for tests (skip main dispatch)
-if [[ "${RUN_PDLC_SOURCED:-}" == "true" ]]; then
+if [[ "${GENIES_SOURCED:-}" == "true" ]]; then
     # shellcheck disable=SC2317
     return 0 2>/dev/null || true
 fi

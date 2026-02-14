@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mock claude CLI for run-pdlc.sh tests
+# Mock claude CLI for genies tests
 # Reads MOCK_CLAUDE_RESPONSES_DIR env var to find per-phase JSON responses
 # Detects phase from the -p argument content
 

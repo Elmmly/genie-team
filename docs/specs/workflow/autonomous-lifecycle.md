@@ -132,10 +132,10 @@ discover → define → design → deliver → discern → commit → done
 | AC | Status | Evidence |
 |----|--------|----------|
 | AC-1 | Met | `commands/run.md` — `/run` command with `--from`/`--through`, no confirmation gates, `/discern` as automated gate |
-| AC-2 | Met | `scripts/run-pdlc.sh` — chains `claude -p` per phase, parses JSON output, exit codes 0/1/2/3, structured JSON logging |
+| AC-2 | Met | `scripts/genies` — chains `claude -p` per phase, parses JSON output, exit codes 0/1/2/3, structured JSON logging |
 | AC-3 | Met | Phase range via `phase_index()` + `PHASES` array; validated by 8 parse_args + 3 validate_args tests |
 | AC-4 | Met | `--log-dir` (JSON logging), `--lock` (lockfile with stale detection), no interactive input, exit codes; validated by 4 lockfile tests |
-| AC-5 | Partial | Worktree stubs with TODO markers in `run-pdlc.sh`; will source `genie-session.sh` from P2-session-management |
+| AC-5 | Partial | Worktree stubs with TODO markers in `genies`; will source `genie-session` from P2-session-management |
 | AC-6 | Met | `DEFAULT_TURNS` array, `get_max_turns()` with per-phase overrides, `retry_phase()` with single retry; validated by retry tests + run_phase max-turns test |
 | AC-7 | Met | Scheduling patterns in shaped contract (cron, CI/CD examples with `--through define`, `--from design`, `--lock`, `--log-dir`) |
 
@@ -150,7 +150,7 @@ discover → define → design → deliver → discern → commit → done
 | AC | Status | Evidence |
 |----|--------|----------|
 | AC-1 | met | `/run` command with `--from`/`--through`, no confirmation gates, stop-on-BLOCKED |
-| AC-2 | met | `run-pdlc.sh` chains `claude -p`, parses JSON, exit codes 0/1/2/3, JSON logging |
+| AC-2 | met | `genies` chains `claude -p`, parses JSON, exit codes 0/1/2/3, JSON logging |
 | AC-3 | met | `PHASES` array + `phase_index()`, 11 tests for args + validation |
 | AC-4 | met | `--log-dir`, `--lock`, no interactive input, 4 lockfile tests |
 | AC-5 | unmet | Worktree stubs only — P2-session-management dependency not yet delivered |
@@ -182,15 +182,14 @@ Phase reorder and completion verification fixes from second autonomous field tes
 ## Implementation Evidence (Unified Batch Runner)
 <!-- Appended by /deliver on 2026-02-13 from GT-36 -->
 
-Batch execution moved from `run-batch.sh` into `run-pdlc.sh` as a unified entry point:
+Batch execution unified into `genies` as a single entry point:
 
 ### Test Coverage
 - `tests/test_run_pdlc.sh`: 33 new tests covering AC-8 (status_to_phase, get_frontmatter_field, batch parse_args flags, resolve_batch_items)
-- Total: 119 tests in run-pdlc.sh suite, 333 across all suites
+- Total: 119 tests in genies suite, 333 across all suites
 
 ### Implementation Files
-- `scripts/run-pdlc.sh`: Added ~380 lines — helper functions (get_frontmatter_field, status_to_phase), batch parse_args flags, resolve_batch_items, sequential/parallel batch execution, integration phase, summary reporting
-- `scripts/run-batch.sh`: Replaced with ~35 line backwards-compatible wrapper delegating to run-pdlc.sh
+- `scripts/genies`: Added ~380 lines — helper functions (get_frontmatter_field, status_to_phase), batch parse_args flags, resolve_batch_items, sequential/parallel batch execution, integration phase, summary reporting
 
 ## Implementation Evidence (Batch Reliability Fixes)
 <!-- Appended by /deliver on 2026-02-14 from P1-always-commit, P1-verdict-structured-output, P1-integration-diagnostics -->
@@ -198,18 +197,18 @@ Batch execution moved from `run-batch.sh` into `run-pdlc.sh` as a unified entry 
 Three reliability fixes from 2hearted batch run post-mortem (Feb 13-14, 2026):
 
 ### P1-always-commit (utility commit)
-- `scripts/run-pdlc.sh`: Added `maybe_utility_commit()` — post-loop utility commit that fires when `--through` didn't include commit phase and uncommitted changes exist
+- `scripts/genies`: Added `maybe_utility_commit()` — post-loop utility commit that fires when `--through` didn't include commit phase and uncommitted changes exist
 - `commands/run.md`: Documented commit-as-utility behavior in Phase Range Model section
 - 4 new tests in `tests/test_run_pdlc.sh`
 
 ### P1-verdict-structured-output (frontmatter verdict)
-- `scripts/run-pdlc.sh`: Updated `detect_verdict()` with optional `item_path` parameter; reads frontmatter `verdict` field as primary source, falls back to regex
+- `scripts/genies`: Updated `detect_verdict()` with optional `item_path` parameter; reads frontmatter `verdict` field as primary source, falls back to regex
 - `commands/discern.md`: Added `verdict:` field to Context Writing UPDATE list
 - 9 new tests in `tests/test_run_pdlc.sh`
 
 ### P1-integration-diagnostics (exit codes, manifest, recovery)
-- `scripts/genie-session.sh`: `session_integrate_trunk` returns exit 3 (checkout fail) and 4 (merge fail) instead of generic exit 1
-- `scripts/run-pdlc.sh`: Integration loop uses `case` statement for diagnostic messages; added `write_batch_manifest()`; added `--recover` flag
+- `scripts/genie-session`: `session_integrate_trunk` returns exit 3 (checkout fail) and 4 (merge fail) instead of generic exit 1
+- `scripts/genies`: Integration loop uses `case` statement for diagnostic messages; added `write_batch_manifest()`; added `--recover` flag
 - 2 new tests in `tests/test_session.sh`, 7 new tests in `tests/test_run_pdlc.sh`
 
 ### Test Coverage

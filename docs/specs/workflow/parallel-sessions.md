@@ -126,7 +126,7 @@ This capability builds on existing genie-team patterns:
 - Claude Code `--resume` works WITHIN a single worktree across chained commands, does NOT work ACROSS worktrees (Claude Code treats each worktree path as a separate project)
 - No cross-worktree coordination protocol — git's branch-per-worktree constraint is the isolation mechanism
 - No in-session dispatch from active Claude sessions — human users create worktrees and open new terminals; orchestrators use the CLI contract. Rationale: in-session dispatch degrades the human experience (no unified view, no result injection, log file monitoring instead of interactive control). The human IS the orchestrator in interactive mode.
-- Session management script (`scripts/genie-session.sh`) uses dual-mode pattern: CLI subcommands when executed, sourceable functions when sourced (via `BASH_SOURCE` guard)
+- Session management script (`scripts/genie-session`) uses dual-mode pattern: CLI subcommands when executed, sourceable functions when sourced (via `BASH_SOURCE` guard)
 - Public functions use `session_` prefix; internal helpers use `_gs_` prefix to avoid namespace collisions when sourced
 - Function contract: return codes (0=success, 1=failure, 2=conflict) + stdout (paths/URLs) + stderr (progress/errors) separation
 - Worktree naming uses item slug only (`../{repo}--{item}`), not item+phase, because a single worktree may span multiple phases
@@ -177,7 +177,7 @@ These are NOT blocking for human-led parallel sessions (this item's primary deli
 - tests/test_session.sh: 48 test cases covering AC-7, AC-8, AC-9, AC-10, AC-11
 
 #### Implementation Files
-- scripts/genie-session.sh: Session lifecycle commands (start, list, finish, cleanup) with dual CLI/library mode
+- scripts/genie-session: Session lifecycle commands (start, list, finish, cleanup) with dual CLI/library mode
 - install.sh: Added install_scripts() function and --scripts flag for distribution
 
 ## Review Verdict
@@ -194,7 +194,7 @@ These are NOT blocking for human-led parallel sessions (this item's primary deli
 | AC-4 | met | templates/CLAUDE.md "## Parallel Sessions" with `<!-- worktree-enabled -->` marker and genie-session commands |
 | AC-5 | met | install.sh creates memory symlink to main worktree; isolation documented as opt-out |
 | AC-6 | met | 5 safety rules in autonomous-execution.md covering force-push, file boundaries, main branch, branch checkout, merge conflicts |
-| AC-7 | met | scripts/genie-session.sh: session_start, session_list, session_finish, session_cleanup with correct naming conventions. 48 tests. |
+| AC-7 | met | scripts/genie-session: session_start, session_list, session_finish, session_cleanup with correct naming conventions. 48 tests. |
 | AC-8 | met | _gs_finish_pr() with gh CLI, _gs_finish_merge() for trunk-based. Graceful fallback to manual compare URL. |
 | AC-9 | met | Source guard via BASH_SOURCE. session_start(), session_finish(), session_worktree_path(), session_cleanup_item() with documented return codes. |
 | AC-10 | met | session_cleanup_item() force-removes worktree+branch regardless of merge state, always returns 0. 5 tests. |
