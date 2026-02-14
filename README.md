@@ -12,13 +12,36 @@
 
 ### Prerequisites
 
-- **[Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)** — The foundation that genie-team extends
+- **[Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)** (v1.0.33+) — The foundation that genie-team extends
 - **[`gh` CLI](https://cli.github.com/)** (optional) — For PR creation in PR-mode workflows
 - **[`jq`](https://jqlang.github.io/jq/)** (optional) — For the headless runner's JSON parsing
 
-### Quick Start
+### Option A: Plugin Install
+
+Install as a Claude Code plugin. Commands are namespaced as `/genie:command` (e.g., `/genie:discover`, `/genie:deliver`).
+
+```
+/plugin marketplace add nolan/genie-team
+/plugin install genie@genie-team --scope user
+```
+
+The plugin provides commands, genies, skills, hooks, and the MCP image generation server. Rules and schemas require a one-time supplemental install:
 
 ```bash
+git clone git@github.com:nolan/genie-team.git ~/genie-team
+cd ~/genie-team && ./install.sh global --rules --schemas
+```
+
+> **Private repo?** Plugin install works with private repositories as long as you have git access (SSH key or `gh auth login`). For background auto-updates on private repos, set `GITHUB_TOKEN` in your shell environment.
+
+### Option B: Script Install
+
+Install via shell script. Commands use short names (`/discover`, `/deliver`). Includes all components — no supplemental step needed.
+
+```bash
+git clone git@github.com:nolan/genie-team.git ~/genie-team
+cd ~/genie-team
+
 # Install globally (available to all projects)
 ./install.sh global
 
@@ -40,6 +63,15 @@ Start a Claude session and load context:
 ```bash
 cd /path/to/your/project
 claude
+```
+
+Plugin install:
+```
+> /genie:context:load
+```
+
+Script install:
+```
 > /context:load
 ```
 
@@ -47,19 +79,19 @@ This scans for existing specs, ADRs, diagrams, and backlog items, then recommend
 
 ### What Gets Installed
 
-| Component | Purpose | Location |
-|-----------|---------|----------|
-| **Commands** | Slash commands (`/discover`, `/deliver`, etc.) | `.claude/commands/` |
-| **Genies** | Specialist definitions with per-genie model, tools, and memory | `.claude/agents/` |
-| **Skills** | Automatic behaviors (TDD, code quality, brand awareness) | `.claude/skills/` |
-| **Rules** | Always-on constraints (workflow, code quality, conventions) | `.claude/rules/` |
-| **Schemas** | Document format definitions (ADR, spec, shaped contract) | `schemas/` |
-| **Scripts** | `genie-session.sh` (parallel worktrees), `run-pdlc.sh` (headless runner) | `scripts/` |
-| **Hooks** | Context re-injection on compaction (preserves context in long sessions) | `.claude/hooks/` |
-| **MCP** | Image generation server (Designer genie via Gemini) | Via `claude mcp add` |
+| Component | Plugin | Script | Purpose |
+|-----------|:------:|:------:|---------|
+| **Commands** | Yes | Yes | Slash commands (`/discover`, `/deliver`, etc.) |
+| **Genies** | Yes | Yes | Specialist definitions with per-genie model, tools, and memory |
+| **Skills** | Yes | Yes | Automatic behaviors (TDD, code quality, brand awareness) |
+| **Hooks** | Yes | Yes | Context re-injection on compaction |
+| **MCP** | Yes | Yes | Image generation server (Designer genie via Gemini) |
+| **Rules** | — | Yes | Always-on constraints (workflow, code quality, conventions) |
+| **Schemas** | — | Yes | Document format definitions (ADR, spec, shaped contract) |
+| **Scripts** | — | Yes | `genie-session.sh` (parallel worktrees), `run-pdlc.sh` (headless runner) |
 
 <details>
-<summary>All install options</summary>
+<summary>All script install options</summary>
 
 ```bash
 ./install.sh global                  # Full global install (includes MCP)
@@ -349,15 +381,15 @@ scripts/run-pdlc.sh --from design --lock --log-dir ./logs docs/backlog/P2-approv
 
 Each genie is a native Claude Code agent (`.claude/agents/{name}.md`) with platform-enforced tool restrictions, per-genie model selection, and persistent memory.
 
-| Genie | Command | Model | Purpose |
-|-------|---------|-------|---------|
-| **Scout** | `/discover` | haiku | Discovery, research, opportunity mapping |
-| **Shaper** | `/define` | sonnet | Problem framing, appetite, constraints |
-| **Architect** | `/design`, `/diagnose` | sonnet | Technical design, patterns, health |
-| **Crafter** | `/deliver` | sonnet | TDD implementation, code quality |
-| **Critic** | `/discern` | sonnet | Review, acceptance criteria, risks |
-| **Tidier** | `/tidy` | haiku | Refactoring, cleanup, tech debt |
-| **Designer** | `/brand`, `/brand:image` | sonnet | Brand identity, visual assets, design tokens |
+| Genie | Script Install | Plugin Install | Model | Purpose |
+|-------|---------------|----------------|-------|---------|
+| **Scout** | `/discover` | `/genie:discover` | haiku | Discovery, research, opportunity mapping |
+| **Shaper** | `/define` | `/genie:define` | sonnet | Problem framing, appetite, constraints |
+| **Architect** | `/design`, `/diagnose` | `/genie:design`, `/genie:diagnose` | sonnet | Technical design, patterns, health |
+| **Crafter** | `/deliver` | `/genie:deliver` | sonnet | TDD implementation, code quality |
+| **Critic** | `/discern` | `/genie:discern` | sonnet | Review, acceptance criteria, risks |
+| **Tidier** | `/tidy` | `/genie:tidy` | haiku | Refactoring, cleanup, tech debt |
+| **Designer** | `/brand` | `/genie:brand` | sonnet | Brand identity, visual assets, design tokens |
 
 **Cost optimization:** Scout and Tidier run on haiku (10-20x cheaper) for research/analysis. Crafter, Critic, Architect, Shaper, and Designer run on sonnet where judgment quality matters.
 
@@ -436,19 +468,26 @@ Both are the recommended Claude Code extension patterns. Commands are for workfl
 
 ```
 genie-team/
-├── .claude/
-│   ├── commands/        # Slash command definitions
-│   ├── skills/          # Automatic behavior skills
-│   ├── hooks/           # Context re-injection scripts
-│   └── rules/           # Always-on constraints
-├── agents/              # Genie definitions (→ .claude/agents/)
-├── genies/              # Genie specs, system prompts, templates
+├── .claude-plugin/
+│   ├── plugin.json      # Plugin manifest (name, version, metadata)
+│   └── marketplace.json # Marketplace catalog for /plugin install
+├── commands/            # Slash command definitions
+├── agents/              # Genie definitions
+├── skills/              # Automatic behavior skills
+├── hooks/
+│   ├── hooks.json       # Plugin hook configuration
+│   ├── track-command.sh # Command tracking
+│   ├── track-artifacts.sh # Artifact tracking
+│   └── reinject-context.sh # Context re-injection on compaction
+├── rules/               # Always-on constraints
 ├── schemas/             # Document format schemas
+├── genies/              # Genie specs, system prompts, templates
 ├── scripts/
 │   ├── genie-session.sh # Parallel session lifecycle
 │   └── run-pdlc.sh      # Headless lifecycle runner
 ├── templates/           # Project templates (CLAUDE.md)
 ├── tests/               # Test suite
+├── .mcp.json            # MCP server config (imagegen)
 └── install.sh           # Installation script
 ```
 
@@ -515,4 +554,4 @@ The "genie" framing for AI coding assistants comes from Beck's writing on his [T
 
 ---
 
-Last updated: 2026-02-12
+Last updated: 2026-02-13
