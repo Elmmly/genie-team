@@ -5,7 +5,11 @@ id: rationalization-blocking
 title: "Add Rationalization Blocking to Enforcement Skills"
 status: abandoned
 abandoned: "2026-02-13"
-abandoned_reason: "Untested mechanism — no evidence that excuse/reality tables change agent behavior. Addresses symptoms (louder instructions) rather than root cause (context pressure, competing instructions). Prompt-engineering arms race with diminishing returns."
+abandoned_reason: >-
+  Untested mechanism — no evidence that excuse/reality tables change agent
+  behavior. Addresses symptoms (louder instructions) rather than root cause
+  (context pressure, competing instructions). Prompt-engineering arms race
+  with diminishing returns.
 created: "2026-02-13"
 appetite: small
 priority: P2

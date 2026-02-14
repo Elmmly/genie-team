@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install YAML validator
-        run: sudo apt-get install -y python3-yaml
+        run: pip install yamllint
       - name: Lint
         run: make lint
 

@@ -26,7 +26,10 @@ acceptance_criteria:
     description: "Shaper selects work_type based on input characteristics: spec-driven value replacement → migration, spec-drift fix → correction, everything else → feature"
     status: pending
   - id: AC-6
-    description: "Critic review for migration/correction work validates against source_of_truth rather than requiring full product-quality review; discern command reads work_type and adjusts review scope"
+    description: >-
+      Critic review for migration/correction work validates against
+      source_of_truth rather than requiring full product-quality review;
+      discern command reads work_type and adjusts review scope
     status: pending
   - id: AC-7
     description: "Existing shaped work contracts (work_type absent) validate as feature type (backward compatible)"

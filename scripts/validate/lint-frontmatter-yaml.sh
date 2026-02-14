@@ -8,6 +8,9 @@ set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 
+# Line-length limit — must match .yamllint.yml max
+MAX_LINE_LENGTH=200
+
 # Detect available YAML validator once
 YAML_VALIDATOR="none"
 if command -v yamllint &>/dev/null; then
@@ -61,21 +64,35 @@ for file in "$@"; do
 
         lint_output=$(echo "$extracted" | yamllint "${yamllint_args[@]}" - 2>&1) || {
             # Offset line numbers to match original file
+            # yamllint output: "stdin\n  LINE:COL  level  message"
             while IFS= read -r line; do
-                # yamllint output format: "stdin:LINE:COL: [severity] message"
-                if [[ "$line" =~ ^stdin:([0-9]+):(.*)$ ]]; then
+                if [[ "$line" =~ ^[[:space:]]+([0-9]+):([0-9]+)[[:space:]]+(.*)$ ]]; then
                     orig_line=$(( BASH_REMATCH[1] + frontmatter_start - 1 ))
-                    echo "[TIER-1] $file:$orig_line:${BASH_REMATCH[2]}" >&2
-                elif [[ "$line" =~ ^[[:space:]] ]]; then
-                    echo "  $line" >&2
+                    echo "[TIER-1] $file:$orig_line:${BASH_REMATCH[2]} ${BASH_REMATCH[3]}" >&2
                 fi
             done <<< "$lint_output"
             echo "[TIER-1] $file — invalid YAML syntax in frontmatter" >&2
             errors=$((errors + 1))
         }
     elif [[ "$YAML_VALIDATOR" == "python3" ]]; then
+        # Check syntax
         if ! echo "$extracted" | python3 -c "import sys, yaml; yaml.safe_load(sys.stdin)" 2>/dev/null; then
             echo "[TIER-1] $file — invalid YAML syntax in frontmatter" >&2
+            errors=$((errors + 1))
+            continue
+        fi
+        # Check line length (matches .yamllint.yml max)
+        line_num=$frontmatter_start
+        has_long_line=0
+        while IFS= read -r yaml_line; do
+            if [[ ${#yaml_line} -gt $MAX_LINE_LENGTH ]]; then
+                echo "[TIER-1] $file:$line_num: line too long (${#yaml_line} > $MAX_LINE_LENGTH)" >&2
+                has_long_line=1
+            fi
+            line_num=$((line_num + 1))
+        done <<< "$extracted"
+        if [[ $has_long_line -eq 1 ]]; then
+            echo "[TIER-1] $file — line too long in frontmatter" >&2
             errors=$((errors + 1))
         fi
     fi

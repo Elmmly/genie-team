@@ -5,7 +5,11 @@ id: verification-gate
 title: "Add Verification Gate Skill"
 status: abandoned
 abandoned: "2026-02-13"
-abandoned_reason: "Meta-enforcement problem — a skill to enforce another skill has the same weakness (advisory text, not a hard gate). If verification-before-completion matters, implement as a hook (hard gate) rather than a skill (soft advisory). The hooks system already exists for this."
+abandoned_reason: >-
+  Meta-enforcement problem — a skill to enforce another skill has the same
+  weakness (advisory text, not a hard gate). If verification-before-completion
+  matters, implement as a hook (hard gate) rather than a skill (soft advisory).
+  The hooks system already exists for this.
 created: "2026-02-13"
 appetite: small
 priority: P2
