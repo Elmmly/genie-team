@@ -63,6 +63,11 @@ claude -p --dangerously-skip-permissions "/run \"add password reset\""
     │   ├─→ APPROVED → continue
     │   └─→ BLOCKED → STOP, report failure
     │
+    ├─→ [validate] lint → build → test  ◄── FINAL CHECK
+    │   └─→ FAIL → STOP, do not commit
+    │
+    ├─→ [cleanup] Remove binaries, stage all artifacts
+    │
     ├─→ /commit [item_path]
     │   └─→ Create conventional commit
     │
@@ -209,6 +214,19 @@ When `/discern` is within the phase range:
 | (not parsed) | **STOP** (safe default). Report parsing failure. |
 
 Stopping on BLOCKED matches the "genie grants wishes literally" philosophy — don't try to be clever about failures.
+
+---
+
+## Final Validation Before Commit
+
+After `/discern` APPROVED and before `/commit`, run the full validation pipeline. This is **mandatory** — do not skip even if tests passed during `/deliver`.
+
+1. **Run lint** — `make lint` or the project's lint command. Code changes during the discern fix cycle may have introduced issues.
+2. **Run build** — `make build` or `go build ./...` or `npm run build`. Confirm the project compiles cleanly.
+3. **Run tests** — `make test` or `go test ./...` or `npm test`. Confirm all tests pass, including any tests written during `/deliver`.
+4. **If any step fails, STOP** — Do not commit broken code. Report the failure and what needs fixing.
+
+Only proceed to `/commit` when lint, build, and tests are all green.
 
 ---
 
