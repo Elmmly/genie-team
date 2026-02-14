@@ -1,6 +1,6 @@
 # /run [topic|backlog-item-path]
 
-Orchestrate autonomous PDLC lifecycle: discover → define → design → deliver → discern → commit → done.
+Orchestrate autonomous PDLC lifecycle: discover → define → design → deliver → discern → done → commit.
 
 No confirmation prompts. No manual gates. Phases flow directly. Use `/discern` as the automated quality gate.
 
@@ -63,13 +63,15 @@ claude -p --dangerously-skip-permissions "/run \"add password reset\""
     │   ├─→ APPROVED → continue
     │   └─→ BLOCKED → STOP, report failure
     │
-    ├─→ [cleanup] Remove binaries, stage all artifacts
+    ├─→ [cleanup] Remove compiled binaries
     │
-    ├─→ /commit [item_path]
-    │   └─→ Create conventional commit
+    ├─→ /done [item_path]
+    │   └─→ Archive completed work, update statuses
     │
-    └─→ /done [item_path]
-        └─→ Archive completed work
+    ├─→ [stage] Stage all session artifacts (including archive changes)
+    │
+    └─→ /commit [item_path]
+        └─→ Create conventional commit (single commit for everything)
 ```
 
 ---
@@ -79,7 +81,7 @@ claude -p --dangerously-skip-permissions "/run \"add password reset\""
 The `--from` and `--through` flags define any contiguous range of the 7 D's:
 
 ```
-discover → define → design → deliver → discern → commit → done
+discover → define → design → deliver → discern → done → commit
          ^                           ^
       --from                     --through
 ```
@@ -120,8 +122,8 @@ When `--from` is `design` or later, the user provides `item_path` directly as in
 - [ ] design
 - [ ] deliver
 - [ ] discern
-- [ ] commit
 - [ ] done
+- [ ] commit
 
 ## Artifacts
 - analysis_path: [path]
@@ -146,8 +148,8 @@ When `--from` is `design` or later, the user provides `item_path` directly as in
 > [design] Starting...
 > ...
 > [discern] Verdict: APPROVED
-> [commit] Complete
 > [done] Archived to docs/archive/
+> [commit] Complete
 
 # Discover and define only — stop for human review
 /run --through define "add password reset"
@@ -169,8 +171,8 @@ When `--from` is `design` or later, the user provides `item_path` directly as in
 > Starting autonomous PDLC: discern → done
 > ...
 > [discern] Verdict: APPROVED
-> [commit] Complete
 > [done] Archived
+> [commit] Complete
 ```
 
 ---
@@ -218,7 +220,7 @@ When `/discern` is within the phase range:
 
 | Verdict | Action |
 |---------|--------|
-| APPROVED | Continue to `/commit` → `/done` |
+| APPROVED | Continue to `/done` → `/commit` |
 | BLOCKED | **STOP immediately**. Report what failed. Suggest next action. |
 | CHANGES REQUESTED | Attempt one fix cycle (fix → retest → re-discern). If still not APPROVED, **STOP**. |
 | (not parsed) | **STOP** (safe default). Report parsing failure. |
@@ -227,16 +229,26 @@ Stopping on BLOCKED matches the "genie grants wishes literally" philosophy — d
 
 ---
 
-## Cleanup Before Commit
+## Cleanup and Staging
 
-Before the `/commit` phase, clean up build artifacts created during `/deliver`:
+Build artifact cleanup and file staging are split around the `/done` phase
+so that archive changes (file moves, status updates) are included in the
+single delivery commit.
 
-1. **Remove compiled binaries** — `go build ./...` may produce binaries in the repo root. Run `go clean` or delete explicitly. Check `.gitignore` covers build outputs.
+### Before /done: Remove build artifacts
+
+1. **Remove compiled binaries** — `go build ./...` may produce binaries in
+   the repo root. Run `go clean` or delete explicitly. Check `.gitignore`
+   covers build outputs.
+
+### After /done, before /commit: Stage all artifacts
+
 2. **Stage artifacts from this session** — Use the `artifacts_written` list
    from `.claude/session-state.md` (populated by the track-artifacts hook) to
    determine which files to stage. For each path in the list, run `git add`.
    Then check `git diff --name-only` for any modified tracked files not in the
    list (e.g., files modified by build tools) and stage those too.
+   This now includes archive file moves and status updates from `/done`.
    **Never use `git add -A` or `git add .`** — this risks staging untracked
    files from previous sessions. If session-state.md is unavailable, fall back
    to `git diff --name-only HEAD` for tracked changes only.
@@ -258,10 +270,32 @@ summary table:
 | design | (appended to backlog) | |
 | deliver | 5 files changed | 17 tests pass |
 | discern | APPROVED | |
-| commit | abc1234 | |
 | done | 2 archived | |
+| commit | abc1234 | |
 
 This gives operators per-phase visibility without parsing raw logs.
+
+---
+
+## Phase Completion Verification
+
+After the final phase completes, verify ALL phases in the range executed.
+Use the Progress tracker to check:
+
+1. Every phase between `--from` and `--through` has a `[x]` checkmark
+2. If any phase shows `[ ]` (unchecked), report it in the completion summary:
+
+   > INCOMPLETE: The following phases were in range but did not execute:
+   > - [phase name]
+   >
+   > Backlog item may have stale status. Run `/done [item_path]` manually.
+
+3. The completion summary MUST include the verification result:
+   - **All phases complete** — report normally
+   - **Phases skipped** — report as INCOMPLETE with the list above
+
+This verification runs even if the run appears successful. A committed
+codebase with unarchived backlog items is an incomplete lifecycle.
 
 ---
 

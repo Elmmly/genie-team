@@ -155,3 +155,13 @@ Prompt-level safety and observability fixes from first autonomous field test:
 | GT-34/AC-2 | AC-1 | `commands/run.md`, `commands/commit.md` | PR_CREATION_MODE propagation from preflight to commit |
 | GT-34/AC-3 | AC-1 | `commands/run.md`, `commands/commit.md` | Artifact-aware staging via session-state.md |
 | GT-34/AC-4 | AC-6 | `commands/run.md` | Per-phase metrics table in /run completion summary |
+
+## Implementation Evidence (Phase Completion)
+<!-- Appended by /deliver on 2026-02-13 from GT-35 -->
+
+Phase reorder and completion verification fixes from second autonomous field test:
+
+| Backlog AC | Spec AC | Files Changed | Description |
+|------------|---------|---------------|-------------|
+| GT-35/AC-1 | AC-1 | `commands/run.md` | Phase completion verification — checks all phases in range executed, reports INCOMPLETE with skipped phase list |
+| GT-35/AC-2 | AC-1 | `commands/run.md` | Reordered final phases to discern → done → commit; archive changes included in single delivery commit |
