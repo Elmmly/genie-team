@@ -303,11 +303,13 @@ Key: `${CLAUDE_PLUGIN_ROOT}` resolves to the plugin's cached install location, e
 
 ```json
 {
-  "imagegen": {
-    "command": "npx",
-    "args": ["-y", "@fastmcp-me/imagegen-mcp"],
-    "env": {
-      "GOOGLE_API_KEY": "${GOOGLE_API_KEY}"
+  "mcpServers": {
+    "imagegen": {
+      "command": "npx",
+      "args": ["-y", "@fastmcp-me/imagegen-mcp"],
+      "env": {
+        "GOOGLE_API_KEY": "${GOOGLE_API_KEY}"
+      }
     }
   }
 }
