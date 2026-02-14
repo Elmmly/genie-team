@@ -605,6 +605,58 @@ assert_eq "true" "$TRUNK_MODE" "parse_args: --verbose doesn't interfere with --t
 assert_eq "true" "$USE_WORKTREE" "parse_args: --verbose doesn't interfere with --worktree"
 
 # ═══════════════════════════════════════════════
+# Category 7d: --finish-mode flag (5 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- --finish-mode flag ---"
+
+# Test: --finish-mode default is --merge
+# Arrange
+# Act
+parse_args "test topic"
+# Assert
+assert_eq "--merge" "$FINISH_MODE" "parse_args: default FINISH_MODE is --merge"
+
+# Test: --finish-mode --leave-branch sets FINISH_MODE
+# Arrange
+# Act
+parse_args --finish-mode --leave-branch "test topic"
+# Assert
+assert_eq "--leave-branch" "$FINISH_MODE" "parse_args: --finish-mode --leave-branch sets FINISH_MODE"
+
+# Test: --finish-mode --pr sets FINISH_MODE
+# Arrange
+# Act
+parse_args --finish-mode --pr "test topic"
+# Assert
+assert_eq "--pr" "$FINISH_MODE" "parse_args: --finish-mode --pr sets FINISH_MODE"
+
+# Test: --finish-mode combined with --worktree --trunk
+# Arrange
+# Act
+parse_args --finish-mode --leave-branch --worktree --trunk "docs/backlog/P2-item.md"
+# Assert
+assert_eq "--leave-branch" "$FINISH_MODE" "parse_args: --finish-mode with --worktree --trunk sets FINISH_MODE"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --finish-mode doesn't interfere with --worktree"
+assert_eq "true" "$TRUNK_MODE" "parse_args: --finish-mode doesn't interfere with --trunk"
+
+# Test: worktree_teardown_success passes finish mode to session_finish
+# Arrange — mock session_finish to capture args
+setup_temp
+_original_session_finish=$(declare -f session_finish)
+session_finish() { echo "CALLED:$1:$2" > "$TEMP_DIR/session_finish_call.log"; return 0; }
+# Act
+worktree_teardown_success "P2-test-item" "--leave-branch"
+# Assert
+call_log=$(cat "$TEMP_DIR/session_finish_call.log" 2>/dev/null)
+assert_eq "CALLED:P2-test-item:--leave-branch" "$call_log" \
+    "worktree_teardown_success: passes finish mode to session_finish"
+# Restore original
+eval "$_original_session_finish"
+teardown_temp
+
+# ═══════════════════════════════════════════════
 # Category 8: run_phase (5 tests)
 # ═══════════════════════════════════════════════
 

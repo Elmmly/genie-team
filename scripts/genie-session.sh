@@ -8,7 +8,9 @@
 #
 # Function contract (locked by P2-autonomous-lifecycle-runner design):
 #   session_start <item> <phase>           → 0=success, 1=failure; stdout=path
-#   session_finish <item> [--pr|--merge|--force] → 0=success, 1=failure, 2=conflict; stdout=PR URL
+#   session_finish <item> [--pr|--merge|--force|--leave-branch] → 0=success, 1=failure, 2=conflict; stdout=PR URL
+#   session_integrate_trunk <item>         → 0=success, 1=failure, 2=rebase conflict
+#   session_integrate_pr <item>            → 0=success, 1=failure; stdout=PR URL
 #   session_worktree_path <item>           → 0=found, 1=not found; stdout=path
 #   session_cleanup_item <item>            → 0 (always); stdout=(none)
 
@@ -36,9 +38,10 @@ Commands:
   cleanup                  Remove all merged sessions
 
 Finish flags:
-  --pr      (default) Push branch and create PR via gh
-  --merge   Merge to default branch directly
-  --force   Force-remove worktree and branch (no PR/merge)
+  --pr           (default) Push branch and create PR via gh
+  --merge        Merge to default branch directly
+  --force        Force-remove worktree and branch (no PR/merge)
+  --leave-branch Remove worktree but keep branch for later integration
 
 Examples:
   genie-session start P2-search deliver
@@ -292,6 +295,23 @@ _gs_finish_pr() {
     return 0
 }
 
+_gs_finish_leave_branch() {
+    local item="$1"
+    local worktree_dir repo_root
+
+    repo_root=$(_gs_repo_root)
+    worktree_dir=$(_gs_worktree_dir "$item")
+
+    # Remove worktree only (branch stays for later integration)
+    if [[ -d "$worktree_dir" ]]; then
+        git -C "$repo_root" worktree remove "$worktree_dir" 2>/dev/null || \
+            git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+    fi
+
+    _gs_log "Detached worktree, branch preserved: $item"
+    return 0
+}
+
 # ── Public Functions (Runner Contract) ─────────────────────────
 
 session_start() {
@@ -342,18 +362,104 @@ session_finish() {
     local mode="pr"
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --pr)    mode="pr"; shift ;;
-            --merge) mode="merge"; shift ;;
-            --force) mode="force"; shift ;;
-            *)       _gs_error "Unknown flag: $1"; return 1 ;;
+            --pr)           mode="pr"; shift ;;
+            --merge)        mode="merge"; shift ;;
+            --force)        mode="force"; shift ;;
+            --leave-branch) mode="leave-branch"; shift ;;
+            *)              _gs_error "Unknown flag: $1"; return 1 ;;
         esac
     done
 
     case "$mode" in
-        force) _gs_finish_force "$item" ;;
-        merge) _gs_finish_merge "$item" ;;
-        pr)    _gs_finish_pr "$item" ;;
+        force)        _gs_finish_force "$item" ;;
+        merge)        _gs_finish_merge "$item" ;;
+        pr)           _gs_finish_pr "$item" ;;
+        leave-branch) _gs_finish_leave_branch "$item" ;;
     esac
+}
+
+session_integrate_trunk() {
+    local item="${1:?Usage: session_integrate_trunk <item>}"
+    local branch default_branch repo_root
+
+    repo_root=$(_gs_repo_root)
+    branch=$(_gs_find_branch "$item") || {
+        _gs_error "No branch found for item: $item"
+        return 1
+    }
+    default_branch=$(_gs_default_branch) || return 1
+
+    # Rebase branch onto default branch
+    if ! git -C "$repo_root" rebase "$default_branch" "$branch" -q 2>/dev/null; then
+        git -C "$repo_root" rebase --abort 2>/dev/null || true
+        _gs_error "Rebase conflict for $item. Branch preserved: $branch"
+        return 2
+    fi
+
+    # Fast-forward merge into default branch
+    if ! git -C "$repo_root" checkout "$default_branch" -q 2>/dev/null; then
+        _gs_error "Failed to checkout $default_branch"
+        return 1
+    fi
+
+    if ! git -C "$repo_root" merge --ff-only "$branch" -q 2>/dev/null; then
+        _gs_error "Fast-forward merge failed for $branch"
+        return 1
+    fi
+
+    # Delete the branch (safe -d: only if merged)
+    git -C "$repo_root" branch -d "$branch" 2>/dev/null || true
+
+    _gs_log "Integrated to trunk: $item"
+    return 0
+}
+
+session_integrate_pr() {
+    local item="${1:?Usage: session_integrate_pr <item>}"
+    local branch default_branch repo_root
+
+    repo_root=$(_gs_repo_root)
+    branch=$(_gs_find_branch "$item") || {
+        _gs_error "No branch found for item: $item"
+        return 1
+    }
+    default_branch=$(_gs_default_branch) || return 1
+
+    # Push branch to remote
+    if ! git -C "$repo_root" push --quiet -u origin "$branch" 2>/dev/null; then
+        _gs_error "Failed to push branch: $branch"
+        return 1
+    fi
+
+    # Create PR via gh or print manual instructions
+    if command -v gh >/dev/null 2>&1; then
+        local pr_url
+        pr_url=$(cd "$repo_root" && gh pr create \
+            --base "$default_branch" \
+            --head "$branch" \
+            --title "$(_gs_pr_title "$item")" \
+            --body "$(_gs_pr_body "$item")" 2>/dev/null) || true
+
+        if [[ -n "${pr_url:-}" ]]; then
+            echo "$pr_url"
+        else
+            local remote_url
+            remote_url=$(git -C "$repo_root" remote get-url origin 2>/dev/null)
+            _gs_log "PR creation failed. Branch pushed — create PR manually:"
+            _gs_log "  ${remote_url%.git}/compare/$branch"
+        fi
+    else
+        local remote_url
+        remote_url=$(git -C "$repo_root" remote get-url origin 2>/dev/null)
+        _gs_log "Branch pushed. gh CLI not available — create PR manually:"
+        _gs_log "  ${remote_url%.git}/compare/$branch"
+    fi
+
+    # Delete local branch
+    git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+
+    _gs_log "PR integration complete: $item"
+    return 0
 }
 
 session_worktree_path() {

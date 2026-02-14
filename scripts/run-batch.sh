@@ -74,7 +74,7 @@ Options:
   --verbose              Write full claude session traces to log dir
   --continue-on-failure  Keep going when an item fails (default: stop)
   --trunk                Use trunk-based mode (commit to main, no PRs)
-  --parallel N           Run N items concurrently (implies --worktree --trunk)
+  --parallel N           Run N items concurrently (implies --worktree)
   --dry-run              List matching items without executing
   -h, --help             Show this help
 EOF
@@ -109,10 +109,8 @@ cmd_deliver() {
         esac
     done
 
-    # --parallel implies --worktree --trunk
-    if [[ "$parallel_jobs" -gt 0 ]]; then
-        trunk_mode="true"
-    fi
+    # --parallel implies --worktree (branches are left for serialized integration)
+    # trunk_mode is independent — determines integration strategy (merge vs PR)
 
     # Build item list: explicit items or auto-discover from backlog
     # Format: "priority:phase:file" (phase is auto-detected or overridden)
@@ -197,8 +195,10 @@ cmd_deliver() {
     done
 
     if [[ "$dry_run" == "true" ]]; then
-        if [[ "$parallel_jobs" -gt 0 ]]; then
+        if [[ "$parallel_jobs" -gt 0 && "$trunk_mode" == "true" ]]; then
             log_info "Mode: parallel ($parallel_jobs workers, trunk-based, worktrees)"
+        elif [[ "$parallel_jobs" -gt 0 ]]; then
+            log_info "Mode: parallel ($parallel_jobs workers, PR-based, worktrees)"
         elif [[ "$trunk_mode" == "true" ]]; then
             log_info "Mode: sequential (trunk-based)"
         else
@@ -213,7 +213,7 @@ cmd_deliver() {
 
     # Dispatch to parallel or sequential execution
     if [[ "$parallel_jobs" -gt 0 ]]; then
-        deliver_parallel "$parallel_jobs" "$through_phase" "$log_dir" "$verbose_mode" "${items[@]}"
+        deliver_parallel "$parallel_jobs" "$through_phase" "$log_dir" "$verbose_mode" "$trunk_mode" "${items[@]}"
         return $?
     fi
 
@@ -284,7 +284,8 @@ deliver_parallel() {
     local through_phase="$2"
     local log_dir="$3"
     local verbose_mode="$4"
-    shift 4
+    local trunk_mode="$5"
+    shift 5
     local items=("$@")
 
     # Ensure log dir exists for per-item logs
@@ -333,8 +334,11 @@ deliver_parallel() {
 
         log_info "Starting [$item_idx/$total]: $item_basename ($item_phase → $through_phase)"
 
-        local pdlc_args=(--worktree --trunk --from "$item_phase" --through "$through_phase"
+        local pdlc_args=(--worktree --finish-mode --leave-branch --from "$item_phase" --through "$through_phase"
             --lock --cleanup-on-failure --log-dir "$log_dir")
+        if [[ "$trunk_mode" == "true" ]]; then
+            pdlc_args+=(--trunk)
+        fi
         if [[ "$verbose_mode" == "true" ]]; then
             pdlc_args+=(--verbose)
         fi
@@ -421,6 +425,51 @@ deliver_parallel() {
             sleep 5
         fi
     done
+
+    # ── Integration phase: serialize merges/PRs ──
+    if [[ ${#succeeded_items[@]} -gt 0 ]]; then
+        log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
+
+        # Source genie-session.sh for integrate functions
+        source "$SCRIPT_DIR/genie-session.sh"
+
+        local integrate_idx=0
+        while [[ $integrate_idx -lt ${#succeeded_items[@]} ]]; do
+            local file="${succeeded_items[$integrate_idx]}"
+            local item_slug
+            item_slug=$(basename "$file" .md)
+            log_info "Integrating: $item_slug"
+
+            if [[ "$trunk_mode" == "true" ]]; then
+                if session_integrate_trunk "$item_slug"; then
+                    log_info "Merged to trunk: $item_slug"
+                else
+                    local ec=$?
+                    if [[ $ec -eq 2 ]]; then
+                        merge_conflicts=$((merge_conflicts + 1))
+                        conflict_items+=("$file")
+                        log_error "Rebase conflict: $item_slug"
+                    else
+                        failed=$((failed + 1))
+                        failed_items+=("$file")
+                        log_error "Integration failed: $item_slug"
+                    fi
+                    succeeded=$((succeeded - 1))
+                fi
+            else
+                if session_integrate_pr "$item_slug"; then
+                    log_info "PR created: $item_slug"
+                else
+                    failed=$((failed + 1))
+                    failed_items+=("$file")
+                    log_error "PR creation failed: $item_slug"
+                    succeeded=$((succeeded - 1))
+                fi
+            fi
+
+            integrate_idx=$((integrate_idx + 1))
+        done
+    fi
 
     # Print summary
     print_parallel_summary "$succeeded" "$failed" "$merge_conflicts" "$start_time" "$log_dir" \

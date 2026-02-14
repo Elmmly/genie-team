@@ -123,6 +123,7 @@ parse_args() {
     TURNS_PER_PHASE=""
     CLEANUP_ON_FAILURE="false"
     TRUNK_MODE="false"
+    FINISH_MODE="--merge"
     VERBOSE_LOGGING="false"
 
     # Per-phase turn overrides
@@ -145,6 +146,7 @@ parse_args() {
             --turns-per-phase)   TURNS_PER_PHASE="$2"; shift 2 ;;
             --cleanup-on-failure) CLEANUP_ON_FAILURE="true"; shift ;;
             --trunk)             TRUNK_MODE="true"; shift ;;
+            --finish-mode)       FINISH_MODE="$2"; shift 2 ;;
             --verbose)           VERBOSE_LOGGING="true"; shift ;;
             --discover-turns)    DISCOVER_TURNS="$2"; shift 2 ;;
             --define-turns)      DEFINE_TURNS="$2"; shift 2 ;;
@@ -175,6 +177,7 @@ parse_args() {
                 echo ""
                 echo "Git:"
                 echo "  --trunk                 Use trunk-based mode (commit to main, no PRs)"
+                echo "  --finish-mode <mode>    Worktree finish mode (--merge|--pr|--leave-branch)"
                 echo ""
                 echo "Worktree:"
                 echo "  --cleanup-on-failure    Remove worktree on failure (default: preserve)"
@@ -550,7 +553,8 @@ worktree_setup() {
 
 worktree_teardown_success() {
     local item_slug="$1"
-    session_finish "$item_slug" --merge || {
+    local finish_mode="${2:---merge}"
+    session_finish "$item_slug" "$finish_mode" || {
         local ec=$?
         if [[ $ec -eq 2 ]]; then
             log_error "Merge conflict for $item_slug"
@@ -708,7 +712,7 @@ main() {
     # Worktree teardown on success
     if [[ "$USE_WORKTREE" == "true" && -n "$item_slug" ]]; then
         cd "${original_dir:-/}"
-        worktree_teardown_success "$item_slug"
+        worktree_teardown_success "$item_slug" "$FINISH_MODE"
         local teardown_ec=$?
         if [[ $teardown_ec -ne 0 ]]; then
             log_error "Worktree teardown failed (exit $teardown_ec)"
