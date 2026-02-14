@@ -228,13 +228,16 @@ No explicit `commands`, `agents`, `skills` fields needed — the plugin system a
 ```json
 {
   "name": "genie-team",
+  "metadata": {
+    "description": "Specialist AI genies for product discovery and delivery workflows"
+  },
   "owner": {
     "name": "Nolan Patterson"
   },
   "plugins": [
     {
       "name": "genie",
-      "source": ".",
+      "source": "./",
       "description": "Structured AI workflows for product discovery and delivery"
     }
   ]

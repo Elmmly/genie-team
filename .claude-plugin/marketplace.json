@@ -1,0 +1,16 @@
+{
+  "name": "genie-team",
+  "metadata": {
+    "description": "Specialist AI genies for product discovery and delivery workflows"
+  },
+  "owner": {
+    "name": "Nolan Patterson"
+  },
+  "plugins": [
+    {
+      "name": "genie",
+      "source": "./",
+      "description": "Structured AI workflows for product discovery and delivery"
+    }
+  ]
+}

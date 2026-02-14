@@ -1,0 +1,11 @@
+{
+  "name": "genie",
+  "version": "2.0.0",
+  "description": "Structured AI workflows for product discovery and delivery. 7 specialist genies, 30+ commands, TDD enforcement, and architecture governance.",
+  "author": {
+    "name": "Nolan Patterson"
+  },
+  "repository": "https://github.com/nolan/genie-team",
+  "license": "MIT",
+  "keywords": ["workflow", "tdd", "architecture", "product-discovery", "genies"]
+}
