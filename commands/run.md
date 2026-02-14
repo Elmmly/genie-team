@@ -237,4 +237,5 @@ Before the `/commit` phase, clean up build artifacts created during `/deliver`:
 - Conversation context is preserved across all phases (single session)
 - The backlog item's frontmatter `status` field tracks progression
 - For headless/cron use, see `scripts/run-pdlc.sh`
+- For overnight batch execution, see `scripts/run-batch.sh` (deliver all designed items or discover multiple topics)
 - For large-appetite items, consider splitting: `--through design` then `--from deliver` in separate sessions to avoid context limits

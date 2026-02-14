@@ -622,7 +622,8 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner)"
+    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner),"
+    echo "              run-batch (overnight batch delivery/discovery)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }
@@ -819,7 +820,8 @@ cmd_project() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner)"
+    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner),"
+    echo "              run-batch (overnight batch delivery/discovery)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }
