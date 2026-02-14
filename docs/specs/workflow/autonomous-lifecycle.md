@@ -124,7 +124,7 @@ discover → define → design → deliver → discern → commit → done
 - Gate detection primary source: read `verdict:` field from backlog item frontmatter (written by `/discern`). Fallback: regex parse output for APPROVED/BLOCKED/CHANGES REQUESTED. Frontmatter approach is structured, auditable, and survives output format changes.
 - Integration exit codes: `session_integrate_trunk` returns distinct codes (0=success, 1=no branch, 2=rebase conflict, 3=checkout failed, 4=merge failed). Integration loop logs specific failure reason per code. Batch completion writes `batch-manifest.json` to log directory.
 - `--recover` flag re-runs just the integration phase for items with existing unmerged `genie/*` branches, with optional `--priority` slug-prefix filtering. Runs sequentially (integration modifies shared state). Enables recovery without re-running expensive PDLC phases.
-- PATH command naming: `genies` (lifecycle runner), `genie-session` (session manager), `genie-quality` (quality checks). No `.sh` extensions for PATH commands. Internal `scripts/validate/*.sh` keep extensions.
+- PATH command naming: `genies` is the single CLI entry point (lifecycle runner + `session` subcommand + `quality` subcommand). `genie-session` is a library sourced by `genies`. No `.sh` extensions for PATH commands. Internal `scripts/validate/*.sh` keep extensions.
 
 ## Implementation Evidence
 <!-- Appended by /deliver on 2026-02-12 -->

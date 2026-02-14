@@ -35,7 +35,7 @@ Options:
   --agents            Install agents only
   --genies            Install genie specs only (project only)
   --schemas           Install schemas only
-  --scripts           Install scripts only (genies, genie-session)
+  --scripts           Install scripts only (genies)
   --hooks             Install hooks only (context re-injection)
   --mcp               Install MCP server only (imagegen for Designer genie)
   --all               Install everything (default, includes MCP)
@@ -110,7 +110,7 @@ setup_scripts_path() {
 
     {
         echo ""
-        echo "# Genie Team scripts (genies, genie-session)"
+        echo "# Genie Team scripts (genies)"
         echo "$PATH_EXPORT_LINE"
     } >> "$profile"
     log_success "Added scripts to PATH in $profile"
@@ -413,7 +413,7 @@ install_genies() {
     fi
 }
 
-# Install scripts (genies, genie-session, genie-quality)
+# Install scripts (genies only — single CLI entry point)
 install_scripts() {
     local dest="$1"
     local force="$2"
@@ -426,20 +426,35 @@ install_scripts() {
     mkdir -p "$dest"
     local count=0
 
-    for script in "$SCRIPT_DIR/scripts"/*; do
-        if [[ -f "$script" && -x "$script" ]]; then
-            local filename=$(basename "$script")
-            local target_file="$dest/$filename"
+    # Only install genies (the single entry point) to PATH.
+    # genie-session is a library sourced by genies (not a standalone command).
+    # genie-quality logic is inlined in genies quality subcommand.
+    local script="$SCRIPT_DIR/scripts/genies"
+    if [[ -f "$script" && -x "$script" ]]; then
+        local target_file="$dest/genies"
 
-            if [[ -f "$target_file" && "$force" != "true" ]]; then
-                log_warn "Skipping scripts/$filename (exists)"
-            else
-                cp "$script" "$target_file"
-                chmod +x "$target_file"
-                count=$((count + 1))
-            fi
+        if [[ -f "$target_file" && "$force" != "true" ]]; then
+            log_warn "Skipping scripts/genies (exists)"
+        else
+            cp "$script" "$target_file"
+            chmod +x "$target_file"
+            count=$((count + 1))
         fi
-    done
+    fi
+
+    # Copy genie-session library alongside genies (sourced, not on PATH directly)
+    local session_lib="$SCRIPT_DIR/scripts/genie-session"
+    if [[ -f "$session_lib" ]]; then
+        cp "$session_lib" "$dest/genie-session"
+        chmod +x "$dest/genie-session"
+    fi
+
+    # Copy validate/ directory (used by genies quality subcommand)
+    if [[ -d "$SCRIPT_DIR/scripts/validate" ]]; then
+        mkdir -p "$dest/validate"
+        cp "$SCRIPT_DIR/scripts/validate"/*.sh "$dest/validate/" 2>/dev/null || true
+        chmod +x "$dest/validate"/*.sh 2>/dev/null || true
+    fi
 
     if [[ $count -gt 0 ]]; then
         log_success "Installed $count scripts"
@@ -647,7 +662,7 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$GLOBAL_CLAUDE_DIR/schemas" "$force"
 
-    # Scripts installation (genies, genie-session, genie-quality)
+    # Scripts installation (genies)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         install_scripts "$GLOBAL_CLAUDE_DIR/scripts" "$force"
 
@@ -655,7 +670,7 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
         install_hooks "$GLOBAL_CLAUDE_DIR/hooks" "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/hooks" "$force"
 
-    # Add scripts to PATH (so genies, genie-session work from any project)
+    # Add scripts to PATH (so genies works from any project)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         setup_scripts_path "$dry_run"
 
@@ -684,13 +699,15 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    genies (autonomous runner + batch), genie-session (parallel worktrees)"
+    echo "  Scripts:    genies (autonomous runner + batch + session + quality)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
     echo ""
     echo "Scripts are on PATH — run from any project directory:"
     echo "  genies --parallel 3 --trunk --verbose"
     echo "  genies --through define \"explore auth improvements\""
+    echo "  genies session list"
+    echo "  genies quality docs/*.md"
 }
 
 # Project installation
@@ -819,7 +836,7 @@ cmd_project() {
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$project_path/schemas" "$force"
 
-    # Scripts installation (genies, genie-session, genie-quality)
+    # Scripts installation (genies)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         install_scripts "$project_path/scripts" "$force"
 
@@ -885,7 +902,7 @@ cmd_project() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    genies (autonomous runner + batch), genie-session (parallel sessions)"
+    echo "  Scripts:    genies (autonomous runner + batch + session + quality)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }

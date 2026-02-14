@@ -126,7 +126,7 @@ This capability builds on existing genie-team patterns:
 - Claude Code `--resume` works WITHIN a single worktree across chained commands, does NOT work ACROSS worktrees (Claude Code treats each worktree path as a separate project)
 - No cross-worktree coordination protocol — git's branch-per-worktree constraint is the isolation mechanism
 - No in-session dispatch from active Claude sessions — human users create worktrees and open new terminals; orchestrators use the CLI contract. Rationale: in-session dispatch degrades the human experience (no unified view, no result injection, log file monitoring instead of interactive control). The human IS the orchestrator in interactive mode.
-- Session management script (`scripts/genie-session`) uses dual-mode pattern: CLI subcommands when executed, sourceable functions when sourced (via `BASH_SOURCE` guard)
+- Session management library (`scripts/genie-session`) is sourced by `genies`; CLI access is via `genies session <command>` subcommand
 - Public functions use `session_` prefix; internal helpers use `_gs_` prefix to avoid namespace collisions when sourced
 - Function contract: return codes (0=success, 1=failure, 2=conflict) + stdout (paths/URLs) + stderr (progress/errors) separation
 - Worktree naming uses item slug only (`../{repo}--{item}`), not item+phase, because a single worktree may span multiple phases
@@ -199,3 +199,28 @@ These are NOT blocking for human-led parallel sessions (this item's primary deli
 | AC-9 | met | Source guard via BASH_SOURCE. session_start(), session_finish(), session_worktree_path(), session_cleanup_item() with documented return codes. |
 | AC-10 | met | session_cleanup_item() force-removes worktree+branch regardless of merge state, always returns 0. 5 tests. |
 | AC-11 | met | session_finish --force delegates to _gs_finish_force() which skips all checks. Always returns 0. 4 tests. |
+
+## Implementation Evidence (Unified CLI)
+<!-- Appended by /deliver on 2026-02-14 from P3-genies-subcommands -->
+
+### Test Coverage
+- `tests/test_run_pdlc.sh`: 13 new tests (Category 20) covering `genies session` and `genies quality` subcommand dispatch
+- `tests/test_session.sh`: 6 updated tests covering sourceability and CLI dispatch removal
+
+### Implementation Files
+- `scripts/genies`: Added subcommand dispatch (`session`, `quality`) before `main()`, updated `--help` text
+- `scripts/genie-session`: Removed CLI dispatch block; now a pure sourced library
+- `scripts/genie-quality`: Removed (logic inlined in `genies quality` subcommand)
+- `install.sh`: `install_scripts()` installs only `genies` to PATH; copies `genie-session` and `validate/` alongside as supporting files
+- `README.md`: Updated session examples, directory tree, install table
+
+## Review Verdict (Unified CLI)
+<!-- Updated by /discern on 2026-02-14 from P3-genies-subcommands -->
+
+**Verdict:** APPROVED
+**ACs verified:** 11/11 met (unchanged — this delivery adds a CLI access path without changing session behavior)
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-7 | met | CLI access now via `genies session` subcommand; same functions, same args, same exit codes |
+| AC-9 | met | `genie-session` remains sourceable; all function signatures and return codes preserved |

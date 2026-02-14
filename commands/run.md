@@ -12,13 +12,11 @@ Unlike `/feature` (which pauses for user confirmation at each transition), `/run
 
 `/run` is designed for unattended execution. Before invoking, ensure:
 
-**Permissions:** Claude Code's permission system will block file writes in default mode. Run with one of:
-- `--dangerously-skip-permissions` (simplest for unattended runs)
-- `--allowedTools "Read,Write,Edit,Glob,Grep,Bash,Task,Skill,TodoWrite"` (scoped)
+**Permissions:** The `genies` script skips permission prompts by default (passes `--dangerously-skip-permissions` to claude). To require interactive approvals, use `--no-skip-permissions`.
 
 **Example:**
 ```bash
-claude -p --dangerously-skip-permissions "/run \"add password reset\""
+claude -p "/run \"add password reset\""
 ```
 
 ---

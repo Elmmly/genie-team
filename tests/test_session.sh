@@ -594,21 +594,31 @@ echo ""
 echo "--- Sourceability ---"
 
 # Assert — functions are available (implicitly proven by all tests above)
-# This test verifies CLI dispatch works when executed directly
+# genie-session is a library sourced by genies, NOT a standalone CLI command.
+# Verify that sourcing works and functions are callable.
 
-# Arrange — test that executing the script with --help works
-# Act
-stdout=$("$SESSION_SH" --help 2>&1)
-ec=$?
-# Assert
-assert_contains "$stdout" "genie-session" \
-    "AC-5: CLI dispatch shows usage when executed directly"
+# Arrange — verify key functions are available after sourcing
+# Act/Assert
+assert_eq "0" "$(type -t session_start >/dev/null 2>&1; echo $?)" \
+    "AC-5: session_start available after sourcing"
+assert_eq "0" "$(type -t session_finish >/dev/null 2>&1; echo $?)" \
+    "AC-5: session_finish available after sourcing"
+assert_eq "0" "$(type -t session_list >/dev/null 2>&1; echo $?)" \
+    "AC-5: session_list available after sourcing"
+assert_eq "0" "$(type -t session_cleanup >/dev/null 2>&1; echo $?)" \
+    "AC-5: session_cleanup available after sourcing"
+assert_eq "0" "$(type -t session_cleanup_item >/dev/null 2>&1; echo $?)" \
+    "AC-5: session_cleanup_item available after sourcing"
 
-# Arrange — test that executing with unknown command fails
-"$SESSION_SH" "invalid-cmd" >/dev/null 2>&1
+# AC-3: genie-session is no longer a standalone CLI command
+# Executing it directly should NOT have a CLI dispatcher
+# Arrange/Act
+"$SESSION_SH" --help >/dev/null 2>&1
 ec=$?
-assert_exit_code "1" "$ec" \
-    "AC-5: CLI dispatch returns 1 for unknown command"
+
+# Assert — running directly does nothing (exits 0, no dispatch)
+assert_eq "0" "$ec" \
+    "AC-3: genie-session direct execution exits 0 (no CLI dispatch)"
 
 # ─────────────────────────────────────────────
 # Test: session_integrate_trunk exit codes (P1-integration-diagnostics)

@@ -2,9 +2,9 @@
 # genie-session — Session management for parallel worktree sessions
 #
 # Wraps git worktree ceremony into memorable commands and sourceable functions.
-# Operates in two modes:
-#   CLI mode:     genie-session start P2-search deliver
-#   Library mode: source genie-session; session_start "P2-search" "deliver"
+# This file is a library — sourced by genies for session management.
+#   CLI:     genies session start P2-search deliver
+#   Library: source genie-session; session_start "P2-search" "deliver"
 #
 # Function contract (locked by P2-autonomous-lifecycle-runner design):
 #   session_start <item> <phase>           → 0=success, 1=failure; stdout=path
@@ -28,7 +28,7 @@ _gs_error() {
 
 _gs_usage() {
     cat << 'EOF' >&2
-Usage: genie-session <command> [args]
+Usage: genies session <command> [args]
 
 Commands:
   start <item> <phase>     Create a new worktree session
@@ -44,11 +44,11 @@ Finish flags:
   --leave-branch Remove worktree but keep branch for later integration
 
 Examples:
-  genie-session start P2-search deliver
-  genie-session list
-  genie-session finish P2-search
-  genie-session finish P2-search --merge
-  genie-session cleanup
+  genies session start P2-search deliver
+  genies session list
+  genies session finish P2-search
+  genies session finish P2-search --merge
+  genies session cleanup
 EOF
 }
 
@@ -603,17 +603,5 @@ session_cleanup() {
 }
 
 # ── Source Guard ───────────────────────────────────────────────
-# When sourced by another script (e.g., genies), only function
-# definitions are loaded — the CLI dispatcher below is skipped.
-
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    case "${1:-}" in
-        start)        shift; session_start "$@" ;;
-        list)         session_list ;;
-        finish)       shift; session_finish "$@" ;;
-        cleanup-item) shift; session_cleanup_item "$@" ;;
-        cleanup)      session_cleanup ;;
-        -h|--help|"") _gs_usage ;;
-        *)            _gs_error "Unknown command: $1"; _gs_usage; exit 1 ;;
-    esac
-fi
+# This file is a library — sourced by genies for session functions.
+# CLI access is via: genies session <command> [args]

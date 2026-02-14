@@ -604,19 +604,19 @@ assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose + --trunk + --worktre
 assert_eq "true" "$TRUNK_MODE" "parse_args: --verbose doesn't interfere with --trunk"
 assert_eq "true" "$USE_WORKTREE" "parse_args: --verbose doesn't interfere with --worktree"
 
-# Test: --skip-permissions flag
+# Test: --no-skip-permissions flag
 # Arrange
 # Act
-parse_args --skip-permissions "test topic"
+parse_args --no-skip-permissions "test topic"
 # Assert
-assert_eq "true" "$SKIP_PERMISSIONS" "parse_args: --skip-permissions sets SKIP_PERMISSIONS"
+assert_eq "false" "$SKIP_PERMISSIONS" "parse_args: --no-skip-permissions sets SKIP_PERMISSIONS to false"
 
-# Test: --skip-permissions default is false
+# Test: skip-permissions default is true (headless runs skip by default)
 # Arrange
 # Act
 parse_args "test topic"
 # Assert
-assert_eq "false" "$SKIP_PERMISSIONS" "parse_args: default SKIP_PERMISSIONS is false"
+assert_eq "true" "$SKIP_PERMISSIONS" "parse_args: default SKIP_PERMISSIONS is true"
 
 # ═══════════════════════════════════════════════
 # Category 7d: --finish-mode flag (5 tests)
@@ -1432,6 +1432,66 @@ parse_args --recover --priority P1
 assert_eq "true" "$RECOVER_MODE" "--recover: works with --priority (recover mode set)"
 assert_eq "1" "${#PRIORITIES[@]}" "--recover: works with --priority (priority captured)"
 assert_eq "P1" "${PRIORITIES[0]}" "--recover: works with --priority (correct priority value)"
+
+# ═══════════════════════════════════════════════
+# Category 20: Subcommand dispatch (AC-1, AC-2)
+# ═══════════════════════════════════════════════
+echo ""
+echo "--- Category 20: Subcommand dispatch ---"
+
+# Test: genies --help still works (no subcommand = PDLC mode)
+# Arrange/Act
+output=$("$RUN_PDLC" --help 2>&1)
+ec=$?
+
+# Assert
+assert_eq "0" "$ec" "AC-1: genies --help exits 0 (PDLC mode preserved)"
+assert_contains "$output" "Usage:" "AC-1: genies --help shows usage"
+
+# Test: genies session --help dispatches to session help
+# Arrange/Act
+output=$("$RUN_PDLC" session --help 2>&1)
+ec=$?
+
+# Assert
+assert_eq "0" "$ec" "AC-1: genies session --help exits 0"
+assert_contains "$output" "start" "AC-1: genies session --help lists start command"
+assert_contains "$output" "list" "AC-1: genies session --help lists list command"
+assert_contains "$output" "finish" "AC-1: genies session --help lists finish command"
+assert_contains "$output" "cleanup" "AC-1: genies session --help lists cleanup command"
+
+# Test: genies session (no subcommand) shows help
+# Arrange/Act
+output=$("$RUN_PDLC" session 2>&1)
+ec=$?
+
+# Assert
+assert_eq "0" "$ec" "AC-1: genies session (bare) exits 0"
+assert_contains "$output" "start" "AC-1: genies session (bare) shows help"
+
+# Test: genies session invalid-cmd fails
+# Arrange/Act
+"$RUN_PDLC" session invalid-cmd >/dev/null 2>&1
+ec=$?
+
+# Assert
+assert_eq "1" "$ec" "AC-1: genies session invalid-cmd exits 1"
+
+# Test: genies quality --help / no args shows quality behavior
+# Arrange/Act — quality with no args should run validate scripts (may fail with no files, but should dispatch)
+output=$("$RUN_PDLC" quality 2>&1)
+ec=$?
+
+# Assert — quality dispatches (exit code 0 = all validators pass with no files)
+assert_eq "0" "$ec" "AC-2: genies quality exits 0 with no files"
+
+# Test: genies help includes subcommands
+# Arrange/Act
+output=$("$RUN_PDLC" --help 2>&1)
+
+# Assert
+assert_contains "$output" "session" "AC-1: genies --help mentions session subcommand"
+assert_contains "$output" "quality" "AC-2: genies --help mentions quality subcommand"
 
 # ═══════════════════════════════════════════════
 # Summary

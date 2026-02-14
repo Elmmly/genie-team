@@ -3,7 +3,8 @@ spec_version: "1.0"
 type: shaped-work
 id: P3-genies-subcommands
 title: "Unify CLI Under genies Subcommands"
-status: shaped
+status: done
+verdict: APPROVED
 created: "2026-02-14"
 appetite: small
 priority: P3
@@ -96,3 +97,55 @@ Users get a unified CLI surface. Standalone scripts are removed to avoid PATH cl
 ## Routing
 
 **Ready for:** `/design` (or skip to `/deliver` — subcommand routing is ~15 lines)
+
+# Implementation
+
+## Changes
+
+### `scripts/genies` — Subcommand dispatch (AC-1, AC-2)
+- Added `case` dispatch before `main "$@"`: `session` routes to sourced genie-session functions, `quality` runs validate scripts inline, `*` falls through to PDLC `main()`
+- Updated `--help` text to show `session` and `quality` subcommands
+
+### `scripts/genie-session` — Library-only mode (AC-3)
+- Removed CLI dispatch block (the `if BASH_SOURCE == $0` case statement)
+- File is now purely a library sourced by `genies`
+
+### `scripts/genie-quality` — Removed (AC-3)
+- Deleted standalone script; its 6-line loop logic is inlined in the `genies quality` subcommand
+
+### `install.sh` — Single entry point (AC-3)
+- `install_scripts()` now installs only `genies` as a PATH command
+- Also copies `genie-session` (library) and `validate/` directory alongside for sourcing
+- Updated all help text and summary output
+
+### `README.md` — Documentation (AC-4)
+- Session examples updated from `genie-session` to `genies session`
+- Directory tree updated to show `genies` as CLI entry point
+- Install table updated
+
+## Test Coverage
+- `tests/test_run_pdlc.sh`: 13 new tests (Category 20) covering subcommand dispatch
+- `tests/test_session.sh`: 6 updated tests covering sourceability and CLI dispatch removal
+- Total: 385 tests across all suites, all passing
+
+## Decisions
+- `quality` subcommand inlines the validate loop rather than `exec`ing the deleted script — avoids dependency on a file that no longer exists
+- `session` subcommand reuses the already-sourced genie-session functions (loaded at line 663 of genies) — no extra `source` call needed
+
+# Review
+<!-- Appended by /discern on 2026-02-14 -->
+
+**Verdict:** APPROVED
+**ACs verified:** 4/4 met
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | `case` dispatch at genies:1454-1465 routes session subcommands to sourced functions. 10 tests. |
+| AC-2 | met | Inlined validate loop at genies:1467-1475. Same behavior as deleted genie-quality. 2 tests. |
+| AC-3 | met | genie-quality deleted. genie-session CLI dispatch removed. install_scripts() installs only genies to PATH. |
+| AC-4 | met | README, install.sh help text updated. Spec design constraint updated. |
+
+Code quality: Clean, minimal. No behavior changes to underlying functions.
+Test coverage: 385 total, 0 failures. 13 new + 6 updated tests.
+Security: Pass (no new inputs, no privilege changes).
+Performance: Pass (dispatch is a single `case` statement).

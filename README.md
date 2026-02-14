@@ -88,7 +88,7 @@ This scans for existing specs, ADRs, diagrams, and backlog items, then recommend
 | **MCP** | Yes | Yes | Image generation server (Designer genie via Gemini) |
 | **Rules** | — | Yes | Always-on constraints (workflow, code quality, conventions) |
 | **Schemas** | — | Yes | Document format definitions (ADR, spec, shaped contract) |
-| **Scripts** | — | Yes | `genies` (headless runner), `genie-session` (parallel worktrees) |
+| **Scripts** | — | Yes | `genies` (headless runner + session management + quality checks) |
 
 <details>
 <summary>All script install options</summary>
@@ -101,7 +101,7 @@ This scans for existing specs, ADRs, diagrams, and backlog items, then recommend
 ./install.sh global --rules          # Rules only
 ./install.sh global --hooks          # Hooks only (context re-injection)
 ./install.sh global --schemas        # Schemas only
-./install.sh global --scripts        # Scripts only (genies, genie-session)
+./install.sh global --scripts        # Scripts only (genies)
 ./install.sh global --mcp            # MCP server only (imagegen)
 ./install.sh project /path/to/app    # Full project install
 ./install.sh project --skip-mcp      # Everything except MCP
@@ -316,23 +316,23 @@ Multiple genie-team sessions working on the same repo simultaneously via git wor
 
 ```bash
 # Start a parallel session
-genie-session start P2-search deliver
+genies session start P2-search deliver
 # → Creates ../myproject--P2-search on branch genie/P2-search-deliver
 
 # List active sessions
-genie-session list
+genies session list
 
 # Finish (push + PR, remove worktree)
-genie-session finish P2-search
+genies session finish P2-search
 
 # Or merge directly (trunk-based)
-genie-session finish P2-search --merge
+genies session finish P2-search --merge
 
 # Or leave branch for later integration (used by parallel batch)
-genie-session finish P2-search --leave-branch
+genies session finish P2-search --leave-branch
 
 # Clean up all merged sessions
-genie-session cleanup
+genies session cleanup
 ```
 
 Enable in your project's `CLAUDE.md` by uncommenting `<!-- worktree-enabled -->`.
@@ -522,9 +522,9 @@ genie-team/
 ├── schemas/             # Document format schemas
 ├── genies/              # Genie specs, system prompts, templates
 ├── scripts/
-│   ├── genies           # Headless lifecycle runner
-│   ├── genie-session    # Parallel session lifecycle
-│   └── genie-quality    # Quality validation checks
+│   ├── genies           # CLI entry point (lifecycle, session, quality)
+│   ├── genie-session    # Session library (sourced by genies)
+│   └── validate/        # Quality validation scripts
 ├── templates/           # Project templates (CLAUDE.md)
 ├── tests/               # Test suite
 └── install.sh           # Installation script
