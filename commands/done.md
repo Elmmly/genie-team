@@ -163,6 +163,23 @@ After `/discern` returns **APPROVED**:
 
 ---
 
+## Autonomous Safety
+
+When `/done` runs within an autonomous `/run` lifecycle:
+
+- **NEVER amend a previous commit.** Archive updates (status changes,
+  `current_work.md` updates, file moves) go in a NEW commit:
+  `chore(docs): archive {item-id}`. This is non-negotiable — amending a
+  pushed commit and force-pushing violates safety rules and can destroy
+  parallel session work.
+- **NEVER force-push.** If the branch has already been pushed, create a new
+  commit and push normally. If the push fails, report the error.
+- **Stage only archive-related changes** — status field updates in frontmatter,
+  file moves to `docs/archive/`, and `current_work.md` updates. Do not
+  re-stage delivery artifacts.
+
+---
+
 ## Routing
 
 After `/done`:

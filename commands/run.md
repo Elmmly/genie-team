@@ -191,6 +191,19 @@ Verify each tool exists and is authenticated:
 
 If `gh` is not installed or not authenticated, warn but continue — the commit phase will push the branch and print a manual PR URL as fallback.
 
+### Preflight state propagation
+
+After running preflight checks, set these session variables that later phases
+reference:
+
+| Variable | Source | Used By |
+|----------|--------|---------|
+| `PR_CREATION_MODE` | `gh auth status` exit code: 0 → `auto`, non-zero → `manual` | `/commit` phase |
+
+When `PR_CREATION_MODE` is `manual`, note this in the preflight output:
+> gh not authenticated — PR creation will be manual. Branch will be pushed,
+> manual PR URL printed.
+
 ### Clean build state
 Run the project's build and test commands. If either fails on the current branch before any changes are made, **STOP** — the codebase is broken and autonomous delivery will compound the problem.
 
@@ -219,13 +232,36 @@ Stopping on BLOCKED matches the "genie grants wishes literally" philosophy — d
 Before the `/commit` phase, clean up build artifacts created during `/deliver`:
 
 1. **Remove compiled binaries** — `go build ./...` may produce binaries in the repo root. Run `go clean` or delete explicitly. Check `.gitignore` covers build outputs.
-2. **Stage ALL artifacts** — The commit must include everything created during the run:
-   - Source code and tests (the implementation)
-   - `docs/analysis/` snapshots (from `/discover`)
-   - `docs/backlog/` updates (from `/define`, `/design`, `/deliver`, `/discern`)
-   - `docs/context/current_work.md` updates
-   - Any new config files, dashboards, migrations
-3. **Verify nothing is left behind** — Run `git status` after staging. Untracked files created during the run that aren't in `.gitignore` should be either staged or explicitly cleaned up.
+2. **Stage artifacts from this session** — Use the `artifacts_written` list
+   from `.claude/session-state.md` (populated by the track-artifacts hook) to
+   determine which files to stage. For each path in the list, run `git add`.
+   Then check `git diff --name-only` for any modified tracked files not in the
+   list (e.g., files modified by build tools) and stage those too.
+   **Never use `git add -A` or `git add .`** — this risks staging untracked
+   files from previous sessions. If session-state.md is unavailable, fall back
+   to `git diff --name-only HEAD` for tracked changes only.
+3. **Verify nothing is left behind** — Run `git status` after staging.
+   Untracked files NOT in the session's artifact list should be left unstaged
+   (they belong to other sessions or are leftover artifacts).
+
+---
+
+## Phase Metrics
+
+Track metrics as each phase completes. At the end of the run, include a
+summary table:
+
+| Phase | Artifacts | Notes |
+|-------|-----------|-------|
+| discover | docs/analysis/... | |
+| define | docs/backlog/... | |
+| design | (appended to backlog) | |
+| deliver | 5 files changed | 17 tests pass |
+| discern | APPROVED | |
+| commit | abc1234 | |
+| done | 2 archived | |
+
+This gives operators per-phase visibility without parsing raw logs.
 
 ---
 

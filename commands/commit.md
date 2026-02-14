@@ -144,8 +144,18 @@ The `/commit` command is a utility available at any point in the workflow:
 Following Claude Code git conventions:
 - **Never commit proactively** — only when explicitly invoked
 - **Check before amend** — verify HEAD commit authorship
-- **No force push** — warn if attempting
+- **No force push** — NEVER use `git push --force` or `--force-with-lease`.
+  If a push fails, report the error; do not force.
 - **Respect hooks** — don't skip pre-commit hooks
+- **Artifact-aware staging in /run context** — When invoked as part of `/run`,
+  use the `artifacts_written` list from `.claude/session-state.md` to stage
+  files. Never use `git add -A` or `git add .` in autonomous context.
+  If session-state.md is unavailable, fall back to `git diff --name-only HEAD`
+  for tracked changes only.
+- **Respect PR_CREATION_MODE** — If preflight set `PR_CREATION_MODE=manual`,
+  skip `gh pr create` entirely. Push the branch and print the manual PR URL:
+  `https://github.com/{owner}/{repo}/compare/{branch}?expand=1`.
+  Do not attempt `gh pr create` when gh is known to be unauthenticated.
 
 ---
 

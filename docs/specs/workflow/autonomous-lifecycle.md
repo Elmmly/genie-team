@@ -143,3 +143,15 @@ discover → define → design → deliver → discern → commit → done
 | AC-5 | unmet | Worktree stubs only — P2-session-management dependency not yet delivered |
 | AC-6 | met | `DEFAULT_TURNS`, `get_max_turns()`, `retry_phase()`, override flags, 2 retry tests |
 | AC-7 | met | Scheduling patterns in shaped contract with cron, CI/CD, GitHub Actions examples |
+
+## Implementation Evidence (Field Test Fixes)
+<!-- Appended by /deliver on 2026-02-13 from GT-34 -->
+
+Prompt-level safety and observability fixes from first autonomous field test:
+
+| Backlog AC | Spec AC | Files Changed | Description |
+|------------|---------|---------------|-------------|
+| GT-34/AC-1 | AC-1 | `commands/done.md`, `commands/commit.md` | No-amend, no-force-push rules for autonomous context |
+| GT-34/AC-2 | AC-1 | `commands/run.md`, `commands/commit.md` | PR_CREATION_MODE propagation from preflight to commit |
+| GT-34/AC-3 | AC-1 | `commands/run.md`, `commands/commit.md` | Artifact-aware staging via session-state.md |
+| GT-34/AC-4 | AC-6 | `commands/run.md` | Per-phase metrics table in /run completion summary |
