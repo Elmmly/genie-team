@@ -657,6 +657,35 @@ eval "$_original_session_finish"
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# Category 7e: --slug flag (3 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- --slug flag ---"
+
+# Test: --slug default is empty
+# Arrange
+# Act
+parse_args "test topic"
+# Assert
+assert_eq "" "$WORKTREE_SLUG" "parse_args: default WORKTREE_SLUG is empty"
+
+# Test: --slug my-item sets WORKTREE_SLUG
+# Arrange
+# Act
+parse_args --slug discover-1 "test topic"
+# Assert
+assert_eq "discover-1" "$WORKTREE_SLUG" "parse_args: --slug sets WORKTREE_SLUG"
+
+# Test: --slug combined with --worktree
+# Arrange
+# Act
+parse_args --slug discover-2 --worktree "test topic"
+# Assert
+assert_eq "discover-2" "$WORKTREE_SLUG" "parse_args: --slug with --worktree sets WORKTREE_SLUG"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --slug doesn't interfere with --worktree"
+
+# ═══════════════════════════════════════════════
 # Category 8: run_phase (5 tests)
 # ═══════════════════════════════════════════════
 

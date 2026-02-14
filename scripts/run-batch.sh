@@ -574,7 +574,11 @@ Options:
   --through <phase>      End phase (default: define)
   --topics-file <file>   Read topics from file (one per line)
   --log-dir <dir>        Log directory for run-pdlc.sh
+  --verbose              Write full claude session traces to log dir
   --continue-on-failure  Keep going when a topic fails (default: continue)
+  --trunk                Use trunk-based mode (commit to main, no PRs)
+  --parallel N           Run N topics concurrently (implies --worktree)
+  --dry-run              List topics without executing
   -h, --help             Show this help
 EOF
 }
@@ -584,6 +588,10 @@ cmd_discover() {
     local topics_file=""
     local log_dir=""
     local continue_on_failure="true"  # Default: continue for discover
+    local trunk_mode="false"
+    local parallel_jobs=0
+    local verbose_mode="false"
+    local dry_run="false"
     local topics=()
 
     while [[ $# -gt 0 ]]; do
@@ -591,7 +599,11 @@ cmd_discover() {
             --through)           through_phase="$2"; shift 2 ;;
             --topics-file)       topics_file="$2"; shift 2 ;;
             --log-dir)           log_dir="$2"; shift 2 ;;
+            --verbose)           verbose_mode="true"; shift ;;
             --stop-on-failure)   continue_on_failure="false"; shift ;;
+            --trunk)             trunk_mode="true"; shift ;;
+            --parallel)          parallel_jobs="$2"; shift 2 ;;
+            --dry-run)           dry_run="true"; shift ;;
             -h|--help)           discover_usage; exit 0 ;;
             -*)                  log_error "Unknown option: $1"; discover_usage; exit 3 ;;
             *)                   topics+=("$1"); shift ;;
@@ -622,7 +634,31 @@ cmd_discover() {
         log_info "  - $topic"
     done
 
-    # Execute each topic
+    if [[ "$dry_run" == "true" ]]; then
+        if [[ "$parallel_jobs" -gt 0 && "$trunk_mode" == "true" ]]; then
+            log_info "Mode: parallel ($parallel_jobs workers, trunk-based, worktrees)"
+        elif [[ "$parallel_jobs" -gt 0 ]]; then
+            log_info "Mode: parallel ($parallel_jobs workers, PR-based, worktrees)"
+        elif [[ "$trunk_mode" == "true" ]]; then
+            log_info "Mode: sequential (trunk-based)"
+        else
+            log_info "Mode: sequential"
+        fi
+        if [[ "$verbose_mode" == "true" ]]; then
+            log_info "Verbose logging: enabled"
+        fi
+        log_info "Through phase: $through_phase"
+        log_info "(dry run — not executing)"
+        exit 0
+    fi
+
+    # Dispatch to parallel or sequential execution
+    if [[ "$parallel_jobs" -gt 0 ]]; then
+        discover_parallel "$parallel_jobs" "$through_phase" "$log_dir" "$verbose_mode" "$trunk_mode" "${topics[@]}"
+        return $?
+    fi
+
+    # Execute each topic sequentially
     local succeeded=0
     local failed=0
     local failed_items=()
@@ -635,6 +671,12 @@ cmd_discover() {
         log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
         local pdlc_args=(--through "$through_phase" --lock)
+        if [[ "$trunk_mode" == "true" ]]; then
+            pdlc_args+=(--trunk)
+        fi
+        if [[ "$verbose_mode" == "true" ]]; then
+            pdlc_args+=(--verbose)
+        fi
         if [[ -n "$log_dir" ]]; then
             pdlc_args+=(--log-dir "$log_dir")
         fi
@@ -663,6 +705,214 @@ cmd_discover() {
         exit 1
     fi
     exit 0
+}
+
+# ─────────────────────────────────────────────
+# Parallel discover
+# ─────────────────────────────────────────────
+
+discover_parallel() {
+    local max_jobs="$1"
+    local through_phase="$2"
+    local log_dir="$3"
+    local verbose_mode="$4"
+    local trunk_mode="$5"
+    shift 5
+    local topics=("$@")
+
+    # Ensure log dir exists for per-topic logs
+    if [[ -z "$log_dir" ]]; then
+        log_dir="logs/discover-$(date +%Y%m%d-%H%M%S)"
+    fi
+    mkdir -p "$log_dir"
+
+    log_info "Parallel mode: ${#topics[@]} topics, $max_jobs workers"
+    log_info "Log directory: $log_dir"
+    if [[ "$verbose_mode" == "true" ]]; then
+        log_info "Verbose logging: enabled"
+    fi
+
+    local succeeded=0
+    local failed=0
+    local merge_conflicts=0
+    local start_time
+    start_time=$(date +%s)
+
+    # Parallel indexed arrays (Bash 3.2 compatible)
+    local pids=()
+    local pid_topics=()
+    local pid_logs=()
+    local pid_slugs=()
+
+    local failed_items=()
+    local conflict_items=()
+    local succeeded_items=()
+    local succeeded_slugs=()
+
+    local queue_idx=0
+    local total=${#topics[@]}
+
+    # Helper: launch a discover worker
+    _launch_discover_worker() {
+        local topic="$1"
+        local item_idx="$2"
+        local slug="discover-$item_idx"
+        local item_log="$log_dir/${slug}.log"
+
+        log_info "Starting [$item_idx/$total]: $slug (discover → $through_phase)"
+
+        local pdlc_args=(--worktree --slug "$slug"
+            --finish-mode --leave-branch
+            --from discover --through "$through_phase"
+            --lock --cleanup-on-failure --log-dir "$log_dir")
+        if [[ "$trunk_mode" == "true" ]]; then
+            pdlc_args+=(--trunk)
+        fi
+        if [[ "$verbose_mode" == "true" ]]; then
+            pdlc_args+=(--verbose)
+        fi
+        pdlc_args+=("$topic")
+
+        "$RUN_PDLC" "${pdlc_args[@]}" >"$item_log" 2>&1 &
+
+        echo "$!:$topic:$item_log:$slug"
+    }
+
+    # Launch initial batch of workers
+    while [[ $queue_idx -lt $total && ${#pids[@]} -lt $max_jobs ]]; do
+        local worker_info
+        worker_info=$(_launch_discover_worker "${topics[$queue_idx]}" "$((queue_idx + 1))")
+        pids+=("${worker_info%%:*}")
+        local rest="${worker_info#*:}"
+        pid_topics+=("${rest%%:*}")
+        rest="${rest#*:}"
+        pid_logs+=("${rest%%:*}")
+        pid_slugs+=("${rest#*:}")
+
+        queue_idx=$((queue_idx + 1))
+    done
+
+    # Poll for completion and refill slots
+    while [[ ${#pids[@]} -gt 0 ]]; do
+        local new_pids=()
+        local new_topics=()
+        local new_logs=()
+        local new_slugs=()
+
+        local idx=0
+        while [[ $idx -lt ${#pids[@]} ]]; do
+            local pid="${pids[$idx]}"
+            local topic="${pid_topics[$idx]}"
+            local item_log="${pid_logs[$idx]}"
+            local slug="${pid_slugs[$idx]}"
+
+            if ! kill -0 "$pid" 2>/dev/null; then
+                wait "$pid" 2>/dev/null
+                local ec=$?
+
+                if [[ $ec -eq 0 ]]; then
+                    succeeded=$((succeeded + 1))
+                    succeeded_items+=("$topic")
+                    succeeded_slugs+=("$slug")
+                    log_info "Completed: $slug"
+                elif [[ $ec -eq 2 ]]; then
+                    merge_conflicts=$((merge_conflicts + 1))
+                    conflict_items+=("$topic")
+                    log_error "Merge conflict: $slug (log: $item_log)"
+                else
+                    failed=$((failed + 1))
+                    failed_items+=("$topic")
+                    log_error "Failed (exit $ec): $slug (log: $item_log)"
+                fi
+
+                # Fill the slot with next queued topic
+                if [[ $queue_idx -lt $total ]]; then
+                    local worker_info
+                    worker_info=$(_launch_discover_worker "${topics[$queue_idx]}" "$((queue_idx + 1))")
+                    new_pids+=("${worker_info%%:*}")
+                    local rest="${worker_info#*:}"
+                    new_topics+=("${rest%%:*}")
+                    rest="${rest#*:}"
+                    new_logs+=("${rest%%:*}")
+                    new_slugs+=("${rest#*:}")
+
+                    queue_idx=$((queue_idx + 1))
+                fi
+            else
+                new_pids+=("$pid")
+                new_topics+=("$topic")
+                new_logs+=("$item_log")
+                new_slugs+=("$slug")
+            fi
+
+            idx=$((idx + 1))
+        done
+
+        pids=("${new_pids[@]+"${new_pids[@]}"}")
+        pid_topics=("${new_topics[@]+"${new_topics[@]}"}")
+        pid_logs=("${new_logs[@]+"${new_logs[@]}"}")
+        pid_slugs=("${new_slugs[@]+"${new_slugs[@]}"}")
+
+        if [[ ${#pids[@]} -gt 0 ]]; then
+            sleep 5
+        fi
+    done
+
+    # ── Integration phase: serialize merges/PRs ──
+    if [[ ${#succeeded_items[@]} -gt 0 ]]; then
+        log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
+
+        source "$SCRIPT_DIR/genie-session.sh"
+
+        local integrate_idx=0
+        while [[ $integrate_idx -lt ${#succeeded_items[@]} ]]; do
+            local slug="${succeeded_slugs[$integrate_idx]}"
+            local topic="${succeeded_items[$integrate_idx]}"
+            log_info "Integrating: $slug"
+
+            if [[ "$trunk_mode" == "true" ]]; then
+                if session_integrate_trunk "$slug"; then
+                    log_info "Merged to trunk: $slug"
+                else
+                    local ec=$?
+                    if [[ $ec -eq 2 ]]; then
+                        merge_conflicts=$((merge_conflicts + 1))
+                        conflict_items+=("$topic")
+                        log_error "Rebase conflict: $slug"
+                    else
+                        failed=$((failed + 1))
+                        failed_items+=("$topic")
+                        log_error "Integration failed: $slug"
+                    fi
+                    succeeded=$((succeeded - 1))
+                fi
+            else
+                if session_integrate_pr "$slug"; then
+                    log_info "PR created: $slug"
+                else
+                    failed=$((failed + 1))
+                    failed_items+=("$topic")
+                    log_error "PR creation failed: $slug"
+                    succeeded=$((succeeded - 1))
+                fi
+            fi
+
+            integrate_idx=$((integrate_idx + 1))
+        done
+    fi
+
+    # Print summary
+    print_parallel_summary "$succeeded" "$failed" "$merge_conflicts" "$start_time" "$log_dir" \
+        "${succeeded_items[@]+"${succeeded_items[@]}"}" \
+        "---" \
+        "${failed_items[@]+"${failed_items[@]}"}" \
+        "---" \
+        "${conflict_items[@]+"${conflict_items[@]}"}"
+
+    if [[ $failed -gt 0 || $merge_conflicts -gt 0 ]]; then
+        return 1
+    fi
+    return 0
 }
 
 # ─────────────────────────────────────────────
@@ -734,6 +984,11 @@ Examples:
     "add user preferences page" \
     "improve CLI error messages" \
     "add export to PDF"
+
+  # Discover 3 topics in parallel, full lifecycle, trunk-based
+  run-batch.sh discover --parallel 3 --trunk --verbose --through done \
+    --log-dir logs/overnight \
+    "topic one" "topic two" "topic three"
 
   # Discover topics from a file
   run-batch.sh discover --topics-file topics.txt

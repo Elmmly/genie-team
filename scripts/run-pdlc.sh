@@ -124,6 +124,7 @@ parse_args() {
     CLEANUP_ON_FAILURE="false"
     TRUNK_MODE="false"
     FINISH_MODE="--merge"
+    WORKTREE_SLUG=""
     VERBOSE_LOGGING="false"
 
     # Per-phase turn overrides
@@ -147,6 +148,7 @@ parse_args() {
             --cleanup-on-failure) CLEANUP_ON_FAILURE="true"; shift ;;
             --trunk)             TRUNK_MODE="true"; shift ;;
             --finish-mode)       FINISH_MODE="$2"; shift 2 ;;
+            --slug)              WORKTREE_SLUG="$2"; shift 2 ;;
             --verbose)           VERBOSE_LOGGING="true"; shift ;;
             --discover-turns)    DISCOVER_TURNS="$2"; shift 2 ;;
             --define-turns)      DEFINE_TURNS="$2"; shift 2 ;;
@@ -600,7 +602,7 @@ main() {
     local item_slug=""
     local original_dir=""
     if [[ "$USE_WORKTREE" == "true" ]]; then
-        item_slug=$(basename "$INPUT" .md)
+        item_slug="${WORKTREE_SLUG:-$(basename "$INPUT" .md)}"
         log_info "Setting up worktree for $item_slug"
         local worktree_path
         worktree_path=$(worktree_setup "$item_slug") || exit 1

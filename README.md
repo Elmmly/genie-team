@@ -322,6 +322,9 @@ scripts/genie-session finish P2-search
 # Or merge directly (trunk-based)
 scripts/genie-session finish P2-search --merge
 
+# Or leave branch for later integration (used by parallel batch)
+scripts/genie-session finish P2-search --leave-branch
+
 # Clean up all merged sessions
 scripts/genie-session cleanup
 ```
@@ -362,6 +365,30 @@ These decisions live in `docs/decisions/ADR-{NNN}-{slug}.md`. Then use the norma
 The Crafter reads ADRs and C4 diagrams during implementation. The Critic checks ADR compliance during review. No special infrastructure command needed — the same workflow that builds features also builds infrastructure.
 
 `/arch:init` documents the system in C4 diagrams showing containers, external systems, and deployment boundaries.
+
+### Batch Execution (`scripts/run-batch.sh`)
+
+Run multiple items in parallel with serialized integration:
+
+```bash
+# Deliver all actionable backlog items with 3 parallel workers, trunk-based
+scripts/run-batch.sh deliver --parallel 3 --trunk --verbose \
+  --log-dir logs/overnight
+
+# Deliver only P1 items (auto-detects phase from status)
+scripts/run-batch.sh deliver --priority P1 --parallel 2 --trunk \
+  --verbose --log-dir logs/p1-delivery
+
+# Discover 3 topics in parallel, full lifecycle to trunk
+scripts/run-batch.sh discover --parallel 3 --trunk --verbose \
+  --through done --log-dir logs/discovery \
+  "topic one" "topic two" "topic three"
+
+# Preview what would run (no execution)
+scripts/run-batch.sh deliver --parallel 3 --dry-run
+```
+
+Parallel mode uses git worktrees for isolation. Workers leave branches intact after completing, then the batch runner serializes integration (rebase+ff for `--trunk`, push+PR otherwise). Logs in `--log-dir` for post-run inspection.
 
 ### Scheduling with the Headless Runner
 
