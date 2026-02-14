@@ -1431,7 +1431,7 @@ main() {
     from_idx=$(phase_index "$FROM_PHASE")
     through_idx=$(phase_index "$THROUGH_PHASE")
 
-    log_info "Running PDLC: $FROM_PHASE → $THROUGH_PHASE"
+    log_info "Running Autonomous PDLC: $FROM_PHASE → $THROUGH_PHASE"
     log_info "Input: $INPUT"
     if [[ "$TRUNK_MODE" == "true" ]]; then
         log_info "Git mode: trunk-based"
