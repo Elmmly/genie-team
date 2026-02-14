@@ -128,6 +128,8 @@ assert_dir_not_exists() {
 if [[ -f "$SESSION_SH" ]]; then
     source "$SESSION_SH"
     set +eu  # Disable strict mode from sourced script — test harness manages exits
+    # Clear git env vars set by pre-commit (they override -C and break temp repo commands)
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 else
     echo -e "${RED}ERROR${NC} genie-session.sh not found at $SESSION_SH"
     echo "Tests require the implementation to exist (even if incomplete)."

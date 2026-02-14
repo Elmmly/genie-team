@@ -125,6 +125,8 @@ if [[ -f "$INSTALL_SH" ]]; then
     source "$INSTALL_SH"
     # install.sh sets -e; disable it — test harness manages its own exit codes
     set +e
+    # Clear git env vars set by pre-commit (they override -C and break temp repo commands)
+    unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 else
     echo -e "${RED}ERROR${NC} install.sh not found at $INSTALL_SH"
     echo "Tests require the implementation to exist (even if incomplete)."
@@ -134,6 +136,7 @@ fi
 # Setup: create temp git repo with a worktree
 setup() {
     TEMP_DIR="$(mktemp -d)"
+    TEMP_DIR="$(cd "$TEMP_DIR" && pwd -P)"  # Resolve symlinks (macOS /tmp → /private/tmp)
     MAIN_REPO="$TEMP_DIR/main-repo"
     WORKTREE_DIR="$TEMP_DIR/main-repo--session-a"
 

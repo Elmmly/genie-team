@@ -53,7 +53,15 @@ repos:
         exclude: ^docs/archive/
         types: [markdown]
 
-      # Tier 4: Source/installed copy sync (DISABLED — run install.sh --sync first)
+      # Tier 4: Test suite
+      - id: run-tests
+        name: Run test suite
+        entry: make test
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Tier 5: Source/installed copy sync (DISABLED — run install.sh --sync first)
       # Uncomment after syncing: install.sh project --sync
       # - id: check-source-sync
       #   name: Check source/installed sync
