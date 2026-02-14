@@ -604,6 +604,20 @@ assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose + --trunk + --worktre
 assert_eq "true" "$TRUNK_MODE" "parse_args: --verbose doesn't interfere with --trunk"
 assert_eq "true" "$USE_WORKTREE" "parse_args: --verbose doesn't interfere with --worktree"
 
+# Test: --skip-permissions flag
+# Arrange
+# Act
+parse_args --skip-permissions "test topic"
+# Assert
+assert_eq "true" "$SKIP_PERMISSIONS" "parse_args: --skip-permissions sets SKIP_PERMISSIONS"
+
+# Test: --skip-permissions default is false
+# Arrange
+# Act
+parse_args "test topic"
+# Assert
+assert_eq "false" "$SKIP_PERMISSIONS" "parse_args: default SKIP_PERMISSIONS is false"
+
 # ═══════════════════════════════════════════════
 # Category 7d: --finish-mode flag (5 tests)
 # ═══════════════════════════════════════════════

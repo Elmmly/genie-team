@@ -148,6 +148,7 @@ parse_args() {
     FINISH_MODE="--merge"
     WORKTREE_SLUG=""
     VERBOSE_LOGGING="false"
+    SKIP_PERMISSIONS="false"
 
     # Batch mode
     PARALLEL_JOBS=0
@@ -180,6 +181,7 @@ parse_args() {
             --finish-mode)       FINISH_MODE="$2"; shift 2 ;;
             --slug)              WORKTREE_SLUG="$2"; shift 2 ;;
             --verbose)           VERBOSE_LOGGING="true"; shift ;;
+            --skip-permissions)  SKIP_PERMISSIONS="true"; shift ;;
             --parallel)          PARALLEL_JOBS="$2"; shift 2 ;;
             --priority)          PRIORITIES+=("$2"); shift 2 ;;
             --dry-run)           DRY_RUN="true"; shift ;;
@@ -226,6 +228,7 @@ parse_args() {
                 echo ""
                 echo "Logging:"
                 echo "  --verbose               Write full claude session trace to log dir"
+                echo "  --skip-permissions      Pass --dangerously-skip-permissions to claude"
                 echo ""
                 echo "Git:"
                 echo "  --trunk                 Use trunk-based mode (commit to main, no PRs)"
@@ -395,6 +398,11 @@ run_phase() {
 
     local claude_args=(-p "$prompt" --max-turns "$max_turns" --allowedTools "$tools")
 
+    # Skip permissions for unattended execution
+    if [[ "${SKIP_PERMISSIONS:-false}" == "true" ]]; then
+        claude_args+=(--dangerously-skip-permissions)
+    fi
+
     # Verbose mode: stream-json for full trace; otherwise json for compact output
     if [[ "${VERBOSE_LOGGING:-false}" == "true" ]]; then
         claude_args+=(--verbose --output-format stream-json)
@@ -476,6 +484,10 @@ retry_phase() {
     tools="${PHASE_TOOLS[$idx]}"
 
     local claude_args=(-p "$prompt" --max-turns "$max_turns" --allowedTools "$tools" --resume "$prev_session")
+
+    if [[ "${SKIP_PERMISSIONS:-false}" == "true" ]]; then
+        claude_args+=(--dangerously-skip-permissions)
+    fi
 
     if [[ "${VERBOSE_LOGGING:-false}" == "true" ]]; then
         claude_args+=(--verbose --output-format stream-json)
@@ -865,6 +877,7 @@ run_batch_sequential() {
         local pdlc_args=(--from "$item_phase" --through "$THROUGH_PHASE" --lock)
         [[ "$TRUNK_MODE" == "true" ]] && pdlc_args+=(--trunk)
         [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
+        [[ "$SKIP_PERMISSIONS" == "true" ]] && pdlc_args+=(--skip-permissions)
         [[ -n "$LOG_DIR" ]] && pdlc_args+=(--log-dir "$LOG_DIR")
         pdlc_args+=("$input")
 
@@ -946,6 +959,7 @@ run_batch_parallel() {
             --slug "$slug")
         [[ "$TRUNK_MODE" == "true" ]] && pdlc_args+=(--trunk)
         [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
+        [[ "$SKIP_PERMISSIONS" == "true" ]] && pdlc_args+=(--skip-permissions)
         pdlc_args+=("$input")
 
         "$SELF" "${pdlc_args[@]}" >"$item_log" 2>&1 &
