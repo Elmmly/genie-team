@@ -88,6 +88,28 @@ get_field() {
     echo "$value"
 }
 
+# Convenience: extract a field directly from a file's frontmatter
+get_frontmatter_field() {
+    local file="$1"
+    local field="$2"
+    local fm
+    fm=$(extract_frontmatter "$file")
+    get_field "$fm" "$field"
+}
+
+# Map backlog item status to the next phase to run
+# Returns empty string for non-actionable statuses (done, abandoned)
+status_to_phase() {
+    local status="$1"
+    case "$status" in
+        defined|shaped) echo "design" ;;
+        designed)       echo "deliver" ;;
+        implemented)    echo "discern" ;;
+        reviewed)       echo "done" ;;
+        *)              echo "" ;;
+    esac
+}
+
 # ─────────────────────────────────────────────
 # Core Functions
 # ─────────────────────────────────────────────
@@ -127,6 +149,14 @@ parse_args() {
     WORKTREE_SLUG=""
     VERBOSE_LOGGING="false"
 
+    # Batch mode
+    PARALLEL_JOBS=0
+    PRIORITIES=()
+    DRY_RUN="false"
+    CONTINUE_ON_FAILURE="false"
+    TOPICS_FILE=""
+    INPUTS=()
+
     # Per-phase turn overrides
     DISCOVER_TURNS=""
     DEFINE_TURNS=""
@@ -150,6 +180,11 @@ parse_args() {
             --finish-mode)       FINISH_MODE="$2"; shift 2 ;;
             --slug)              WORKTREE_SLUG="$2"; shift 2 ;;
             --verbose)           VERBOSE_LOGGING="true"; shift ;;
+            --parallel)          PARALLEL_JOBS="$2"; shift 2 ;;
+            --priority)          PRIORITIES+=("$2"); shift 2 ;;
+            --dry-run)           DRY_RUN="true"; shift ;;
+            --continue-on-failure) CONTINUE_ON_FAILURE="true"; shift ;;
+            --topics-file)       TOPICS_FILE="$2"; shift 2 ;;
             --discover-turns)    DISCOVER_TURNS="$2"; shift 2 ;;
             --define-turns)      DEFINE_TURNS="$2"; shift 2 ;;
             --design-turns)      DESIGN_TURNS="$2"; shift 2 ;;
@@ -158,11 +193,26 @@ parse_args() {
             --commit-turns)      COMMIT_TURNS="$2"; shift 2 ;;
             --done-turns)        DONE_TURNS="$2"; shift 2 ;;
             -h|--help)
-                echo "Usage: run-pdlc.sh [OPTIONS] <topic|backlog-item-path>"
+                echo "Usage: run-pdlc.sh [OPTIONS] [<topic|backlog-item-path>...]"
+                echo ""
+                echo "Single item (one input, no --parallel):"
+                echo "  run-pdlc.sh [OPTIONS] <topic|backlog-item-path>"
+                echo ""
+                echo "Batch mode (triggers: --parallel, multiple inputs, or no inputs):"
+                echo "  run-pdlc.sh --parallel 3 --trunk      # scan backlog, 3 workers"
+                echo "  run-pdlc.sh --dry-run                  # preview actionable items"
+                echo "  run-pdlc.sh item1.md item2.md          # specific items"
                 echo ""
                 echo "Phase range:"
                 echo "  --from <phase>          Start phase (default: discover)"
                 echo "  --through <phase>       End phase (default: done)"
+                echo ""
+                echo "Batch:"
+                echo "  --parallel <N>          Run N items concurrently in worktrees"
+                echo "  --priority <P1|P2|P3>   Filter by priority (repeatable)"
+                echo "  --dry-run               Preview matching items without executing"
+                echo "  --continue-on-failure   Don't stop on first failure"
+                echo "  --topics-file <file>    Load discovery topics from file"
                 echo ""
                 echo "Execution:"
                 echo "  --worktree              Run in isolated worktree"
@@ -186,7 +236,8 @@ parse_args() {
                 exit 0
                 ;;
             *)
-                # Positional argument is the input (topic or path)
+                # Positional argument — append to INPUTS array
+                INPUTS+=("$1")
                 if [[ -z "$INPUT" ]]; then
                     INPUT="$1"
                 fi
@@ -536,6 +587,7 @@ release_lock() {
 
 # Source genie-session.sh for worktree lifecycle management
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+SELF="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
 GENIE_SESSION="$SCRIPT_DIR/genie-session.sh"
 if [[ -f "$GENIE_SESSION" ]]; then
     # shellcheck source=genie-session.sh
@@ -575,11 +627,496 @@ worktree_teardown_failure() {
 }
 
 # ─────────────────────────────────────────────
+# Batch Mode Functions
+# ─────────────────────────────────────────────
+
+# Resolve batch items from inputs or backlog scan
+# Sets: BATCH_ITEMS array (format: "phase:input")
+resolve_batch_items() {
+    BATCH_ITEMS=()
+
+    # Load topics from --topics-file
+    if [[ -n "${TOPICS_FILE:-}" ]]; then
+        if [[ ! -f "$TOPICS_FILE" ]]; then
+            log_error "Topics file not found: $TOPICS_FILE"
+            exit 3
+        fi
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ -z "$line" || "$line" =~ ^# ]] && continue
+            INPUTS+=("$line")
+        done < "$TOPICS_FILE"
+    fi
+
+    if [[ ${#INPUTS[@]} -eq 0 ]]; then
+        # Auto-scan backlog for actionable items
+        local backlog_dir="docs/backlog"
+        if [[ ! -d "$backlog_dir" ]]; then
+            log_error "Backlog directory not found: $backlog_dir"
+            exit 3
+        fi
+
+        for file in "$backlog_dir"/*.md; do
+            [[ -f "$file" ]] || continue
+            # Skip files without frontmatter (e.g., README.md)
+            head -1 "$file" | grep -q '^---$' || continue
+
+            local status item_phase priority
+            status=$(get_frontmatter_field "$file" "status")
+            item_phase=$(status_to_phase "$status")
+            [[ -n "$item_phase" ]] || continue
+
+            # Priority filter
+            if [[ ${#PRIORITIES[@]} -gt 0 ]]; then
+                priority=$(get_frontmatter_field "$file" "priority")
+                local match="false"
+                for p in "${PRIORITIES[@]}"; do
+                    [[ "$priority" == "$p" ]] && { match="true"; break; }
+                done
+                [[ "$match" == "true" ]] || continue
+            fi
+
+            BATCH_ITEMS+=("$item_phase:$file")
+        done
+    else
+        # Process explicit inputs
+        for input in "${INPUTS[@]}"; do
+            if [[ -f "$input" ]]; then
+                # File — auto-detect phase from status
+                head -1 "$input" | grep -q '^---$' || {
+                    log_info "Skipping $input (no frontmatter)"
+                    continue
+                }
+                local status item_phase
+                status=$(get_frontmatter_field "$input" "status")
+                item_phase=$(status_to_phase "$status")
+                [[ -n "$item_phase" ]] || {
+                    log_info "Skipping $input (status: $status — not actionable)"
+                    continue
+                }
+                BATCH_ITEMS+=("$item_phase:$input")
+            else
+                # Topic string — start from discover
+                BATCH_ITEMS+=("discover:$input")
+            fi
+        done
+    fi
+
+    # Sort (P1-* files sort before P2-*)
+    if [[ ${#BATCH_ITEMS[@]} -gt 1 ]]; then
+        local sorted
+        sorted=$(printf '%s\n' "${BATCH_ITEMS[@]}" | sort)
+        BATCH_ITEMS=()
+        while IFS= read -r line; do
+            BATCH_ITEMS+=("$line")
+        done <<< "$sorted"
+    fi
+}
+
+# Print batch dry-run preview
+print_batch_dry_run() {
+    log_info "Found ${#BATCH_ITEMS[@]} actionable item(s):"
+    for entry in "${BATCH_ITEMS[@]}"; do
+        local item_phase="${entry%%:*}"
+        local input="${entry#*:}"
+        if [[ -f "$input" ]]; then
+            local title
+            title=$(get_frontmatter_field "$input" "title")
+            log_info "  $(basename "$input"): $title (from: $item_phase)"
+        else
+            log_info "  $input (from: $item_phase)"
+        fi
+    done
+
+    if [[ "$PARALLEL_JOBS" -gt 0 && "$TRUNK_MODE" == "true" ]]; then
+        log_info "Mode: parallel ($PARALLEL_JOBS workers, trunk-based, worktrees)"
+    elif [[ "$PARALLEL_JOBS" -gt 0 ]]; then
+        log_info "Mode: parallel ($PARALLEL_JOBS workers, PR-based, worktrees)"
+    elif [[ "$TRUNK_MODE" == "true" ]]; then
+        log_info "Mode: sequential (trunk-based)"
+    else
+        log_info "Mode: sequential"
+    fi
+    log_info "(dry run — not executing)"
+}
+
+# Print batch summary (sequential mode)
+print_batch_summary() {
+    local succeeded="$1"
+    local failed="$2"
+    local start_time="$3"
+    shift 3
+    local failed_items=("$@")
+
+    local end_time duration_mins
+    end_time=$(date +%s)
+    duration_mins=$(( (end_time - start_time) / 60 ))
+
+    echo >&2
+    log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_info "BATCH SUMMARY"
+    log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_info "Succeeded: $succeeded"
+    log_info "Failed:    $failed"
+    log_info "Duration:  ${duration_mins}m"
+
+    if [[ ${#failed_items[@]} -gt 0 ]]; then
+        log_info "Failed items:"
+        for item in "${failed_items[@]}"; do
+            log_info "  - $item"
+        done
+    fi
+}
+
+# Print batch summary (parallel mode)
+print_batch_parallel_summary() {
+    local succeeded="$1"
+    local failed="$2"
+    local conflicts="$3"
+    local start_time="$4"
+    shift 4
+
+    # Parse delimiter-separated lists
+    local succeeded_items=()
+    local failed_items=()
+    local conflict_items=()
+    local current_list="succeeded"
+
+    for arg in "$@"; do
+        if [[ "$arg" == "---" ]]; then
+            if [[ "$current_list" == "succeeded" ]]; then
+                current_list="failed"
+            else
+                current_list="conflict"
+            fi
+            continue
+        fi
+        case "$current_list" in
+            succeeded)  succeeded_items+=("$arg") ;;
+            failed)     failed_items+=("$arg") ;;
+            conflict)   conflict_items+=("$arg") ;;
+        esac
+    done
+
+    local end_time duration_mins
+    end_time=$(date +%s)
+    duration_mins=$(( (end_time - start_time) / 60 ))
+
+    echo >&2
+    log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_info "BATCH SUMMARY (parallel)"
+    log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log_info "Succeeded:       $succeeded"
+    log_info "Failed:          $failed"
+    log_info "Merge conflicts: $conflicts"
+    log_info "Duration:        ${duration_mins}m"
+    log_info "Logs:            $LOG_DIR/"
+
+    if [[ ${#succeeded_items[@]} -gt 0 ]]; then
+        log_info ""
+        log_info "Succeeded:"
+        for item in "${succeeded_items[@]}"; do
+            log_info "  $(basename "$item" .md)"
+        done
+    fi
+
+    if [[ ${#failed_items[@]} -gt 0 ]]; then
+        log_info ""
+        log_info "Failed:"
+        for item in "${failed_items[@]}"; do
+            local item_basename
+            item_basename=$(basename "$item" .md)
+            log_info "  $item_basename → $LOG_DIR/${item_basename}.log"
+        done
+    fi
+
+    if [[ ${#conflict_items[@]} -gt 0 ]]; then
+        log_info ""
+        log_info "Merge conflicts:"
+        for item in "${conflict_items[@]}"; do
+            local item_basename
+            item_basename=$(basename "$item" .md)
+            log_info "  $item_basename → $LOG_DIR/${item_basename}.log"
+        done
+    fi
+}
+
+# Execute batch items sequentially
+run_batch_sequential() {
+    local succeeded=0
+    local failed=0
+    local failed_items=()
+    local start_time
+    start_time=$(date +%s)
+
+    for entry in "${BATCH_ITEMS[@]}"; do
+        local item_phase="${entry%%:*}"
+        local input="${entry#*:}"
+        local display_name
+        if [[ -f "$input" ]]; then
+            display_name=$(basename "$input" .md)
+        else
+            display_name="$input"
+        fi
+
+        log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        log_info "Running: $display_name ($item_phase → $THROUGH_PHASE)"
+        log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+        local pdlc_args=(--from "$item_phase" --through "$THROUGH_PHASE" --lock)
+        [[ "$TRUNK_MODE" == "true" ]] && pdlc_args+=(--trunk)
+        [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
+        [[ -n "$LOG_DIR" ]] && pdlc_args+=(--log-dir "$LOG_DIR")
+        pdlc_args+=("$input")
+
+        if "$SELF" "${pdlc_args[@]}"; then
+            succeeded=$((succeeded + 1))
+            log_info "Completed: $display_name"
+        else
+            local ec=$?
+            failed=$((failed + 1))
+            failed_items+=("$input")
+            log_error "Failed (exit $ec): $display_name"
+
+            if [[ "$CONTINUE_ON_FAILURE" != "true" ]]; then
+                log_error "Stopping batch (use --continue-on-failure to keep going)"
+                print_batch_summary "$succeeded" "$failed" "$start_time" "${failed_items[@]}"
+                exit 2
+            fi
+        fi
+    done
+
+    print_batch_summary "$succeeded" "$failed" "$start_time" "${failed_items[@]+"${failed_items[@]}"}"
+
+    if [[ $failed -gt 0 ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# Execute batch items in parallel with worker pool
+run_batch_parallel() {
+    # Ensure log dir exists
+    if [[ -z "$LOG_DIR" ]]; then
+        LOG_DIR="logs/batch-$(date +%Y%m%d-%H%M%S)"
+    fi
+    mkdir -p "$LOG_DIR"
+
+    log_info "Parallel mode: ${#BATCH_ITEMS[@]} items, $PARALLEL_JOBS workers"
+    log_info "Log directory: $LOG_DIR"
+
+    local succeeded=0
+    local failed=0
+    local merge_conflicts=0
+    local start_time
+    start_time=$(date +%s)
+
+    # Parallel indexed arrays (Bash 3.2 compatible — no associative arrays, no wait -n)
+    local pids=()
+    local pid_inputs=()
+    local pid_logs=()
+    local pid_slugs=()
+
+    local failed_items=()
+    local conflict_items=()
+    local succeeded_items=()
+    local succeeded_slugs=()
+
+    local queue_idx=0
+    local total=${#BATCH_ITEMS[@]}
+
+    # Launch a parallel worker
+    _launch_batch_worker() {
+        local entry="$1"
+        local item_idx="$2"
+        local item_phase="${entry%%:*}"
+        local input="${entry#*:}"
+        local slug
+        if [[ -f "$input" ]]; then
+            slug=$(basename "$input" .md)
+        else
+            slug="batch-$item_idx"
+        fi
+        local item_log="$LOG_DIR/${slug}.log"
+
+        log_info "Starting [$item_idx/$total]: $slug ($item_phase → $THROUGH_PHASE)"
+
+        local pdlc_args=(--worktree --finish-mode --leave-branch
+            --from "$item_phase" --through "$THROUGH_PHASE"
+            --lock --cleanup-on-failure --log-dir "$LOG_DIR"
+            --slug "$slug")
+        [[ "$TRUNK_MODE" == "true" ]] && pdlc_args+=(--trunk)
+        [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
+        pdlc_args+=("$input")
+
+        "$SELF" "${pdlc_args[@]}" >"$item_log" 2>&1 &
+
+        echo "$!:$input:$item_log:$slug"
+    }
+
+    # Launch initial batch of workers
+    while [[ $queue_idx -lt $total && ${#pids[@]} -lt $PARALLEL_JOBS ]]; do
+        local worker_info
+        worker_info=$(_launch_batch_worker "${BATCH_ITEMS[$queue_idx]}" "$((queue_idx + 1))")
+        pids+=("${worker_info%%:*}")
+        local rest="${worker_info#*:}"
+        pid_inputs+=("${rest%%:*}")
+        rest="${rest#*:}"
+        pid_logs+=("${rest%%:*}")
+        pid_slugs+=("${rest#*:}")
+
+        queue_idx=$((queue_idx + 1))
+    done
+
+    # Poll for completion and refill slots
+    while [[ ${#pids[@]} -gt 0 ]]; do
+        local new_pids=()
+        local new_inputs=()
+        local new_logs=()
+        local new_slugs=()
+
+        local idx=0
+        while [[ $idx -lt ${#pids[@]} ]]; do
+            local pid="${pids[$idx]}"
+            local input="${pid_inputs[$idx]}"
+            local item_log="${pid_logs[$idx]}"
+            local slug="${pid_slugs[$idx]}"
+
+            if ! kill -0 "$pid" 2>/dev/null; then
+                wait "$pid" 2>/dev/null
+                local ec=$?
+
+                if [[ $ec -eq 0 ]]; then
+                    succeeded=$((succeeded + 1))
+                    succeeded_items+=("$input")
+                    succeeded_slugs+=("$slug")
+                    log_info "Completed: $slug"
+                elif [[ $ec -eq 2 ]]; then
+                    merge_conflicts=$((merge_conflicts + 1))
+                    conflict_items+=("$input")
+                    log_error "Merge conflict: $slug (log: $item_log)"
+                else
+                    failed=$((failed + 1))
+                    failed_items+=("$input")
+                    log_error "Failed (exit $ec): $slug (log: $item_log)"
+                fi
+
+                # Fill the slot with next queued item
+                if [[ $queue_idx -lt $total ]]; then
+                    local worker_info
+                    worker_info=$(_launch_batch_worker "${BATCH_ITEMS[$queue_idx]}" "$((queue_idx + 1))")
+                    new_pids+=("${worker_info%%:*}")
+                    local rest="${worker_info#*:}"
+                    new_inputs+=("${rest%%:*}")
+                    rest="${rest#*:}"
+                    new_logs+=("${rest%%:*}")
+                    new_slugs+=("${rest#*:}")
+
+                    queue_idx=$((queue_idx + 1))
+                fi
+            else
+                new_pids+=("$pid")
+                new_inputs+=("$input")
+                new_logs+=("$item_log")
+                new_slugs+=("$slug")
+            fi
+
+            idx=$((idx + 1))
+        done
+
+        pids=("${new_pids[@]+"${new_pids[@]}"}")
+        pid_inputs=("${new_inputs[@]+"${new_inputs[@]}"}")
+        pid_logs=("${new_logs[@]+"${new_logs[@]}"}")
+        pid_slugs=("${new_slugs[@]+"${new_slugs[@]}"}")
+
+        if [[ ${#pids[@]} -gt 0 ]]; then
+            sleep 5
+        fi
+    done
+
+    # ── Integration phase: serialize merges/PRs ──
+    if [[ ${#succeeded_items[@]} -gt 0 ]]; then
+        log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
+
+        local integrate_idx=0
+        while [[ $integrate_idx -lt ${#succeeded_items[@]} ]]; do
+            local slug="${succeeded_slugs[$integrate_idx]}"
+            local input="${succeeded_items[$integrate_idx]}"
+            log_info "Integrating: $slug"
+
+            if [[ "$TRUNK_MODE" == "true" ]]; then
+                if session_integrate_trunk "$slug"; then
+                    log_info "Merged to trunk: $slug"
+                else
+                    local ec=$?
+                    if [[ $ec -eq 2 ]]; then
+                        merge_conflicts=$((merge_conflicts + 1))
+                        conflict_items+=("$input")
+                        log_error "Rebase conflict: $slug"
+                    else
+                        failed=$((failed + 1))
+                        failed_items+=("$input")
+                        log_error "Integration failed: $slug"
+                    fi
+                    succeeded=$((succeeded - 1))
+                fi
+            else
+                if session_integrate_pr "$slug"; then
+                    log_info "PR created: $slug"
+                else
+                    failed=$((failed + 1))
+                    failed_items+=("$input")
+                    log_error "PR creation failed: $slug"
+                    succeeded=$((succeeded - 1))
+                fi
+            fi
+
+            integrate_idx=$((integrate_idx + 1))
+        done
+    fi
+
+    # Print summary
+    print_batch_parallel_summary "$succeeded" "$failed" "$merge_conflicts" "$start_time" \
+        "${succeeded_items[@]+"${succeeded_items[@]}"}" \
+        "---" \
+        "${failed_items[@]+"${failed_items[@]}"}" \
+        "---" \
+        "${conflict_items[@]+"${conflict_items[@]}"}"
+
+    if [[ $failed -gt 0 || $merge_conflicts -gt 0 ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# ─────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────
 
 main() {
     parse_args "$@"
+
+    # Batch mode check: --parallel, multiple inputs, or no inputs
+    if [[ "$PARALLEL_JOBS" -gt 0 || ${#INPUTS[@]} -gt 1 || ${#INPUTS[@]} -eq 0 ]]; then
+        resolve_batch_items
+        if [[ ${#BATCH_ITEMS[@]} -eq 0 ]]; then
+            log_info "No actionable items found matching filters."
+            exit 0
+        fi
+        if [[ "$DRY_RUN" == "true" ]]; then
+            print_batch_dry_run
+            exit 0
+        fi
+        if [[ "$PARALLEL_JOBS" -gt 0 ]]; then
+            run_batch_parallel
+            exit $?
+        else
+            run_batch_sequential
+            exit $?
+        fi
+    fi
+
+    # Single-item mode (unchanged from here down)
+    INPUT="${INPUTS[0]:-$INPUT}"
     validate_args
 
     local from_idx through_idx

@@ -885,6 +885,273 @@ assert_exit_code "3" "$ec" "main: validation error exits 3"
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# Category 12: Batch mode — status_to_phase (7 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- status_to_phase ---"
+
+# Test: defined maps to design
+result=$(status_to_phase "defined")
+assert_eq "design" "$result" "status_to_phase: defined → design"
+
+# Test: shaped maps to design
+result=$(status_to_phase "shaped")
+assert_eq "design" "$result" "status_to_phase: shaped → design"
+
+# Test: designed maps to deliver
+result=$(status_to_phase "designed")
+assert_eq "deliver" "$result" "status_to_phase: designed → deliver"
+
+# Test: implemented maps to discern
+result=$(status_to_phase "implemented")
+assert_eq "discern" "$result" "status_to_phase: implemented → discern"
+
+# Test: reviewed maps to done
+result=$(status_to_phase "reviewed")
+assert_eq "done" "$result" "status_to_phase: reviewed → done"
+
+# Test: done returns empty (skip)
+result=$(status_to_phase "done")
+assert_eq "" "$result" "status_to_phase: done → empty (skip)"
+
+# Test: abandoned returns empty (skip)
+result=$(status_to_phase "abandoned")
+assert_eq "" "$result" "status_to_phase: abandoned → empty (skip)"
+
+# ═══════════════════════════════════════════════
+# Category 13: Batch mode — get_frontmatter_field (3 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- get_frontmatter_field ---"
+
+# Test: extracts fields from frontmatter
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/test_item.md" << 'FRONTMATTER'
+---
+status: designed
+priority: P2
+title: "Test Item"
+---
+# Content
+FRONTMATTER
+
+# Act / Assert
+result=$(get_frontmatter_field "$TEMP_DIR/test_item.md" "status")
+assert_eq "designed" "$result" "get_frontmatter_field: extracts status"
+
+result=$(get_frontmatter_field "$TEMP_DIR/test_item.md" "priority")
+assert_eq "P2" "$result" "get_frontmatter_field: extracts priority"
+
+result=$(get_frontmatter_field "$TEMP_DIR/test_item.md" "title")
+assert_eq "Test Item" "$result" "get_frontmatter_field: extracts quoted title"
+
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 14: Batch mode — parse_args batch flags (10 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- parse_args batch flags ---"
+
+# Test: --parallel sets PARALLEL_JOBS
+# Arrange / Act
+parse_args --parallel 3 "topic"
+# Assert
+assert_eq "3" "$PARALLEL_JOBS" "parse_args: --parallel sets PARALLEL_JOBS"
+assert_eq "topic" "$INPUT" "parse_args: --parallel doesn't interfere with INPUT"
+
+# Test: --priority repeatable
+# Arrange / Act
+parse_args --priority P1 --priority P2 "topic"
+# Assert
+assert_eq "2" "${#PRIORITIES[@]}" "parse_args: --priority repeatable (2 values)"
+assert_eq "P1" "${PRIORITIES[0]}" "parse_args: --priority first value is P1"
+assert_eq "P2" "${PRIORITIES[1]}" "parse_args: --priority second value is P2"
+
+# Test: --dry-run
+# Arrange / Act
+parse_args --dry-run "topic"
+# Assert
+assert_eq "true" "$DRY_RUN" "parse_args: --dry-run sets DRY_RUN"
+
+# Test: --continue-on-failure
+# Arrange / Act
+parse_args --continue-on-failure "topic"
+# Assert
+assert_eq "true" "$CONTINUE_ON_FAILURE" "parse_args: --continue-on-failure sets CONTINUE_ON_FAILURE"
+
+# Test: multiple inputs populate INPUTS array
+# Arrange / Act
+parse_args "docs/backlog/P1-a.md" "docs/backlog/P2-b.md"
+# Assert
+assert_eq "2" "${#INPUTS[@]}" "parse_args: multiple positional args populate INPUTS"
+assert_eq "docs/backlog/P1-a.md" "${INPUTS[0]}" "parse_args: first input correct"
+assert_eq "docs/backlog/P2-b.md" "${INPUTS[1]}" "parse_args: second input correct"
+
+# Test: defaults for batch flags
+# Arrange / Act
+parse_args "topic"
+# Assert
+assert_eq "0" "$PARALLEL_JOBS" "parse_args: default PARALLEL_JOBS is 0"
+assert_eq "false" "$DRY_RUN" "parse_args: default DRY_RUN is false"
+assert_eq "false" "$CONTINUE_ON_FAILURE" "parse_args: default CONTINUE_ON_FAILURE is false"
+assert_eq "0" "${#PRIORITIES[@]}" "parse_args: default PRIORITIES is empty"
+assert_eq "1" "${#INPUTS[@]}" "parse_args: single topic creates 1-element INPUTS"
+
+# Test: --parallel with --trunk --verbose combined
+# Arrange / Act
+parse_args --parallel 5 --trunk --verbose --priority P1 "topic"
+# Assert
+assert_eq "5" "$PARALLEL_JOBS" "parse_args: --parallel 5 with other flags"
+assert_eq "true" "$TRUNK_MODE" "parse_args: --trunk still works with batch flags"
+assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose still works with batch flags"
+assert_eq "P1" "${PRIORITIES[0]}" "parse_args: --priority works with other batch flags"
+
+# ═══════════════════════════════════════════════
+# Category 15: Batch mode — resolve_batch_items (5 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- resolve_batch_items ---"
+
+# Test: scans backlog when no inputs
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+cat > "$TEMP_DIR/docs/backlog/P1-item-a.md" << 'EOF'
+---
+status: designed
+priority: P1
+title: "Item A"
+---
+EOF
+cat > "$TEMP_DIR/docs/backlog/P2-item-b.md" << 'EOF'
+---
+status: implemented
+priority: P2
+title: "Item B"
+---
+EOF
+# Add a non-actionable item (done)
+cat > "$TEMP_DIR/docs/backlog/P3-item-c.md" << 'EOF'
+---
+status: done
+priority: P3
+title: "Item C"
+---
+EOF
+# Add a README (no frontmatter)
+echo "# Backlog" > "$TEMP_DIR/docs/backlog/README.md"
+
+# Act
+INPUTS=()
+PRIORITIES=()
+FROM_PHASE="discover"
+(cd "$TEMP_DIR" && resolve_batch_items)
+# Need to run in subshell that can access the function; use cd trick
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "2" "${#BATCH_ITEMS[@]}" "resolve_batch_items: finds 2 actionable items (skips done + README)"
+
+teardown_temp
+
+# Test: priority filter
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+cat > "$TEMP_DIR/docs/backlog/P1-item.md" << 'EOF'
+---
+status: designed
+priority: P1
+title: "P1 Item"
+---
+EOF
+cat > "$TEMP_DIR/docs/backlog/P2-item.md" << 'EOF'
+---
+status: designed
+priority: P2
+title: "P2 Item"
+---
+EOF
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=("P1")
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: priority filter keeps only P1"
+assert_contains "${BATCH_ITEMS[0]}" "P1-item.md" "resolve_batch_items: filtered item is P1"
+
+teardown_temp
+
+# Test: explicit file inputs with auto-detect
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/test-item.md" << 'EOF'
+---
+status: implemented
+priority: P2
+title: "Explicit Item"
+---
+EOF
+
+# Act
+INPUTS=("$TEMP_DIR/test-item.md")
+PRIORITIES=()
+resolve_batch_items
+
+# Assert
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: explicit file input creates 1 item"
+assert_contains "${BATCH_ITEMS[0]}" "discern:" "resolve_batch_items: implemented → discern phase"
+
+teardown_temp
+
+# Test: topic string inputs start from discover
+# Arrange / Act
+INPUTS=("explore user auth" "add dark mode")
+PRIORITIES=()
+resolve_batch_items
+
+# Assert
+assert_eq "2" "${#BATCH_ITEMS[@]}" "resolve_batch_items: topic strings create 2 items"
+assert_contains "${BATCH_ITEMS[0]}" "discover:" "resolve_batch_items: topic starts from discover"
+
+# Test: topics-file loading
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/topics.txt" << 'EOF'
+# Comment line
+explore user auth
+
+add dark mode
+EOF
+
+# Act
+INPUTS=()
+PRIORITIES=()
+TOPICS_FILE="$TEMP_DIR/topics.txt"
+resolve_batch_items
+TOPICS_FILE=""
+
+# Assert
+assert_eq "2" "${#BATCH_ITEMS[@]}" "resolve_batch_items: loads topics from file (skips comments and blanks)"
+assert_contains "${BATCH_ITEMS[0]}" "discover:" "resolve_batch_items: topics-file items start from discover"
+
+teardown_temp
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 

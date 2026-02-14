@@ -47,6 +47,14 @@ acceptance_criteria:
       examples including: daily discover+define pipeline, human review checkpoint, then
       design+deliver on approved items
     status: met
+  - id: AC-8
+    description: >-
+      Runner supports batch execution: scans backlog for actionable items when no inputs
+      provided, auto-detects starting phase from item status, runs items concurrently in
+      isolated worktrees with --parallel N, serializes merge integration after all workers
+      complete. Supports --priority filtering, --dry-run preview, --continue-on-failure,
+      and --topics-file for discovery batches.
+    status: met
 ---
 
 # Autonomous Lifecycle Runner
@@ -165,3 +173,16 @@ Phase reorder and completion verification fixes from second autonomous field tes
 |------------|---------|---------------|-------------|
 | GT-35/AC-1 | AC-1 | `commands/run.md` | Phase completion verification — checks all phases in range executed, reports INCOMPLETE with skipped phase list |
 | GT-35/AC-2 | AC-1 | `commands/run.md` | Reordered final phases to discern → done → commit; archive changes included in single delivery commit |
+
+## Implementation Evidence (Unified Batch Runner)
+<!-- Appended by /deliver on 2026-02-13 from GT-36 -->
+
+Batch execution moved from `run-batch.sh` into `run-pdlc.sh` as a unified entry point:
+
+### Test Coverage
+- `tests/test_run_pdlc.sh`: 33 new tests covering AC-8 (status_to_phase, get_frontmatter_field, batch parse_args flags, resolve_batch_items)
+- Total: 119 tests in run-pdlc.sh suite, 333 across all suites
+
+### Implementation Files
+- `scripts/run-pdlc.sh`: Added ~380 lines — helper functions (get_frontmatter_field, status_to_phase), batch parse_args flags, resolve_batch_items, sequential/parallel batch execution, integration phase, summary reporting
+- `scripts/run-batch.sh`: Replaced with ~35 line backwards-compatible wrapper delegating to run-pdlc.sh
