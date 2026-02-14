@@ -110,7 +110,7 @@ setup_scripts_path() {
 
     {
         echo ""
-        echo "# Genie Team scripts (run-pdlc, run-batch, genie-session)"
+        echo "# Genie Team scripts (run-pdlc, genie-session)"
         echo "$PATH_EXPORT_LINE"
     } >> "$profile"
     log_success "Added scripts to PATH in $profile"
@@ -655,7 +655,7 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
         install_hooks "$GLOBAL_CLAUDE_DIR/hooks" "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/hooks" "$force"
 
-    # Add scripts to PATH (so run-batch.sh, run-pdlc.sh work from any project)
+    # Add scripts to PATH (so run-pdlc.sh, genie-session.sh work from any project)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         setup_scripts_path "$dry_run"
 
@@ -684,13 +684,12 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    run-batch.sh (batch execution), run-pdlc.sh (autonomous runner),"
-    echo "              genie-session.sh (parallel worktrees)"
+    echo "  Scripts:    run-pdlc.sh (autonomous runner + batch), genie-session.sh (parallel worktrees)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
     echo ""
     echo "Scripts are on PATH — run from any project directory:"
-    echo "  run-batch.sh deliver --parallel 3 --trunk --verbose"
+    echo "  run-pdlc.sh --parallel 3 --trunk --verbose"
     echo "  run-pdlc.sh --through define \"explore auth improvements\""
 }
 
@@ -886,8 +885,7 @@ cmd_project() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
-    echo "  Scripts:    genie-session (parallel sessions), run-pdlc (autonomous runner),"
-    echo "              run-batch (overnight batch delivery/discovery)"
+    echo "  Scripts:    run-pdlc (autonomous runner + batch), genie-session (parallel sessions)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }

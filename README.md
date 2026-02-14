@@ -366,29 +366,29 @@ The Crafter reads ADRs and C4 diagrams during implementation. The Critic checks 
 
 `/arch:init` documents the system in C4 diagrams showing containers, external systems, and deployment boundaries.
 
-### Batch Execution (`run-batch.sh`)
+### Batch Execution
 
-Run multiple items in parallel with serialized integration:
+Run multiple items in parallel with serialized integration — all through `run-pdlc.sh`:
 
 ```bash
 # Deliver all actionable backlog items with 3 parallel workers, trunk-based
-run-batch.sh deliver --parallel 3 --trunk --verbose \
+run-pdlc.sh --parallel 3 --trunk --verbose \
   --log-dir logs/overnight
 
 # Deliver only P1 items (auto-detects phase from status)
-run-batch.sh deliver --priority P1 --parallel 2 --trunk \
+run-pdlc.sh --priority P1 --parallel 2 --trunk \
   --verbose --log-dir logs/p1-delivery
 
 # Discover 3 topics in parallel, full lifecycle to trunk
-run-batch.sh discover --parallel 3 --trunk --verbose \
-  --through done --log-dir logs/discovery \
+run-pdlc.sh --parallel 3 --trunk --verbose \
+  --through define --log-dir logs/discovery \
   "topic one" "topic two" "topic three"
 
 # Preview what would run (no execution)
-run-batch.sh deliver --parallel 3 --dry-run
+run-pdlc.sh --parallel 3 --dry-run
 ```
 
-Parallel mode uses git worktrees for isolation. Workers leave branches intact after completing, then the batch runner serializes integration (rebase+ff for `--trunk`, push+PR otherwise). Logs in `--log-dir` for post-run inspection.
+Parallel mode uses git worktrees for isolation. Workers leave branches intact after completing, then the runner serializes integration (rebase+ff for `--trunk`, push+PR otherwise). Logs in `--log-dir` for post-run inspection.
 
 ### Scheduling with the Headless Runner
 
