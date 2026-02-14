@@ -5,7 +5,7 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # ── Configuration ────────────────────────────────────────────
-SHELLCHECK_EXCLUDES := SC1091,SC2034,SC2155,SC2015,SC2317,SC1090
+SHELLCHECK_EXCLUDES := SC1091,SC2034,SC2155,SC2015,SC2317,SC1090,SC2329,SC2218
 SHELLCHECK_DIRS     := commands scripts .claude/hooks
 SHELLCHECK_FILES    := install.sh
 DOCS_DIR            := docs

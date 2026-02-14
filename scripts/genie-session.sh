@@ -324,19 +324,36 @@ session_start() {
     branch=$(_gs_branch_name "$item" "$phase")
     base_branch=$(_gs_default_branch) || return 1
 
-    # Guard: worktree already exists
+    # Reuse: worktree and branch both exist — resume previous session
+    if [[ -d "$worktree_dir" ]] && _gs_branch_exists "$branch"; then
+        echo "$worktree_dir"
+        _gs_log "Session resumed: $item ($phase)"
+        _gs_log "Worktree: $worktree_dir"
+        _gs_log "Branch: $branch"
+        return 0
+    fi
+
+    # Stale worktree without matching branch — clean up and recreate
     if [[ -d "$worktree_dir" ]]; then
-        _gs_error "Worktree already exists: $worktree_dir"
-        return 1
+        _gs_log "Cleaning stale worktree: $worktree_dir"
+        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
     fi
 
-    # Guard: branch already exists
+    # Orphaned branch without worktree — reattach via worktree checkout
     if _gs_branch_exists "$branch"; then
-        _gs_error "Branch already exists: $branch"
-        return 1
+        _gs_log "Reattaching existing branch: $branch"
+        if ! git -C "$repo_root" worktree add "$worktree_dir" "$branch" -q 2>/dev/null; then
+            _gs_error "Failed to attach worktree to existing branch $branch"
+            return 1
+        fi
+        echo "$worktree_dir"
+        _gs_log "Session resumed: $item ($phase)"
+        _gs_log "Worktree: $worktree_dir"
+        _gs_log "Branch: $branch"
+        return 0
     fi
 
-    # Create worktree + branch from default branch
+    # Fresh start: create worktree + branch from default branch
     if ! git -C "$repo_root" worktree add "$worktree_dir" -b "$branch" "$base_branch" -q 2>/dev/null; then
         _gs_error "Failed to create worktree at $worktree_dir"
         return 1
@@ -399,12 +416,12 @@ session_integrate_trunk() {
     # Fast-forward merge into default branch
     if ! git -C "$repo_root" checkout "$default_branch" -q 2>/dev/null; then
         _gs_error "Failed to checkout $default_branch"
-        return 1
+        return 3
     fi
 
     if ! git -C "$repo_root" merge --ff-only "$branch" -q 2>/dev/null; then
         _gs_error "Fast-forward merge failed for $branch"
-        return 1
+        return 4
     fi
 
     # Delete the branch (safe -d: only if merged)

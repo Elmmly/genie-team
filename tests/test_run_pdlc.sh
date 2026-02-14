@@ -1166,6 +1166,274 @@ assert_contains "${BATCH_ITEMS[0]}" "discover:" "resolve_batch_items: topics-fil
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# Category 16: maybe_utility_commit (P1-always-commit)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- maybe_utility_commit ---"
+
+# Test: utility commit fires when through < commit and changes exist
+# Arrange
+setup_temp
+through_idx=0  # discover
+PHASE_NUM_TURNS=0
+PHASE_TOKENS=0
+COMMIT_RAN=""
+run_phase() { COMMIT_RAN="$1"; return 0; }
+log_info() { :; }
+log_debug() { :; }
+log_phase_usage() { :; }
+# Mock git status to report changes
+git() {
+    if [[ "$1" == "status" && "$2" == "--porcelain" ]]; then
+        echo "M scripts/run-pdlc.sh"
+        return 0
+    fi
+    command git "$@"
+}
+export -f git 2>/dev/null || true
+
+# Act
+maybe_utility_commit "" "" "$TEMP_DIR/test-input.md"
+
+# Assert
+assert_eq "commit" "$COMMIT_RAN" "maybe_utility_commit: fires when through < commit with changes"
+
+unset -f run_phase log_info log_debug log_phase_usage git 2>/dev/null || true
+teardown_temp
+
+# Test: utility commit skipped when through=done (idx 6)
+# Arrange
+through_idx=6
+COMMIT_RAN=""
+run_phase() { COMMIT_RAN="$1"; return 0; }
+log_info() { :; }
+log_debug() { :; }
+
+# Act
+maybe_utility_commit "" "" "input.md"
+
+# Assert
+assert_eq "" "$COMMIT_RAN" "maybe_utility_commit: skipped when through=done (idx 6)"
+
+unset -f run_phase log_info log_debug 2>/dev/null || true
+
+# Test: utility commit skipped when through=commit (idx 5)
+# Arrange
+through_idx=5
+COMMIT_RAN=""
+run_phase() { COMMIT_RAN="$1"; return 0; }
+log_info() { :; }
+log_debug() { :; }
+
+# Act
+maybe_utility_commit "" "" "input.md"
+
+# Assert
+assert_eq "" "$COMMIT_RAN" "maybe_utility_commit: skipped when through=commit (idx 5)"
+
+unset -f run_phase log_info log_debug 2>/dev/null || true
+
+# Test: utility commit skipped when no changes
+# Arrange
+through_idx=0
+COMMIT_RAN=""
+run_phase() { COMMIT_RAN="$1"; return 0; }
+log_info() { :; }
+log_debug() { :; }
+git() {
+    if [[ "$1" == "status" && "$2" == "--porcelain" ]]; then
+        echo ""
+        return 0
+    fi
+    command git "$@"
+}
+export -f git 2>/dev/null || true
+
+# Act
+maybe_utility_commit "" "" "input.md"
+
+# Assert
+assert_eq "" "$COMMIT_RAN" "maybe_utility_commit: skipped when no changes"
+
+unset -f run_phase log_info log_debug git 2>/dev/null || true
+
+# ═══════════════════════════════════════════════
+# Category 17: detect_verdict with frontmatter (P1-verdict-structured-output)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- detect_verdict with frontmatter ---"
+
+# Test: reads APPROVED from frontmatter
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/item-approved.md" << 'FRONTMATTER'
+---
+status: reviewed
+verdict: APPROVED
+---
+# Test Item
+FRONTMATTER
+
+# Act
+result=$(detect_verdict "" "$TEMP_DIR/item-approved.md")
+ec=$?
+
+# Assert
+assert_eq "APPROVED" "$result" "detect_verdict: reads APPROVED from frontmatter"
+assert_exit_code "0" "$ec" "detect_verdict: exit 0 for frontmatter APPROVED"
+
+# Test: reads CHANGES_REQUESTED from frontmatter (normalizes to CHANGES REQUESTED)
+# Arrange
+cat > "$TEMP_DIR/item-changes.md" << 'FRONTMATTER'
+---
+status: reviewed
+verdict: CHANGES_REQUESTED
+---
+# Test Item
+FRONTMATTER
+
+# Act
+result=$(detect_verdict "" "$TEMP_DIR/item-changes.md")
+ec=$?
+
+# Assert
+assert_eq "CHANGES REQUESTED" "$result" "detect_verdict: normalizes CHANGES_REQUESTED to CHANGES REQUESTED"
+assert_exit_code "0" "$ec" "detect_verdict: exit 0 for frontmatter CHANGES_REQUESTED"
+
+# Test: reads BLOCKED from frontmatter
+# Arrange
+cat > "$TEMP_DIR/item-blocked.md" << 'FRONTMATTER'
+---
+status: reviewed
+verdict: BLOCKED
+---
+# Test Item
+FRONTMATTER
+
+# Act
+result=$(detect_verdict "" "$TEMP_DIR/item-blocked.md")
+ec=$?
+
+# Assert
+assert_eq "BLOCKED" "$result" "detect_verdict: reads BLOCKED from frontmatter"
+assert_exit_code "0" "$ec" "detect_verdict: exit 0 for frontmatter BLOCKED"
+
+# Test: falls back to regex when frontmatter has no verdict field
+# Arrange
+cat > "$TEMP_DIR/item-no-verdict.md" << 'FRONTMATTER'
+---
+status: reviewed
+---
+# Test Item
+FRONTMATTER
+
+# Act
+result=$(detect_verdict "The review is APPROVED and ready" "$TEMP_DIR/item-no-verdict.md")
+ec=$?
+
+# Assert
+assert_eq "APPROVED" "$result" "detect_verdict: falls back to regex when no frontmatter verdict"
+assert_exit_code "0" "$ec" "detect_verdict: exit 0 for regex fallback"
+
+# Test: fails when no frontmatter verdict and no regex match
+# Arrange
+cat > "$TEMP_DIR/item-empty.md" << 'FRONTMATTER'
+---
+status: reviewed
+---
+# Test Item
+FRONTMATTER
+
+# Act
+result=$(detect_verdict "No verdict keywords here" "$TEMP_DIR/item-empty.md" 2>/dev/null)
+ec=$?
+
+# Assert
+assert_exit_code "1" "$ec" "detect_verdict: exit 1 when no verdict found anywhere"
+
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 18: write_batch_manifest (P1-integration-diagnostics)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- write_batch_manifest ---"
+
+# Test: writes valid JSON manifest
+# Arrange
+setup_temp
+LOG_DIR="$TEMP_DIR"
+
+# Act
+write_batch_manifest \
+    "item-a" "item-b" \
+    "---" \
+    "item-c" \
+    "---" \
+    "item-d"
+
+# Assert
+assert_file_exists "$TEMP_DIR/batch-manifest.json" "write_batch_manifest: creates manifest file"
+if [[ -f "$TEMP_DIR/batch-manifest.json" ]]; then
+    # Validate JSON structure
+    local_json=$(cat "$TEMP_DIR/batch-manifest.json")
+    assert_contains "$local_json" '"succeeded"' "write_batch_manifest: JSON has succeeded key"
+    assert_contains "$local_json" '"failed"' "write_batch_manifest: JSON has failed key"
+    assert_contains "$local_json" '"conflicts"' "write_batch_manifest: JSON has conflicts key"
+    assert_contains "$local_json" '"item-a"' "write_batch_manifest: succeeded contains item-a"
+    assert_contains "$local_json" '"item-c"' "write_batch_manifest: failed contains item-c"
+    assert_contains "$local_json" '"item-d"' "write_batch_manifest: conflicts contains item-d"
+fi
+
+# Test: handles empty items
+# Arrange
+
+# Act
+write_batch_manifest "---" "---"
+
+# Assert
+assert_file_exists "$TEMP_DIR/batch-manifest.json" "write_batch_manifest: creates manifest with empty items"
+if [[ -f "$TEMP_DIR/batch-manifest.json" ]]; then
+    local_json=$(cat "$TEMP_DIR/batch-manifest.json")
+    assert_contains "$local_json" '"succeeded": []' "write_batch_manifest: empty succeeded array"
+fi
+
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 19: --recover flag (P1-integration-diagnostics)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- --recover flag ---"
+
+# Test: RECOVER_MODE defaults to false
+# Arrange
+parse_args
+
+# Assert
+assert_eq "false" "$RECOVER_MODE" "--recover: default is false"
+
+# Test: --recover sets RECOVER_MODE to true
+# Arrange
+parse_args --recover
+
+# Assert
+assert_eq "true" "$RECOVER_MODE" "--recover: sets RECOVER_MODE to true"
+
+# Test: --recover works with --priority
+# Arrange
+parse_args --recover --priority P1
+
+# Assert
+assert_eq "true" "$RECOVER_MODE" "--recover: works with --priority (recover mode set)"
+assert_eq "1" "${#PRIORITIES[@]}" "--recover: works with --priority (priority captured)"
+assert_eq "P1" "${PRIORITIES[0]}" "--recover: works with --priority (correct priority value)"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 

@@ -239,13 +239,28 @@ branch_exists=$(git -C "$MAIN_REPO" branch --list "genie/test-item-deliver" 2>/d
 assert_contains "$branch_exists" "genie/test-item-deliver" \
     "AC-1: session_start creates branch with correct naming convention"
 
-# Arrange — session already exists (worktree from above)
+# Arrange — session already exists (worktree + branch from above)
 # Act
-stderr=$(cd "$MAIN_REPO" && session_start "test-item" "deliver" 2>&1 1>/dev/null)
+stdout2=$(cd "$MAIN_REPO" && session_start "test-item" "deliver" 2>/dev/null)
 ec=$?
 # Assert
-assert_exit_code "1" "$ec" \
-    "AC-1: session_start returns 1 if worktree already exists"
+assert_exit_code "0" "$ec" \
+    "AC-1: session_start returns 0 when resuming existing session"
+assert_contains "$stdout2" "main-repo--test-item" \
+    "AC-1: session_start returns worktree path on resume"
+
+# Arrange — orphaned branch (worktree removed, branch remains)
+git -C "$MAIN_REPO" worktree remove --force "$TEMP_DIR/main-repo--test-item" 2>/dev/null || true
+# Act
+stdout3=$(cd "$MAIN_REPO" && session_start "test-item" "deliver" 2>/dev/null)
+ec=$?
+# Assert
+assert_exit_code "0" "$ec" \
+    "AC-1: session_start reattaches orphaned branch"
+assert_contains "$stdout3" "main-repo--test-item" \
+    "AC-1: session_start returns worktree path after reattach"
+assert_dir_exists "$TEMP_DIR/main-repo--test-item" \
+    "AC-1: session_start recreates worktree for orphaned branch"
 
 # Arrange — check stderr contains next steps
 # Act
@@ -594,6 +609,75 @@ assert_contains "$stdout" "genie-session" \
 ec=$?
 assert_exit_code "1" "$ec" \
     "AC-5: CLI dispatch returns 1 for unknown command"
+
+# ─────────────────────────────────────────────
+# Test: session_integrate_trunk exit codes (P1-integration-diagnostics)
+# ─────────────────────────────────────────────
+echo ""
+echo "--- session_integrate_trunk exit codes ---"
+
+# Test: exit code 3 when checkout fails
+# Arrange
+setup
+SAVED_DIR="$PROJECT_DIR"
+
+# Create a branch that will match genie/checkout-fail-*
+command git -C "$MAIN_REPO" checkout -b "genie/checkout-fail-deliver" -q
+command git -C "$MAIN_REPO" commit --allow-empty -m "work on branch" -q
+command git -C "$MAIN_REPO" checkout main -q
+
+cd "$MAIN_REPO" || true
+
+# Override git to intercept checkout of default branch
+git() {
+    if [[ "$1" == "-C" && "$3" == "checkout" && "$4" == "main" ]]; then
+        return 1
+    fi
+    command git "$@"
+}
+
+# Act
+session_integrate_trunk "checkout-fail" >/dev/null 2>&1
+ec=$?
+
+# Assert
+assert_exit_code "3" "$ec" \
+    "session_integrate_trunk: exit 3 on checkout failure"
+
+unset -f git 2>/dev/null || true
+cd "$SAVED_DIR" || true
+teardown
+
+# Test: exit code 4 when merge fails
+# Arrange
+setup
+
+# Create a branch that will match genie/merge-fail-*
+command git -C "$MAIN_REPO" checkout -b "genie/merge-fail-deliver" -q
+command git -C "$MAIN_REPO" commit --allow-empty -m "branch work" -q
+command git -C "$MAIN_REPO" checkout main -q
+
+cd "$MAIN_REPO" || true
+
+# Override git to intercept --ff-only merge
+git() {
+    if [[ "$1" == "-C" && "$3" == "merge" && "$4" == "--ff-only" ]]; then
+        return 1
+    fi
+    command git "$@"
+}
+
+# Act
+session_integrate_trunk "merge-fail" >/dev/null 2>&1
+ec=$?
+
+# Assert
+assert_exit_code "4" "$ec" \
+    "session_integrate_trunk: exit 4 on merge failure"
+
+unset -f git 2>/dev/null || true
+cd "$SAVED_DIR" || true
+teardown
 
 # ─────────────────────────────────────────────
 # Summary

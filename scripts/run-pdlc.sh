@@ -156,6 +156,7 @@ parse_args() {
     DRY_RUN="false"
     CONTINUE_ON_FAILURE="false"
     TOPICS_FILE=""
+    RECOVER_MODE="false"
     INPUTS=()
 
     # Per-phase turn overrides
@@ -187,6 +188,7 @@ parse_args() {
             --dry-run)           DRY_RUN="true"; shift ;;
             --continue-on-failure) CONTINUE_ON_FAILURE="true"; shift ;;
             --topics-file)       TOPICS_FILE="$2"; shift 2 ;;
+            --recover)           RECOVER_MODE="true"; shift ;;
             --discover-turns)    DISCOVER_TURNS="$2"; shift 2 ;;
             --define-turns)      DEFINE_TURNS="$2"; shift 2 ;;
             --design-turns)      DESIGN_TURNS="$2"; shift 2 ;;
@@ -233,6 +235,10 @@ parse_args() {
                 echo "Git:"
                 echo "  --trunk                 Use trunk-based mode (commit to main, no PRs)"
                 echo "  --finish-mode <mode>    Worktree finish mode (--merge|--pr|--leave-branch)"
+                echo ""
+                echo "Recovery:"
+                echo "  --recover               Re-run integration for items with existing genie/* branches"
+                echo "                          Uses --priority for slug-prefix filtering"
                 echo ""
                 echo "Worktree:"
                 echo "  --cleanup-on-failure    Remove worktree on failure (default: preserve)"
@@ -318,11 +324,26 @@ parse_artifact_fallback() {
 }
 
 # Detect verdict from /discern output
-# Usage: detect_verdict <output>
+# Usage: detect_verdict <output> [item_path]
+# Primary: reads verdict from backlog item frontmatter (structured, reliable)
+# Fallback: greps output text for verdict keywords (legacy compat)
 # Returns: APPROVED, BLOCKED, or CHANGES REQUESTED on stdout; exit 1 if not found
 detect_verdict() {
     local output="$1"
+    local item_path="${2:-}"
 
+    # Primary: frontmatter verdict field
+    if [[ -n "$item_path" && -f "$item_path" ]]; then
+        local fm_verdict
+        fm_verdict=$(get_frontmatter_field "$item_path" "verdict")
+        if [[ -n "$fm_verdict" ]]; then
+            # Normalize CHANGES_REQUESTED → CHANGES REQUESTED for display consistency
+            echo "${fm_verdict//_/ }"
+            return 0
+        fi
+    fi
+
+    # Fallback: regex parse from Claude output (backwards compat)
     local verdict
     verdict=$(echo "$output" | grep -oE 'APPROVED|BLOCKED|CHANGES REQUESTED' | head -1)
 
@@ -333,6 +354,41 @@ detect_verdict() {
 
     log_error "Could not parse verdict from /discern output"
     return 1
+}
+
+# Post-loop utility commit
+# Commit is a utility that completes any stage, not a lifecycle phase
+# gated by --through. If the phase range didn't include commit, run it
+# now to prevent artifact loss (especially critical in worktree mode).
+# Usage: maybe_utility_commit <item_path> <analysis_path> <input>
+maybe_utility_commit() {
+    local item_path="${1:-}"
+    local analysis_path="${2:-}"
+    local input="${3:-}"
+
+    local commit_idx
+    commit_idx=$(phase_index "commit")
+    if [[ "$through_idx" -lt "$commit_idx" ]]; then
+        if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+            log_info "[commit] Running post-phase utility commit"
+            local commit_start
+            commit_start=$(date +%s)
+
+            run_phase "commit" "${item_path:-${analysis_path:-$input}}"
+            local commit_ec=$?
+
+            local commit_end commit_duration
+            commit_end=$(date +%s)
+            commit_duration=$((commit_end - commit_start))
+            log_phase_usage "commit" "${PHASE_NUM_TURNS:-0}" "${PHASE_TOKENS:-0}" "$commit_duration"
+
+            if [[ $commit_ec -ne 0 ]]; then
+                log_error "[commit] Utility commit failed (exit $commit_ec)"
+            fi
+        else
+            log_debug "No uncommitted changes — skipping utility commit"
+        fi
+    fi
 }
 
 # Get max turns for a phase (override > global > default)
@@ -852,6 +908,72 @@ print_batch_parallel_summary() {
     fi
 }
 
+# Write batch manifest JSON to log directory
+# Usage: write_batch_manifest <succeeded...> --- <failed...> --- <conflicts...>
+# Writes $LOG_DIR/batch-manifest.json
+write_batch_manifest() {
+    local succeeded_items=()
+    local failed_items=()
+    local conflict_items=()
+    local current_list="succeeded"
+
+    for arg in "$@"; do
+        if [[ "$arg" == "---" ]]; then
+            if [[ "$current_list" == "succeeded" ]]; then
+                current_list="failed"
+            else
+                current_list="conflict"
+            fi
+            continue
+        fi
+        case "$current_list" in
+            succeeded)  succeeded_items+=("$arg") ;;
+            failed)     failed_items+=("$arg") ;;
+            conflict)   conflict_items+=("$arg") ;;
+        esac
+    done
+
+    local manifest="$LOG_DIR/batch-manifest.json"
+
+    # Build JSON using printf (no jq dependency)
+    {
+        printf '{\n'
+        printf '  "timestamp": "%s",\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+        # Succeeded array
+        printf '  "succeeded": ['
+        local first=true
+        for item in "${succeeded_items[@]+"${succeeded_items[@]}"}"; do
+            [[ -z "$item" ]] && continue
+            [[ "$first" == "true" ]] && first=false || printf ','
+            printf '"%s"' "$item"
+        done
+        printf '],\n'
+
+        # Failed array
+        printf '  "failed": ['
+        first=true
+        for item in "${failed_items[@]+"${failed_items[@]}"}"; do
+            [[ -z "$item" ]] && continue
+            [[ "$first" == "true" ]] && first=false || printf ','
+            printf '"%s"' "$item"
+        done
+        printf '],\n'
+
+        # Conflicts array
+        printf '  "conflicts": ['
+        first=true
+        for item in "${conflict_items[@]+"${conflict_items[@]}"}"; do
+            [[ -z "$item" ]] && continue
+            [[ "$first" == "true" ]] && first=false || printf ','
+            printf '"%s"' "$item"
+        done
+        printf ']\n'
+
+        printf '}\n'
+    } > "$manifest"
+}
+
 # Execute batch items sequentially
 run_batch_sequential() {
     local succeeded=0
@@ -1058,21 +1180,43 @@ run_batch_parallel() {
             log_info "Integrating: $slug"
 
             if [[ "$TRUNK_MODE" == "true" ]]; then
-                if session_integrate_trunk "$slug"; then
-                    log_info "Merged to trunk: $slug"
-                else
-                    local ec=$?
-                    if [[ $ec -eq 2 ]]; then
-                        merge_conflicts=$((merge_conflicts + 1))
-                        conflict_items+=("$input")
-                        log_error "Rebase conflict: $slug"
-                    else
+                session_integrate_trunk "$slug"
+                local ec=$?
+                case $ec in
+                    0)
+                        log_info "Merged to trunk: $slug"
+                        ;;
+                    1)
                         failed=$((failed + 1))
                         failed_items+=("$input")
-                        log_error "Integration failed: $slug"
-                    fi
-                    succeeded=$((succeeded - 1))
-                fi
+                        succeeded=$((succeeded - 1))
+                        log_error "No branch found: $slug"
+                        ;;
+                    2)
+                        merge_conflicts=$((merge_conflicts + 1))
+                        conflict_items+=("$input")
+                        succeeded=$((succeeded - 1))
+                        log_error "Rebase conflict: $slug"
+                        ;;
+                    3)
+                        failed=$((failed + 1))
+                        failed_items+=("$input")
+                        succeeded=$((succeeded - 1))
+                        log_error "Checkout failed: $slug"
+                        ;;
+                    4)
+                        failed=$((failed + 1))
+                        failed_items+=("$input")
+                        succeeded=$((succeeded - 1))
+                        log_error "Merge failed (not fast-forwardable): $slug"
+                        ;;
+                    *)
+                        failed=$((failed + 1))
+                        failed_items+=("$input")
+                        succeeded=$((succeeded - 1))
+                        log_error "Integration failed (exit $ec): $slug"
+                        ;;
+                esac
             else
                 if session_integrate_pr "$slug"; then
                     log_info "PR created: $slug"
@@ -1095,6 +1239,16 @@ run_batch_parallel() {
         "${failed_items[@]+"${failed_items[@]}"}" \
         "---" \
         "${conflict_items[@]+"${conflict_items[@]}"}"
+
+    # Write batch manifest to log directory
+    if [[ -n "$LOG_DIR" ]]; then
+        write_batch_manifest \
+            "${succeeded_items[@]+"${succeeded_items[@]}"}" \
+            "---" \
+            "${failed_items[@]+"${failed_items[@]}"}" \
+            "---" \
+            "${conflict_items[@]+"${conflict_items[@]}"}"
+    fi
 
     if [[ $failed -gt 0 || $merge_conflicts -gt 0 ]]; then
         return 1
@@ -1247,7 +1401,7 @@ main() {
             discern)
                 # Gate check
                 local verdict
-                verdict=$(detect_verdict "$OUTPUT" 2>/dev/null) || true
+                verdict=$(detect_verdict "$OUTPUT" "${item_path:-}" 2>/dev/null) || true
 
                 if [[ "$verdict" == "BLOCKED" || "$verdict" == "CHANGES REQUESTED" ]]; then
                     log_error "Verdict: $verdict — stopping"
@@ -1261,6 +1415,9 @@ main() {
                 ;;
         esac
     done
+
+    # ── Post-loop utility commit ──
+    maybe_utility_commit "${item_path:-}" "${analysis_path:-}" "$INPUT"
 
     # Worktree teardown on success
     if [[ "$USE_WORKTREE" == "true" && -n "$item_slug" ]]; then

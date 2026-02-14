@@ -94,6 +94,12 @@ discover → define → design → deliver → discern → done → commit
 | `--from discern` | discern → done | Review and close |
 | `--from deliver --through deliver` | deliver | Single phase execution |
 
+**Commit as utility:** Regardless of `--through`, the runner always commits
+any uncommitted artifacts after the phase range completes. This prevents
+work loss in worktree and batch modes where artifacts would otherwise be
+destroyed on teardown. If `--through` already includes `commit` or `done`,
+no extra commit is made (double-commit protection via `git status`).
+
 **Validation rules:**
 - `--from` must precede `--through` in the phase sequence
 - `--from design` or later requires a backlog item path (not a topic string)

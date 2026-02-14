@@ -56,6 +56,7 @@ Activate Critic genie to review implementation against acceptance criteria.
 **UPDATE:**
 - Backlog item: Append "# Review" section before "# End of Shaped Work Contract"
 - Backlog frontmatter: `status: implemented` → `status: reviewed`
+- Backlog frontmatter: add `verdict: APPROVED|BLOCKED|CHANGES_REQUESTED` field (machine-readable verdict for the autonomous runner)
 - **Spec (if spec_ref exists):** Update spec AC statuses and append "## Review Verdict" section (see below)
 
 > **Note:** Review content is appended directly to the backlog item rather than creating a separate analysis file.

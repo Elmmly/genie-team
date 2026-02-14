@@ -120,6 +120,11 @@ discover → define → design → deliver → discern → commit → done
 - Worktree isolation integrates with P2 parallel-sessions conventions: branch naming (`genie/{item}-run-{date}`), safety rules, memory symlink, MCP scope. Runner manages full worktree lifecycle (create → run → PR → cleanup) including prior failed attempt cleanup.
 - Worktree teardown: cleanup on success, preserve on failure (default), `--cleanup-on-failure` opt-in for automated environments
 - Global genie-team install (`~/.claude/`) works in worktrees automatically. Project-level install: tracked `.claude/` files appear via git.
+- Commit is a post-phase utility, not a lifecycle phase gated by `--through`. After the phase range completes, run commit if uncommitted changes exist and `--through` didn't already include the commit phase. Prevents artifact loss in worktree/batch modes.
+- Gate detection primary source: read `verdict:` field from backlog item frontmatter (written by `/discern`). Fallback: regex parse output for APPROVED/BLOCKED/CHANGES REQUESTED. Frontmatter approach is structured, auditable, and survives output format changes.
+- Integration exit codes: `session_integrate_trunk` returns distinct codes (0=success, 1=no branch, 2=rebase conflict, 3=checkout failed, 4=merge failed). Integration loop logs specific failure reason per code. Batch completion writes `batch-manifest.json` to log directory.
+- `--recover` flag re-runs just the integration phase for items with existing unmerged `genie/*` branches, with optional `--priority` slug-prefix filtering. Runs sequentially (integration modifies shared state). Enables recovery without re-running expensive PDLC phases.
+- PATH command naming: `genies` (lifecycle runner), `genie-session` (session manager), `genie-quality` (quality checks). No `.sh` extensions for PATH commands. Internal `scripts/validate/*.sh` keep extensions.
 
 ## Implementation Evidence
 <!-- Appended by /deliver on 2026-02-12 -->
@@ -186,3 +191,27 @@ Batch execution moved from `run-batch.sh` into `run-pdlc.sh` as a unified entry 
 ### Implementation Files
 - `scripts/run-pdlc.sh`: Added ~380 lines — helper functions (get_frontmatter_field, status_to_phase), batch parse_args flags, resolve_batch_items, sequential/parallel batch execution, integration phase, summary reporting
 - `scripts/run-batch.sh`: Replaced with ~35 line backwards-compatible wrapper delegating to run-pdlc.sh
+
+## Implementation Evidence (Batch Reliability Fixes)
+<!-- Appended by /deliver on 2026-02-14 from P1-always-commit, P1-verdict-structured-output, P1-integration-diagnostics -->
+
+Three reliability fixes from 2hearted batch run post-mortem (Feb 13-14, 2026):
+
+### P1-always-commit (utility commit)
+- `scripts/run-pdlc.sh`: Added `maybe_utility_commit()` — post-loop utility commit that fires when `--through` didn't include commit phase and uncommitted changes exist
+- `commands/run.md`: Documented commit-as-utility behavior in Phase Range Model section
+- 4 new tests in `tests/test_run_pdlc.sh`
+
+### P1-verdict-structured-output (frontmatter verdict)
+- `scripts/run-pdlc.sh`: Updated `detect_verdict()` with optional `item_path` parameter; reads frontmatter `verdict` field as primary source, falls back to regex
+- `commands/discern.md`: Added `verdict:` field to Context Writing UPDATE list
+- 9 new tests in `tests/test_run_pdlc.sh`
+
+### P1-integration-diagnostics (exit codes, manifest, recovery)
+- `scripts/genie-session.sh`: `session_integrate_trunk` returns exit 3 (checkout fail) and 4 (merge fail) instead of generic exit 1
+- `scripts/run-pdlc.sh`: Integration loop uses `case` statement for diagnostic messages; added `write_batch_manifest()`; added `--recover` flag
+- 2 new tests in `tests/test_session.sh`, 7 new tests in `tests/test_run_pdlc.sh`
+
+### Test Coverage
+- `tests/test_run_pdlc.sh`: 148 tests (20 new), all passing
+- `tests/test_session.sh`: 54 tests (2 new), all passing
