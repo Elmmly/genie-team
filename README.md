@@ -487,7 +487,6 @@ genie-team/
 │   └── run-pdlc.sh      # Headless lifecycle runner
 ├── templates/           # Project templates (CLAUDE.md)
 ├── tests/               # Test suite
-├── .mcp.json            # MCP server config (imagegen)
 └── install.sh           # Installation script
 ```
 

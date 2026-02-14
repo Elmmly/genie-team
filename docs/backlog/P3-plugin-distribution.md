@@ -155,7 +155,7 @@ genie-team/                    ← this IS the plugin root
 │   ├── track-command.sh       ← EXISTS
 │   ├── track-artifacts.sh     ← EXISTS
 │   └── reinject-context.sh    ← EXISTS
-├── .mcp.json                  ← NEW (MCP server configuration)
+│                                 (MCP config is inline in plugin.json, not a separate file)
 ├── rules/                     ← EXISTS (no plugin field — install.sh only)
 ├── schemas/                   ← EXISTS (no plugin field — install.sh only)
 ├── install.sh                 ← EXISTS (alternative/complement path)
@@ -299,21 +299,9 @@ Self-contained marketplace: the repo is both the marketplace and the single plug
 
 Key: `${CLAUDE_PLUGIN_ROOT}` resolves to the plugin's cached install location, ensuring hook scripts are found after caching.
 
-### 4. MCP Configuration — `.mcp.json`
+### 4. MCP Configuration — inline in `plugin.json`
 
-```json
-{
-  "mcpServers": {
-    "imagegen": {
-      "command": "npx",
-      "args": ["-y", "@fastmcp-me/imagegen-mcp"],
-      "env": {
-        "GOOGLE_API_KEY": "${GOOGLE_API_KEY}"
-      }
-    }
-  }
-}
-```
+MCP config is declared inline in `plugin.json` via the `mcpServers` field (see Section 1 above). This avoids a standalone `.mcp.json` file at the repo root, which Claude Code would interpret as a project-level MCP config — conflicting with any global imagegen registration the developer already has.
 
 Second developer needs `GOOGLE_API_KEY` in their shell environment for image generation (Designer genie). Not required for core workflow.
 

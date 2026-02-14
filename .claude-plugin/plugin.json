@@ -7,5 +7,14 @@
   },
   "repository": "https://github.com/nolan/genie-team",
   "license": "MIT",
-  "keywords": ["workflow", "tdd", "architecture", "product-discovery", "genies"]
+  "keywords": ["workflow", "tdd", "architecture", "product-discovery", "genies"],
+  "mcpServers": {
+    "imagegen": {
+      "command": "npx",
+      "args": ["-y", "@fastmcp-me/imagegen-mcp"],
+      "env": {
+        "GOOGLE_API_KEY": "${GOOGLE_API_KEY}"
+      }
+    }
+  }
 }
