@@ -518,6 +518,63 @@ assert_contains "$result" "docs/backlog/P2-auth.md" \
     "build_phase_prompt: design includes backlog path"
 
 # ═══════════════════════════════════════════════
+# Category 7b: --trunk flag and trunk mode (6 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- --trunk flag ---"
+
+# Test: --trunk default is false
+# Arrange
+# Act
+parse_args "test topic"
+# Assert
+assert_eq "false" "$TRUNK_MODE" "parse_args: default TRUNK_MODE is false"
+
+# Test: --trunk sets TRUNK_MODE=true
+# Arrange
+# Act
+parse_args --trunk "test topic"
+# Assert
+assert_eq "true" "$TRUNK_MODE" "parse_args: --trunk sets TRUNK_MODE=true"
+
+# Test: build_phase_prompt with TRUNK_MODE=true prepends git-mode prefix
+# Arrange
+TRUNK_MODE="true"
+# Act
+result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
+# Assert
+assert_eq "git-mode: trunk. /deliver docs/backlog/P2-item.md" "$result" \
+    "build_phase_prompt: trunk mode prepends git-mode prefix"
+
+# Test: build_phase_prompt with TRUNK_MODE=false produces normal prompt
+# Arrange
+TRUNK_MODE="false"
+# Act
+result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
+# Assert
+assert_eq "/deliver docs/backlog/P2-item.md" "$result" \
+    "build_phase_prompt: non-trunk mode produces normal prompt"
+
+# Test: --trunk combined with --worktree both set correctly
+# Arrange
+# Act
+parse_args --trunk --worktree "docs/backlog/P2-item.md"
+# Assert
+assert_eq "true" "$TRUNK_MODE" "parse_args: --trunk + --worktree sets TRUNK_MODE"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --trunk + --worktree sets USE_WORKTREE"
+
+# Test: --trunk combined with other flags doesn't interfere
+# Arrange
+# Act
+parse_args --trunk --from deliver --through "done" --lock "docs/backlog/P2-item.md"
+# Assert
+assert_eq "true" "$TRUNK_MODE" "parse_args: --trunk with other flags sets TRUNK_MODE"
+assert_eq "deliver" "$FROM_PHASE" "parse_args: --trunk doesn't interfere with --from"
+assert_eq "done" "$THROUGH_PHASE" "parse_args: --trunk doesn't interfere with --through"
+assert_eq "true" "$USE_LOCK" "parse_args: --trunk doesn't interfere with --lock"
+
+# ═══════════════════════════════════════════════
 # Category 8: run_phase (5 tests)
 # ═══════════════════════════════════════════════
 

@@ -122,6 +122,7 @@ parse_args() {
     LOG_DIR=""
     TURNS_PER_PHASE=""
     CLEANUP_ON_FAILURE="false"
+    TRUNK_MODE="false"
 
     # Per-phase turn overrides
     DISCOVER_TURNS=""
@@ -142,6 +143,7 @@ parse_args() {
             --log-dir)           LOG_DIR="$2"; shift 2 ;;
             --turns-per-phase)   TURNS_PER_PHASE="$2"; shift 2 ;;
             --cleanup-on-failure) CLEANUP_ON_FAILURE="true"; shift ;;
+            --trunk)             TRUNK_MODE="true"; shift ;;
             --discover-turns)    DISCOVER_TURNS="$2"; shift 2 ;;
             --define-turns)      DEFINE_TURNS="$2"; shift 2 ;;
             --design-turns)      DESIGN_TURNS="$2"; shift 2 ;;
@@ -165,6 +167,9 @@ parse_args() {
                 echo "Cron:"
                 echo "  --log-dir <dir>         Log directory (enables structured JSON logging)"
                 echo "  --lock                  Enable lockfile"
+                echo ""
+                echo "Git:"
+                echo "  --trunk                 Use trunk-based mode (commit to main, no PRs)"
                 echo ""
                 echo "Worktree:"
                 echo "  --cleanup-on-failure    Remove worktree on failure (default: preserve)"
@@ -306,7 +311,11 @@ build_phase_prompt() {
     local phase="$1"
     local input="$2"
 
-    echo "/$phase $input"
+    if [[ "${TRUNK_MODE:-false}" == "true" ]]; then
+        echo "git-mode: trunk. /$phase $input"
+    else
+        echo "/$phase $input"
+    fi
 }
 
 # Execute a single phase via claude -p
@@ -471,25 +480,43 @@ release_lock() {
     fi
 }
 
-# Worktree stubs — TODO: source genie-session.sh when P2-session-management is delivered
+# Source genie-session.sh for worktree lifecycle management
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+GENIE_SESSION="$SCRIPT_DIR/genie-session.sh"
+if [[ -f "$GENIE_SESSION" ]]; then
+    # shellcheck source=genie-session.sh
+    source "$GENIE_SESSION"
+fi
+
 worktree_setup() {
-    # shellcheck disable=SC2034
     local item_slug="$1"
-    log_info "TODO: worktree_setup not yet implemented (source genie-session.sh)"
-    return 1
+    local worktree_path
+    worktree_path=$(session_start "$item_slug" "$FROM_PHASE") || {
+        log_error "Failed to create worktree for $item_slug"
+        return 1
+    }
+    echo "$worktree_path"
+    return 0
 }
 
 worktree_teardown_success() {
     local item_slug="$1"
-    log_info "TODO: worktree_teardown_success not yet implemented"
-    return 1
+    session_finish "$item_slug" --merge || {
+        local ec=$?
+        if [[ $ec -eq 2 ]]; then
+            log_error "Merge conflict for $item_slug"
+            return 2
+        fi
+        log_error "Failed to finish session for $item_slug"
+        return 1
+    }
+    return 0
 }
 
 worktree_teardown_failure() {
-    # shellcheck disable=SC2034
     local item_slug="$1"
-    log_info "TODO: worktree_teardown_failure not yet implemented"
-    return 1
+    session_cleanup_item "$item_slug"
+    return 0
 }
 
 # ─────────────────────────────────────────────
@@ -506,11 +533,27 @@ main() {
 
     log_info "Running PDLC: $FROM_PHASE → $THROUGH_PHASE"
     log_info "Input: $INPUT"
+    if [[ "$TRUNK_MODE" == "true" ]]; then
+        log_info "Git mode: trunk-based"
+    fi
 
     # Acquire lockfile if requested
     if [[ "$USE_LOCK" == "true" ]]; then
         acquire_lock "$INPUT"
         trap release_lock EXIT
+    fi
+
+    # Worktree setup
+    local item_slug=""
+    local original_dir=""
+    if [[ "$USE_WORKTREE" == "true" ]]; then
+        item_slug=$(basename "$INPUT" .md)
+        log_info "Setting up worktree for $item_slug"
+        local worktree_path
+        worktree_path=$(worktree_setup "$item_slug") || exit 1
+        original_dir="$(pwd)"
+        cd "$worktree_path"
+        log_info "Working in worktree: $worktree_path"
     fi
 
     # State variables
@@ -564,10 +607,18 @@ main() {
                 local retry_ec=$?
                 if [[ $retry_ec -ne 0 ]]; then
                     log_error "Phase '$phase' exhausted turns after retry. Stopping."
+                    if [[ "$USE_WORKTREE" == "true" && "$CLEANUP_ON_FAILURE" == "true" && -n "$item_slug" ]]; then
+                        cd "${original_dir:-/}"
+                        worktree_teardown_failure "$item_slug"
+                    fi
                     exit 1
                 fi
             else
                 log_error "Phase '$phase' failed. Stopping."
+                if [[ "$USE_WORKTREE" == "true" && "$CLEANUP_ON_FAILURE" == "true" && -n "$item_slug" ]]; then
+                    cd "${original_dir:-/}"
+                    worktree_teardown_failure "$item_slug"
+                fi
                 exit 1
             fi
         fi
@@ -604,6 +655,17 @@ main() {
                 ;;
         esac
     done
+
+    # Worktree teardown on success
+    if [[ "$USE_WORKTREE" == "true" && -n "$item_slug" ]]; then
+        cd "${original_dir:-/}"
+        worktree_teardown_success "$item_slug"
+        local teardown_ec=$?
+        if [[ $teardown_ec -ne 0 ]]; then
+            log_error "Worktree teardown failed (exit $teardown_ec)"
+            exit "$teardown_ec"
+        fi
+    fi
 
     log_info "PDLC completed: $FROM_PHASE → $THROUGH_PHASE"
     exit 0
