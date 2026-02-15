@@ -278,19 +278,41 @@ install_mcp_server() {
     return 0
 }
 
-# Clean directory before sync (removes obsolete files)
-clean_dir() {
-    local dest="$1"
-    local label="$2"
-    local dry_run="$3"
+# Clean only genie-team files before sync (preserves user's own files)
+# $1 = source dir (in genie-team repo), $2 = dest dir (installed location)
+# $3 = label, $4 = dry_run
+clean_genie_files() {
+    local src="$1"
+    local dest="$2"
+    local label="$3"
+    local dry_run="$4"
 
-    if [[ -d "$dest" ]]; then
-        if [[ "$dry_run" == "true" ]]; then
-            log_info "[DRY RUN] Would remove $dest/ before sync"
-        else
-            rm -rf "$dest"
-            log_info "Cleaned $label for sync"
+    [[ ! -d "$dest" ]] && return 0
+    [[ ! -d "$src" ]] && return 0
+
+    local count=0
+    for item in "$src"/*; do
+        local name
+        name=$(basename "$item")
+        if [[ -d "$item" && -d "$dest/$name" ]]; then
+            if [[ "$dry_run" == "true" ]]; then
+                log_info "[DRY RUN] Would remove $dest/$name/"
+            else
+                rm -rf "${dest:?}/${name:?}"
+                count=$((count + 1))
+            fi
+        elif [[ -f "$item" && -f "$dest/$name" ]]; then
+            if [[ "$dry_run" == "true" ]]; then
+                log_info "[DRY RUN] Would remove $dest/$name"
+            else
+                rm "$dest/$name"
+                count=$((count + 1))
+            fi
         fi
+    done
+
+    if [[ "$dry_run" != "true" && $count -gt 0 ]]; then
+        log_info "Cleaned $count $label files for sync"
     fi
 }
 
@@ -639,22 +661,22 @@ cmd_global() {
         return 0
     fi
 
-    # Clean directories if sync mode
+    # Clean genie-team files if sync mode (preserves user's own files)
     if [[ "$sync" == "true" ]]; then
         [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
-            clean_dir "$GLOBAL_CLAUDE_DIR/commands" "commands" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/commands" "$GLOBAL_CLAUDE_DIR/commands" "commands" "$dry_run"
         [[ "$install_all" == "true" || "$install_skills" == "true" ]] && \
-            clean_dir "$GLOBAL_CLAUDE_DIR/skills" "skills" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/skills" "$GLOBAL_CLAUDE_DIR/skills" "skills" "$dry_run"
         [[ "$install_all" == "true" || "$install_rules" == "true" ]] && \
-            clean_dir "$GLOBAL_CLAUDE_DIR/rules" "rules" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/rules" "$GLOBAL_CLAUDE_DIR/rules" "rules" "$dry_run"
         [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
-            clean_dir "$GLOBAL_CLAUDE_DIR/agents" "agents" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/agents" "$GLOBAL_CLAUDE_DIR/agents" "agents" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
-            clean_dir "$GLOBAL_CLAUDE_DIR/schemas" "schemas" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/schemas" "$GLOBAL_CLAUDE_DIR/schemas" "schemas" "$dry_run"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
-            clean_dir "$GLOBAL_CLAUDE_DIR/scripts" "scripts" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/scripts" "$GLOBAL_CLAUDE_DIR/scripts" "scripts" "$dry_run"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
-            clean_dir "$GLOBAL_CLAUDE_DIR/hooks" "hooks" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/hooks" "$GLOBAL_CLAUDE_DIR/hooks" "hooks" "$dry_run"
     fi
 
     [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
@@ -794,9 +816,9 @@ cmd_project() {
         [[ "$install_genies" == "true" ]] && \
             log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/ (DEPRECATED)"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
-            log_info "[DRY RUN] Would install schemas to $project_path/schemas/"
+            log_info "[DRY RUN] Would install schemas to $claude_dir/schemas/"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
-            log_info "[DRY RUN] Would install scripts to $project_path/scripts/"
+            log_info "[DRY RUN] Would install scripts to $claude_dir/scripts/"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install hooks to $claude_dir/hooks/"
         if [[ "$skip_mcp" != "true" ]]; then
@@ -811,21 +833,21 @@ cmd_project() {
     # Clean directories if sync mode
     if [[ "$sync" == "true" ]]; then
         [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
-            clean_dir "$claude_dir/commands" "commands" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/commands" "$claude_dir/commands" "commands" "$dry_run"
         [[ "$install_all" == "true" || "$install_skills" == "true" ]] && \
-            clean_dir "$claude_dir/skills" "skills" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/skills" "$claude_dir/skills" "skills" "$dry_run"
         [[ "$install_all" == "true" || "$install_rules" == "true" ]] && \
-            clean_dir "$claude_dir/rules" "rules" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/rules" "$claude_dir/rules" "rules" "$dry_run"
         [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
-            clean_dir "$claude_dir/agents" "agents" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/agents" "$claude_dir/agents" "agents" "$dry_run"
         [[ "$install_genies" == "true" ]] && \
-            clean_dir "$claude_dir/genies" "genies" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/genies" "$claude_dir/genies" "genies" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
-            clean_dir "$project_path/schemas" "schemas" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/schemas" "$claude_dir/schemas" "schemas" "$dry_run"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
-            clean_dir "$project_path/scripts" "scripts" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/scripts" "$claude_dir/scripts" "scripts" "$dry_run"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
-            clean_dir "$claude_dir/hooks" "hooks" "$dry_run"
+            clean_genie_files "$SCRIPT_DIR/hooks" "$claude_dir/hooks" "hooks" "$dry_run"
     fi
 
     [[ "$install_all" == "true" || "$install_commands" == "true" ]] && \
@@ -844,11 +866,11 @@ cmd_project() {
         install_genies "$claude_dir/genies" "$force"
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
-        install_schemas "$project_path/schemas" "$force"
+        install_schemas "$claude_dir/schemas" "$force"
 
     # Scripts installation (genies)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
-        install_scripts "$project_path/scripts" "$force"
+        install_scripts "$claude_dir/scripts" "$force"
 
     # Hooks installation (scripts + settings merge)
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
@@ -938,8 +960,8 @@ cmd_status() {
     fi
 
     echo ""
-    echo "Project (./.claude/ and ./schemas/ and ./scripts/):"
-    for dir in commands skills rules agents hooks; do
+    echo "Project (./.claude/):"
+    for dir in commands skills rules agents hooks schemas scripts; do
         if [[ -d "./.claude/$dir" ]]; then
             local count=$(find "./.claude/$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"
@@ -950,18 +972,6 @@ cmd_status() {
     if [[ -d "./.claude/agent-memory" ]]; then
         local mem_count=$(find "./.claude/agent-memory" -name "MEMORY.md" 2>/dev/null | wc -l | tr -d ' ')
         echo "  agent-memory: $mem_count agents with memory"
-    fi
-    if [[ -d "./schemas" ]]; then
-        local count=$(find "./schemas" -name "*.md" 2>/dev/null | wc -l | tr -d ' ')
-        echo "  schemas: $count files"
-    else
-        echo "  schemas: not installed"
-    fi
-    if [[ -d "./scripts" ]]; then
-        local count=$(find "./scripts" -name "*.sh" 2>/dev/null | wc -l | tr -d ' ')
-        echo "  scripts: $count files"
-    else
-        echo "  scripts: not installed"
     fi
 
     echo ""
@@ -993,12 +1003,20 @@ cmd_uninstall() {
     case "$target" in
         global)
             log_info "Removing global installation..."
-            for dir in commands skills rules agents schemas scripts hooks agent-memory; do
+            for dir in commands skills rules agents schemas scripts hooks; do
                 if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
-                    rm -rf "${GLOBAL_CLAUDE_DIR:?}/$dir"
-                    log_success "Removed $dir"
+                    clean_genie_files "$SCRIPT_DIR/$dir" "$GLOBAL_CLAUDE_DIR/$dir" "$dir" "false"
+                    # Remove directory only if empty after cleaning
+                    rmdir "$GLOBAL_CLAUDE_DIR/$dir" 2>/dev/null && \
+                        log_success "Removed $dir (empty)" || \
+                        log_success "Cleaned genie-team files from $dir"
                 fi
             done
+            # agent-memory is entirely genie-team owned — safe to remove
+            if [[ -d "$GLOBAL_CLAUDE_DIR/agent-memory" ]]; then
+                rm -rf "${GLOBAL_CLAUDE_DIR:?}/agent-memory"
+                log_success "Removed agent-memory"
+            fi
             # Clean up PATH entry from shell profile
             local profile
             profile="$(detect_shell_profile)"
@@ -1019,19 +1037,18 @@ cmd_uninstall() {
             ;;
         project)
             log_info "Removing project installation..."
-            for dir in commands skills rules agents hooks genies; do
+            for dir in commands skills rules agents hooks schemas scripts; do
                 if [[ -d "./.claude/$dir" ]]; then
-                    rm -rf "./.claude/$dir"
-                    log_success "Removed $dir"
+                    clean_genie_files "$SCRIPT_DIR/$dir" "./.claude/$dir" "$dir" "false"
+                    rmdir "./.claude/$dir" 2>/dev/null && \
+                        log_success "Removed $dir (empty)" || \
+                        log_success "Cleaned genie-team files from $dir"
                 fi
             done
-            if [[ -d "./schemas" ]]; then
-                rm -rf "./schemas"
-                log_success "Removed schemas"
-            fi
-            if [[ -d "./scripts" ]]; then
-                rm -rf "./scripts"
-                log_success "Removed scripts"
+            # genies/ is entirely genie-team owned — safe to remove
+            if [[ -d "./.claude/genies" ]]; then
+                rm -rf "./.claude/genies"
+                log_success "Removed genies"
             fi
             if check_claude_cli && check_mcp_installed; then
                 local mcp_scope
