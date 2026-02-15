@@ -426,6 +426,16 @@ install_scripts() {
     mkdir -p "$dest"
     local count=0
 
+    # Clean up legacy scripts from previous installations
+    local legacy_files=("run-pdlc.sh" "run-batch.sh" "run-quality-checks.sh"
+                        "genie-session.sh" "genie-quality")
+    for legacy in "${legacy_files[@]}"; do
+        if [[ -f "$dest/$legacy" ]]; then
+            rm "$dest/$legacy"
+            log_info "Removed legacy script: $legacy"
+        fi
+    done
+
     # Only install genies (the single entry point) to PATH.
     # genie-session is a library sourced by genies (not a standalone command).
     # genie-quality logic is inlined in genies quality subcommand.
