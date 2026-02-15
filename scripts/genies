@@ -255,6 +255,9 @@ parse_args() {
     # Per-phase min turn overrides
     DELIVER_MIN_TURNS=""
 
+    # Review cycle retry
+    REVIEW_CYCLES=1
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --from)              FROM_PHASE="$2"; shift 2 ;;
@@ -284,6 +287,7 @@ parse_args() {
             --commit-turns)      COMMIT_TURNS="$2"; shift 2 ;;
             --done-turns)        DONE_TURNS="$2"; shift 2 ;;
             --deliver-min-turns) DELIVER_MIN_TURNS="$2"; shift 2 ;;
+            --review-cycles)     REVIEW_CYCLES="$2"; shift 2 ;;
             -h|--help)
                 echo "Usage: genies [OPTIONS] [<topic|backlog-item-path>...]"
                 echo "       genies session <command> [args]"
@@ -336,6 +340,7 @@ parse_args() {
                 echo ""
                 echo "Worktree:"
                 echo "  --cleanup-on-failure    Remove worktree on failure (default: preserve)"
+                echo "  --review-cycles <N>     Max deliver→discern cycles on CHANGES REQUESTED (default: 1)"
                 exit 0
                 ;;
             *)
@@ -1138,6 +1143,7 @@ run_batch_sequential() {
         [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
         [[ "$SKIP_PERMISSIONS" == "false" ]] && pdlc_args+=(--no-skip-permissions)
         [[ -n "$LOG_DIR" ]] && pdlc_args+=(--log-dir "$LOG_DIR")
+        [[ "$REVIEW_CYCLES" -gt 1 ]] && pdlc_args+=(--review-cycles "$REVIEW_CYCLES")
         pdlc_args+=("$input")
 
         if "$SELF" "${pdlc_args[@]}"; then
@@ -1328,6 +1334,7 @@ run_batch_parallel() {
         [[ "$TRUNK_MODE" == "true" ]] && pdlc_args+=(--trunk)
         [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
         [[ "$SKIP_PERMISSIONS" == "false" ]] && pdlc_args+=(--no-skip-permissions)
+        [[ "$REVIEW_CYCLES" -gt 1 ]] && pdlc_args+=(--review-cycles "$REVIEW_CYCLES")
         pdlc_args+=("$input")
 
         "$SELF" "${pdlc_args[@]}" >"$item_log" 2>&1 &
@@ -1574,6 +1581,7 @@ main() {
     # State variables
     local analysis_path=""
     local item_path=""
+    local review_cycle_count=0
     SESSION_ID=""
     OUTPUT=""
     PHASE_NUM_TURNS=0
@@ -1682,15 +1690,47 @@ main() {
                 local verdict
                 verdict=$(detect_verdict "$OUTPUT" "${item_path:-}" 2>/dev/null) || true
 
-                if [[ "$verdict" == "BLOCKED" || "$verdict" == "CHANGES REQUESTED" ]]; then
-                    log_error "Verdict: $verdict — stopping"
+                if [[ "$verdict" == "BLOCKED" ]]; then
+                    log_error "Verdict: BLOCKED — stopping"
                     exit 1
+                elif [[ "$verdict" == "CHANGES REQUESTED" ]]; then
+                    review_cycle_count=$((review_cycle_count + 1))
+                    if [[ "$REVIEW_CYCLES" -gt 1 && "$review_cycle_count" -lt "$REVIEW_CYCLES" ]]; then
+                        log_info "Verdict: CHANGES REQUESTED — retrying deliver→discern (cycle $((review_cycle_count + 1))/$REVIEW_CYCLES)"
+                        SESSION_ID=""  # Fresh session for retry
+                        # Re-run deliver phase
+                        local retry_input="${item_path:-$INPUT}"
+                        run_phase "deliver" "$retry_input"
+                        local deliver_ec=$?
+                        if [[ $deliver_ec -ne 0 ]]; then
+                            log_error "Deliver retry failed (exit $deliver_ec). Stopping."
+                            exit 1
+                        fi
+                        # Re-run discern phase
+                        SESSION_ID=""
+                        run_phase "discern" "$retry_input"
+                        local discern_ec=$?
+                        if [[ $discern_ec -ne 0 ]]; then
+                            log_error "Discern retry failed (exit $discern_ec). Stopping."
+                            exit 1
+                        fi
+                        # Re-check verdict from retry
+                        verdict=$(detect_verdict "$OUTPUT" "${item_path:-}" 2>/dev/null) || true
+                        if [[ "$verdict" != "APPROVED" ]]; then
+                            log_error "Verdict after retry: $verdict — stopping"
+                            exit 1
+                        fi
+                        log_info "Verdict: APPROVED after review cycle $((review_cycle_count + 1))"
+                    else
+                        log_error "Verdict: CHANGES REQUESTED — stopping"
+                        exit 1
+                    fi
                 elif [[ "$verdict" != "APPROVED" ]]; then
                     log_error "Could not parse verdict from /discern output — stopping (safe default)"
                     exit 1
+                else
+                    log_info "Verdict: APPROVED — continuing"
                 fi
-
-                log_info "Verdict: APPROVED — continuing"
                 ;;
         esac
     done

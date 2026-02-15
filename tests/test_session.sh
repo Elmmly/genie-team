@@ -690,6 +690,134 @@ cd "$SAVED_DIR" || true
 teardown
 
 # ─────────────────────────────────────────────
+# Test: _gs_find_branch exact match
+# ─────────────────────────────────────────────
+echo ""
+echo "--- _gs_find_branch exact match ---"
+
+setup
+
+# Arrange — create a branch with full phase suffix
+cd "$MAIN_REPO" || true
+git checkout -b "genie/P0-foo-design" -q 2>/dev/null
+git checkout main -q 2>/dev/null
+
+# Act — exact match (full branch suffix, no trailing glob needed)
+found=$(cd "$MAIN_REPO" && _gs_find_branch "P0-foo-design" 2>/dev/null)
+ec=$?
+
+# Assert
+assert_exit_code "0" "$ec" \
+    "_gs_find_branch: finds exact branch match"
+assert_eq "genie/P0-foo-design" "$found" \
+    "_gs_find_branch: returns exact branch name"
+
+# Act — glob match (item slug without phase suffix)
+found=$(cd "$MAIN_REPO" && _gs_find_branch "P0-foo" 2>/dev/null)
+ec=$?
+
+# Assert
+assert_exit_code "0" "$ec" \
+    "_gs_find_branch: finds branch via glob match"
+assert_eq "genie/P0-foo-design" "$found" \
+    "_gs_find_branch: returns branch from glob match"
+
+# Act — no match
+_gs_find_branch "P0-nonexistent" 2>/dev/null
+ec=$?
+
+# Assert
+assert_exit_code "1" "$ec" \
+    "_gs_find_branch: returns 1 when no branch found"
+
+cd "$SAVED_DIR" || true
+teardown
+
+# ─────────────────────────────────────────────
+# Test: session_integrate_trunk already-merged branch
+# ─────────────────────────────────────────────
+echo ""
+echo "--- session_integrate_trunk already-merged ---"
+
+setup
+
+# Arrange — create a branch, commit work, merge to main, leave branch behind
+cd "$MAIN_REPO" || true
+git checkout -b "genie/P0-merged-design" -q 2>/dev/null
+echo "new feature" > feature.txt
+git add feature.txt
+git commit -m "feat: add feature" -q 2>/dev/null
+git checkout main -q 2>/dev/null
+git merge --ff-only "genie/P0-merged-design" -q 2>/dev/null
+# Branch still exists but is fully merged
+
+# Act
+session_integrate_trunk "P0-merged-design" >/dev/null 2>&1
+ec=$?
+
+# Assert
+assert_exit_code "0" "$ec" \
+    "session_integrate_trunk: exit 0 for already-merged branch"
+
+# Branch should be deleted
+if git rev-parse --verify "genie/P0-merged-design" 2>/dev/null; then
+    assert_eq "deleted" "exists" \
+        "session_integrate_trunk: deletes already-merged branch"
+else
+    assert_eq "deleted" "deleted" \
+        "session_integrate_trunk: deletes already-merged branch"
+fi
+
+cd "$SAVED_DIR" || true
+teardown
+
+# ─────────────────────────────────────────────
+# Test: session_integrate_trunk redundant branch (same content, different commits)
+# ─────────────────────────────────────────────
+echo ""
+echo "--- session_integrate_trunk redundant branch ---"
+
+setup
+
+# Arrange — branch and main both modify the same file differently
+# but the net result is that main already has all the work
+cd "$MAIN_REPO" || true
+# Create a base file
+printf "line1\nline2\nline3\n" > shared.txt
+git add shared.txt
+git commit -m "add shared file" -q 2>/dev/null
+# Branch modifies the file
+git checkout -b "genie/P0-redundant-design" -q 2>/dev/null
+printf "line1\nmodified-by-branch\nline3\nnew-line-by-branch\n" > shared.txt
+git add shared.txt
+git commit -m "feat: modify shared (branch)" -q 2>/dev/null
+# Main gets the same changes plus more (simulates separate integration + additional work)
+git checkout main -q 2>/dev/null
+printf "line1\nmodified-by-branch\nline3\nnew-line-by-branch\nextra-main-work\n" > shared.txt
+git add shared.txt
+git commit -m "feat: modify shared (main, includes branch work)" -q 2>/dev/null
+
+# Act — rebase will conflict, but content is equivalent
+session_integrate_trunk "P0-redundant-design" >/dev/null 2>&1
+ec=$?
+
+# Assert — should succeed (detect redundant branch and clean up)
+assert_exit_code "0" "$ec" \
+    "session_integrate_trunk: exit 0 for redundant branch (same content on main)"
+
+# Branch should be deleted
+if git rev-parse --verify "genie/P0-redundant-design" 2>/dev/null; then
+    assert_eq "deleted" "exists" \
+        "session_integrate_trunk: deletes redundant branch"
+else
+    assert_eq "deleted" "deleted" \
+        "session_integrate_trunk: deletes redundant branch"
+fi
+
+cd "$SAVED_DIR" || true
+teardown
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 echo ""

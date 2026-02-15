@@ -107,9 +107,18 @@ _gs_branch_exists() {
 }
 
 _gs_find_branch() {
-    # Find the first branch matching genie/{item}-*
+    # Find a branch for the given item
+    # Tries exact match first (genie/{item}), then glob (genie/{item}-*)
     local item="$1"
     local branch
+
+    # Exact match (e.g., item="P0-foo-design" → genie/P0-foo-design)
+    if git show-ref --verify --quiet "refs/heads/genie/${item}" 2>/dev/null; then
+        echo "genie/${item}"
+        return 0
+    fi
+
+    # Glob match (e.g., item="P0-foo" → genie/P0-foo-design)
     branch=$(git for-each-ref --format='%(refname:short)' "refs/heads/genie/${item}-*" 2>/dev/null | head -1)
     if [[ -n "$branch" ]]; then
         echo "$branch"
@@ -409,6 +418,26 @@ session_integrate_trunk() {
     # Rebase branch onto default branch
     if ! git -C "$repo_root" rebase "$default_branch" "$branch" -q 2>/dev/null; then
         git -C "$repo_root" rebase --abort 2>/dev/null || true
+
+        # Check if branch content is already on main (redundant branch)
+        # Compare files the branch changed: if main's versions already contain
+        # all the branch's modifications, the branch is redundant
+        local merge_base branch_only_adds
+        merge_base=$(git -C "$repo_root" merge-base "$default_branch" "$branch" 2>/dev/null) || true
+        if [[ -n "$merge_base" ]]; then
+            # Check if branch introduces any lines not already on main
+            # git diff main..branch shows what branch has that main doesn't
+            # Filter to only added lines (^+[^+]) — if none, branch is a subset
+            branch_only_adds=$(git -C "$repo_root" diff "$default_branch" "$branch" 2>/dev/null \
+                | grep -c '^+[^+]' || true)
+            if [[ "${branch_only_adds:-0}" -eq 0 ]]; then
+                git -C "$repo_root" checkout "$default_branch" -q 2>/dev/null || true
+                git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+                _gs_log "Branch already integrated (redundant): $branch"
+                return 0
+            fi
+        fi
+
         _gs_error "Rebase conflict for $item. Branch preserved: $branch"
         return 2
     fi

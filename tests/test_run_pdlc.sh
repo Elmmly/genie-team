@@ -2047,6 +2047,67 @@ assert_eq "false" "$RECOVER_MODE" "AC-4: single-item args don't set RECOVER_MODE
 assert_eq "design" "$FROM_PHASE" "AC-4: single-item args preserved"
 
 # ═══════════════════════════════════════════════
+# Category 25: Review cycle retry (5 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- review cycle retry ---"
+
+# Test: --review-cycles flag default is 1
+# Arrange
+parse_args --from deliver --through discern "docs/backlog/test.md"
+# Assert
+assert_eq "1" "$REVIEW_CYCLES" "--review-cycles: default is 1"
+
+# Test: --review-cycles flag parsed
+# Arrange
+parse_args --review-cycles 2 --from deliver --through discern "docs/backlog/test.md"
+# Assert
+assert_eq "2" "$REVIEW_CYCLES" "--review-cycles: parses value"
+
+# Test: --review-cycles 0 means no retry (same as 1)
+# Arrange
+parse_args --review-cycles 0 --from deliver --through discern "docs/backlog/test.md"
+# Assert
+assert_eq "0" "$REVIEW_CYCLES" "--review-cycles: accepts 0"
+
+# Test: CHANGES REQUESTED with review_cycles=1 stops (current behavior)
+# Arrange — mock detect_verdict to return CHANGES REQUESTED
+_orig_detect_verdict=$(declare -f detect_verdict)
+detect_verdict() { echo "CHANGES REQUESTED"; return 0; }
+REVIEW_CYCLES=1
+review_cycle_count=0
+# Simulate the discern verdict check logic
+verdict=$(detect_verdict "mock output" 2>/dev/null) || true
+should_retry="false"
+if [[ "$verdict" == "CHANGES REQUESTED" && "$REVIEW_CYCLES" -gt 1 ]]; then
+    review_cycle_count=$((review_cycle_count + 1))
+    if [[ "$review_cycle_count" -lt "$REVIEW_CYCLES" ]]; then
+        should_retry="true"
+    fi
+fi
+# Assert
+assert_eq "false" "$should_retry" "review cycle: CHANGES REQUESTED with cycles=1 stops"
+eval "$_orig_detect_verdict"
+
+# Test: CHANGES REQUESTED with review_cycles=2 retries first time
+# Arrange
+detect_verdict() { echo "CHANGES REQUESTED"; return 0; }
+REVIEW_CYCLES=2
+review_cycle_count=0
+verdict=$(detect_verdict "mock output" 2>/dev/null) || true
+should_retry="false"
+if [[ "$verdict" == "CHANGES REQUESTED" && "$REVIEW_CYCLES" -gt 1 ]]; then
+    review_cycle_count=$((review_cycle_count + 1))
+    if [[ "$review_cycle_count" -lt "$REVIEW_CYCLES" ]]; then
+        should_retry="true"
+    fi
+fi
+# Assert
+assert_eq "true" "$should_retry" "review cycle: CHANGES REQUESTED with cycles=2 retries"
+eval "$_orig_detect_verdict"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 
