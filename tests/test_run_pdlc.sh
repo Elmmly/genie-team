@@ -618,6 +618,26 @@ parse_args "test topic"
 # Assert
 assert_eq "true" "$SKIP_PERMISSIONS" "parse_args: default SKIP_PERMISSIONS is true"
 
+# Test: unrecognized --flag is rejected (exit 3)
+# Arrange/Act
+output=$(parse_args --bogus-flag "test topic" 2>&1) && ec=0 || ec=$?
+# Assert
+assert_eq "3" "$ec" "parse_args: unrecognized --flag exits 3"
+assert_contains "$output" "unknown flag" "parse_args: unrecognized --flag prints error"
+
+# Test: single-dash unrecognized flag is also rejected
+# Arrange/Act
+output=$(parse_args -bogus "test topic" 2>&1) && ec=0 || ec=$?
+# Assert
+assert_eq "3" "$ec" "parse_args: unrecognized -flag exits 3"
+
+# Test: valid flags still work after adding unknown-flag guard
+# Arrange/Act
+parse_args --trunk --verbose "test topic"
+# Assert
+assert_eq "true" "$TRUNK_MODE" "parse_args: --trunk still works with unknown-flag guard"
+assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose still works with unknown-flag guard"
+
 # ═══════════════════════════════════════════════
 # Category 7d: --finish-mode flag (5 tests)
 # ═══════════════════════════════════════════════

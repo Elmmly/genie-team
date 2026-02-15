@@ -343,6 +343,10 @@ parse_args() {
                 echo "  --review-cycles <N>     Max deliver→discern cycles on CHANGES REQUESTED (default: 1)"
                 exit 0
                 ;;
+            -*)
+                echo "Error: unknown flag '$1' (see genies --help)" >&2
+                exit 3
+                ;;
             *)
                 # Positional argument — append to INPUTS array
                 INPUTS+=("$1")
@@ -1034,7 +1038,7 @@ print_batch_parallel_summary() {
         log_info "Failed:"
         for item in "${failed_items[@]}"; do
             local item_basename
-            item_basename=$(basename "$item" .md)
+            item_basename=$(basename -- "$item" .md)
             log_info "  $item_basename → $LOG_DIR/${item_basename}.log"
         done
     fi
@@ -1044,7 +1048,7 @@ print_batch_parallel_summary() {
         log_info "Merge conflicts:"
         for item in "${conflict_items[@]}"; do
             local item_basename
-            item_basename=$(basename "$item" .md)
+            item_basename=$(basename -- "$item" .md)
             log_info "  $item_basename → $LOG_DIR/${item_basename}.log"
         done
     fi
@@ -1194,7 +1198,7 @@ run_recover() {
     # Source 1: Read manifest if available
     if [[ -f "$manifest" ]] && command -v jq &>/dev/null; then
         while IFS= read -r item; do
-            [[ -n "$item" ]] && succeeded_slugs+=("$(basename "$item" .md)")
+            [[ -n "$item" ]] && succeeded_slugs+=("$(basename -- "$item" .md)")
         done < <(jq -r '.succeeded[]' "$manifest" 2>/dev/null)
     fi
 
