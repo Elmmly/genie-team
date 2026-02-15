@@ -3,11 +3,9 @@
 # Writes session state file when a slash command is detected.
 # Zero LLM cost — pure shell operations.
 
-set -euo pipefail
-
 input=$(cat)
-prompt=$(echo "$input" | jq -r '.prompt // empty')
-cwd=$(echo "$input" | jq -r '.cwd // empty')
+prompt=$(echo "$input" | jq -r '.prompt // empty' 2>/dev/null) || prompt=""
+cwd=$(echo "$input" | jq -r '.cwd // empty' 2>/dev/null) || cwd=""
 
 # Only track slash commands
 if [[ -z "$prompt" ]] || [[ "$prompt" != /* ]]; then
