@@ -2128,6 +2128,84 @@ assert_eq "true" "$should_retry" "review cycle: CHANGES REQUESTED with cycles=2 
 eval "$_orig_detect_verdict"
 
 # ═══════════════════════════════════════════════
+# Category: preflight_checks (8 tests)
+# Spec AC-9: Preflight validation before execution
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- preflight_checks ---"
+
+# Test: --no-preflight flag parsed
+# Arrange
+# Act
+parse_args --no-preflight "test topic"
+# Assert
+assert_eq "true" "$NO_PREFLIGHT" "preflight: --no-preflight flag sets NO_PREFLIGHT"
+
+# Test: NO_PREFLIGHT defaults to false
+# Arrange
+# Act
+parse_args "test topic"
+# Assert
+assert_eq "false" "$NO_PREFLIGHT" "preflight: NO_PREFLIGHT defaults to false"
+
+# Test: preflight passes when claude and git are available
+# Arrange
+setup_temp
+cd "$(mktemp -d)" || exit
+git init -q .
+TRUNK_MODE="true"
+# Act
+output=$(preflight_checks 2>&1)
+ec=$?
+# Assert
+assert_eq "0" "$ec" "preflight: passes when claude and git available (trunk mode)"
+teardown_temp
+
+# Test: preflight fails exit 3 when claude missing
+# Arrange
+setup_temp
+cd "$(mktemp -d)" || exit
+git init -q .
+TRUNK_MODE="true"
+# Use a PATH with only git (no claude)
+_saved_path="$PATH"
+PATH="/usr/bin:/bin"
+# Act
+output=$(preflight_checks 2>&1)
+ec=$?
+# Assert
+PATH="$_saved_path"
+assert_eq "3" "$ec" "preflight: exits 3 when claude CLI missing"
+assert_contains "$output" "claude" "preflight: error mentions claude"
+teardown_temp
+
+# Test: preflight fails exit 3 when not in git repo
+# Arrange
+setup_temp
+cd "$(mktemp -d)" || exit
+TRUNK_MODE="true"
+# Act
+output=$(preflight_checks 2>&1)
+ec=$?
+# Assert
+assert_eq "3" "$ec" "preflight: exits 3 when not in git repo"
+teardown_temp
+
+# Test: preflight skips gh check in trunk mode
+# Arrange
+setup_temp
+cd "$(mktemp -d)" || exit
+git init -q .
+TRUNK_MODE="true"
+# Act (gh may or may not be available — trunk mode should skip the check)
+output=$(preflight_checks 2>&1)
+ec=$?
+# Assert
+assert_eq "0" "$ec" "preflight: skips gh check in trunk mode"
+teardown_temp
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 

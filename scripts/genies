@@ -38,6 +38,7 @@ PHASE_TOOLS=(
 # ─────────────────────────────────────────────
 
 log_info()  { echo "[INFO]  $*" >&2; }
+log_warn()  { echo "[WARN]  $*" >&2; }
 log_error() { echo "[ERROR] $*" >&2; }
 log_debug() { [[ "${VERBOSE:-false}" == "true" ]] && echo "[DEBUG] $*" >&2 || true; }
 
@@ -258,6 +259,9 @@ parse_args() {
     # Review cycle retry
     REVIEW_CYCLES=1
 
+    # Preflight
+    NO_PREFLIGHT="false"
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --from)              FROM_PHASE="$2"; shift 2 ;;
@@ -288,6 +292,7 @@ parse_args() {
             --done-turns)        DONE_TURNS="$2"; shift 2 ;;
             --deliver-min-turns) DELIVER_MIN_TURNS="$2"; shift 2 ;;
             --review-cycles)     REVIEW_CYCLES="$2"; shift 2 ;;
+            --no-preflight)      NO_PREFLIGHT="true"; shift ;;
             -h|--help)
                 echo "Usage: genies [OPTIONS] [<topic|backlog-item-path>...]"
                 echo "       genies session <command> [args]"
@@ -341,6 +346,9 @@ parse_args() {
                 echo "Worktree:"
                 echo "  --cleanup-on-failure    Remove worktree on failure (default: preserve)"
                 echo "  --review-cycles <N>     Max deliver→discern cycles on CHANGES REQUESTED (default: 1)"
+                echo ""
+                echo "Preflight:"
+                echo "  --no-preflight          Skip environment validation before execution"
                 exit 0
                 ;;
             -*)
@@ -381,6 +389,47 @@ validate_args() {
             log_error "Phase '$FROM_PHASE' requires an existing backlog item path, not a topic string"
             exit 3
         fi
+    fi
+
+    return 0
+}
+
+# Preflight environment validation
+# Runs before any execution path. FATAL checks exit 3; WARN checks log and continue.
+preflight_checks() {
+    local errors=0
+
+    # FATAL: claude CLI must be available
+    if ! command -v claude &>/dev/null; then
+        log_error "Preflight: claude CLI not found on PATH"
+        errors=$((errors + 1))
+    fi
+
+    # FATAL: must be in a git repository
+    if ! git rev-parse --git-dir &>/dev/null 2>&1; then
+        log_error "Preflight: not in a git repository"
+        errors=$((errors + 1))
+    fi
+
+    # FATAL: gh auth required in PR mode
+    if [[ "${TRUNK_MODE:-false}" != "true" ]]; then
+        if ! command -v gh &>/dev/null; then
+            log_error "Preflight: gh CLI not found (required for PR mode; use --trunk to skip)"
+            errors=$((errors + 1))
+        elif ! gh auth status &>/dev/null 2>&1; then
+            log_error "Preflight: gh not authenticated (run 'gh auth login' or use --trunk)"
+            errors=$((errors + 1))
+        fi
+    fi
+
+    # Exit on fatal errors (after checking all, so operator sees everything at once)
+    if [[ $errors -gt 0 ]]; then
+        return 3
+    fi
+
+    # WARN: dirty working tree
+    if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+        log_warn "Preflight: working tree has uncommitted changes"
     fi
 
     return 0
@@ -1522,6 +1571,11 @@ run_batch_parallel() {
 
 main() {
     parse_args "$@"
+
+    # Preflight environment validation
+    if [[ "${NO_PREFLIGHT:-false}" != "true" ]]; then
+        preflight_checks || exit $?
+    fi
 
     # Recovery mode: integrate leftover branches from crashed batch
     if [[ "$RECOVER_MODE" == "true" ]]; then

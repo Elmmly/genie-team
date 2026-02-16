@@ -313,3 +313,64 @@ codebase with unarchived backlog items is an incomplete lifecycle.
 - For headless/cron use, see `scripts/genies` (available on PATH after global install)
 - For overnight batch execution, use `genies --parallel N` (scans backlog, auto-detects phases)
 - For large-appetite items, consider splitting: `--through design` then `--from deliver` in separate sessions to avoid context limits
+
+---
+
+## Operator Guide: Batch Execution
+
+### Before Running
+
+The `genies` script runs preflight checks automatically (claude CLI, git repo, gh auth). To prepare the environment:
+
+- **Disable interactive git hooks.** Any hook that prompts for input (commitlint, linters with interactive fix mode) will hang indefinitely in headless execution. Consult your hook manager's docs for how to disable — most support an environment variable (e.g., `LEFTHOOK=0`, `HUSKY=0`, `PRE_COMMIT_ALLOW_NO_CONFIG=1`).
+- **Verify `gh auth status`** if using PR mode (the default). Trunk mode (`--trunk`) skips this.
+- **Prevent machine sleep** for long-running batches: `caffeinate -s &` on macOS.
+
+```bash
+# Preview what will run
+genies --dry-run --parallel 4
+```
+
+Use `--no-preflight` to skip validation in CI/containers where you control the environment.
+
+### Monitoring
+
+Each parallel worker writes to its own log file:
+
+```bash
+# Watch a specific worker
+tail -f logs/batch-20260215-143000/P1-feature-name.log
+
+# Watch all workers
+tail -f logs/batch-20260215-143000/*.log
+```
+
+After completion, `batch-manifest.json` in the log directory lists each item's outcome:
+
+```json
+{
+  "succeeded": ["P1-feature-a", "P2-feature-b"],
+  "failed": ["P1-feature-c"],
+  "conflicts": []
+}
+```
+
+### Recovery
+
+If a batch run fails or is interrupted:
+
+```bash
+# Integrate leftover branches from a crashed run
+genies --recover
+
+# Filter recovery to specific priorities
+genies --recover --priority P1
+
+# Clean up stale worktrees and merged branches
+genies session cleanup
+
+# List active sessions
+genies session list
+```
+
+The `--recover` flag reads `batch-manifest.json` (if available) to determine which branches succeeded and integrates them. Failed branches are cleaned up.

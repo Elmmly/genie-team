@@ -818,6 +818,41 @@ cd "$SAVED_DIR" || true
 teardown
 
 # ─────────────────────────────────────────────
+# session_cleanup_item: worktree prune (1 test)
+# Spec AC-10: git worktree prune before branch deletion
+# ─────────────────────────────────────────────
+echo ""
+echo "--- session_cleanup_item: worktree prune ---"
+
+setup
+
+# Test: cleanup succeeds when worktree directory was manually deleted (stale reference)
+# Arrange — create worktree, then manually rm -rf the directory to simulate crash
+SAVED_DIR="$(pwd)"
+cd "$TEST_REPO" || exit
+git worktree add "../${REPO_NAME}--P0-stale-item" -b "genie/P0-stale-item-deliver" main -q 2>/dev/null
+# Simulate crash: remove the directory without git knowing
+rm -rf "../${REPO_NAME}--P0-stale-item"
+# Verify the stale reference exists (git thinks worktree is still there)
+stale_count=$(git worktree list --porcelain 2>/dev/null | grep -c "worktree.*P0-stale-item" || true)
+assert_eq "1" "$stale_count" "session_cleanup_item: stale worktree reference exists before cleanup"
+
+# Act
+session_cleanup_item "P0-stale-item" 2>/dev/null
+
+# Assert — branch should be deleted, no stale references
+if git rev-parse --verify "genie/P0-stale-item-deliver" 2>/dev/null; then
+    assert_eq "deleted" "exists" \
+        "session_cleanup_item: cleans up branch despite stale worktree"
+else
+    assert_eq "deleted" "deleted" \
+        "session_cleanup_item: cleans up branch despite stale worktree"
+fi
+
+cd "$SAVED_DIR" || true
+teardown
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 echo ""

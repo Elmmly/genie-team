@@ -55,6 +55,17 @@ acceptance_criteria:
       complete. Supports --priority filtering, --dry-run preview, --continue-on-failure,
       and --topics-file for discovery batches.
     status: met
+  - id: AC-9
+    description: >-
+      Runner performs preflight validation before execution: checks claude CLI,
+      git repo state, gh auth (PR mode only), and warns on dirty working tree.
+      FATAL failures exit 3; warnings are non-fatal. Skippable via --no-preflight.
+    status: pending
+  - id: AC-10
+    description: >-
+      Worktree cleanup calls git worktree prune before branch deletion to clear
+      stale references from manually-deleted worktree directories.
+    status: pending
 ---
 
 # Autonomous Lifecycle Runner
@@ -125,6 +136,8 @@ discover → define → design → deliver → discern → commit → done
 - Integration exit codes: `session_integrate_trunk` returns distinct codes (0=success, 1=no branch, 2=rebase conflict, 3=checkout failed, 4=merge failed). Integration loop logs specific failure reason per code. Batch completion writes `batch-manifest.json` to log directory.
 - `--recover` flag re-runs just the integration phase for items with existing unmerged `genie/*` branches, with optional `--priority` slug-prefix filtering. Runs sequentially (integration modifies shared state). Enables recovery without re-running expensive PDLC phases.
 - PATH command naming: `genies` is the single CLI entry point (lifecycle runner + `session` subcommand + `quality` subcommand). `genie-session` is a library sourced by `genies`. No `.sh` extensions for PATH commands. Internal `scripts/validate/*.sh` keep extensions.
+- Preflight validation runs before any execution path (batch, single, recover). FATAL checks (claude CLI, git repo, gh auth in PR mode) exit 3. WARN checks (dirty tree) log and continue. Skippable via `--no-preflight`.
+- Worktree cleanup calls `git worktree prune` before branch deletion to clear stale references from manually-deleted worktree directories.
 
 ## Implementation Evidence
 <!-- Appended by /deliver on 2026-02-12 -->
@@ -258,3 +271,17 @@ Crash recovery implementation from 2hearted while-away post-mortem:
 ### Test Coverage
 - `tests/test_run_pdlc.sh`: 210 tests (13 new), all passing
 - `tests/test_session.sh`: 58 tests, all passing
+
+## Implementation Evidence (Batch Operator Hardening)
+<!-- Appended by /deliver on 2026-02-15 from P2-batch-operator-hardening -->
+
+Preflight validation, worktree prune, and operator guide from issue #4 field report:
+
+### P2-batch-operator-hardening
+- `scripts/genies`: Added `log_warn()`, `preflight_checks()` (4 checks: claude CLI, git repo, gh auth, dirty tree), `--no-preflight` flag, wired into `main()`
+- `scripts/genie-session`: Added `git worktree prune` to `session_cleanup_item()`
+- `commands/run.md`: Appended operator guide section
+
+### Test Coverage
+- `tests/test_run_pdlc.sh`: 227 tests (6 new covering AC-9), all passing
+- `tests/test_session.sh`: 69 tests (2 new covering AC-10), all passing

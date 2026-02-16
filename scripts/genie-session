@@ -529,6 +529,10 @@ session_cleanup_item() {
     local worktree_dir branch repo_root
 
     repo_root=$(_gs_repo_root 2>/dev/null) || { _gs_log "Cleaned up: $item"; return 0; }
+
+    # Prune stale worktree references (e.g., directory manually deleted after crash)
+    git -C "$repo_root" worktree prune 2>/dev/null || true
+
     worktree_dir=$(_gs_worktree_dir "$item" 2>/dev/null) || true
     branch=$(_gs_find_branch "$item" 2>/dev/null) || true
 
