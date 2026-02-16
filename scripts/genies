@@ -477,8 +477,9 @@ parse_artifact_fallback() {
 
 # Detect verdict from /discern output
 # Usage: detect_verdict <output> [item_path]
-# Primary: reads verdict from backlog item frontmatter (structured, reliable)
-# Fallback: greps output text for verdict keywords (legacy compat)
+# 1. Primary: reads verdict from backlog item frontmatter (structured, reliable)
+# 2. Fallback: greps output text for verdict keywords (case-insensitive)
+# 3. Last resort: greps backlog item body for verdict keywords
 # Returns: APPROVED, BLOCKED, or CHANGES REQUESTED on stdout; exit 1 if not found
 detect_verdict() {
     local output="$1"
@@ -495,16 +496,29 @@ detect_verdict() {
         fi
     fi
 
-    # Fallback: regex parse from Claude output (backwards compat)
+    # Fallback: case-insensitive regex parse from Claude output text
     local verdict
-    verdict=$(echo "$output" | grep -oE 'APPROVED|BLOCKED|CHANGES REQUESTED' | head -1)
+    verdict=$(echo "$output" | grep -ioE 'APPROVED|BLOCKED|CHANGES REQUESTED' | head -1)
 
     if [[ -n "$verdict" ]]; then
-        echo "$verdict"
+        # Normalize to uppercase (tr for bash 3 compat)
+        echo "$verdict" | tr '[:lower:]' '[:upper:]'
         return 0
     fi
 
+    # Last resort: grep the backlog item body for verdict keywords
+    # The critic writes a Review section to the file — the verdict is often there
+    # even when frontmatter update was skipped
+    if [[ -n "$item_path" && -f "$item_path" ]]; then
+        verdict=$(grep -ioE 'APPROVED|BLOCKED|CHANGES REQUESTED' "$item_path" | head -1)
+        if [[ -n "$verdict" ]]; then
+            echo "$verdict" | tr '[:lower:]' '[:upper:]'
+            return 0
+        fi
+    fi
+
     log_error "Could not parse verdict from /discern output"
+    log_error "  Checked: frontmatter verdict field, output text (${#output} chars), item body"
     return 1
 }
 

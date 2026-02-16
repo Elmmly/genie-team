@@ -367,7 +367,7 @@ assert_eq "docs/backlog/P2-new-item.md" "$result" \
 teardown_temp
 
 # ═══════════════════════════════════════════════
-# Category 5: detect_verdict (4 tests)
+# Category 5: detect_verdict (8 tests)
 # ═══════════════════════════════════════════════
 
 echo ""
@@ -399,6 +399,55 @@ result=$(detect_verdict "$output")
 ec=$?
 # Assert
 assert_eq "CHANGES REQUESTED" "$result" "detect_verdict: detects CHANGES REQUESTED"
+
+# Test: case-insensitive matching (lowercase "approved")
+# Arrange
+output="The review is complete. Verdict: approved."
+# Act
+result=$(detect_verdict "$output")
+ec=$?
+# Assert
+assert_eq "APPROVED" "$result" "detect_verdict: case-insensitive 'approved' → APPROVED"
+
+# Test: mixed case "Approved"
+# Arrange
+output="Verdict: Approved — all criteria met."
+# Act
+result=$(detect_verdict "$output")
+ec=$?
+# Assert
+assert_eq "APPROVED" "$result" "detect_verdict: mixed case 'Approved' → APPROVED"
+
+# Test: case-insensitive "blocked"
+# Arrange
+output="Review verdict: blocked due to missing tests."
+# Act
+result=$(detect_verdict "$output")
+ec=$?
+# Assert
+assert_eq "BLOCKED" "$result" "detect_verdict: case-insensitive 'blocked' → BLOCKED"
+
+# Test: last resort — reads verdict from backlog item body
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/item-body-verdict.md" << 'FRONTMATTER'
+---
+status: reviewed
+---
+# Review
+
+**Verdict:** APPROVED
+
+All criteria met.
+FRONTMATTER
+output="I've completed the review and updated the backlog item."
+# Act
+result=$(detect_verdict "$output" "$TEMP_DIR/item-body-verdict.md")
+ec=$?
+# Assert
+assert_eq "APPROVED" "$result" "detect_verdict: reads verdict from item body as last resort"
+assert_exit_code "0" "$ec" "detect_verdict: exit 0 for item body verdict"
+teardown_temp
 
 # Test: no verdict returns 1
 # Arrange
