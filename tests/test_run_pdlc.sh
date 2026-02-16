@@ -2320,6 +2320,19 @@ batch_worker_code=$(grep -A2 'local pdlc_args=.*--worktree' "$RUN_PDLC")
 # Assert
 assert_contains "$batch_worker_code" "--no-preflight" "batch worker: includes --no-preflight"
 
+# Test: sequential batch uses worktree isolation (--worktree, --finish-mode, --leave-branch)
+# Arrange — grep the run_batch_sequential function for worktree args
+seq_batch_code=$(sed -n '/^run_batch_sequential/,/^}/p' "$RUN_PDLC")
+# Assert
+assert_contains "$seq_batch_code" "--worktree" "sequential batch: uses --worktree isolation"
+assert_contains "$seq_batch_code" "--finish-mode" "sequential batch: uses --finish-mode"
+assert_contains "$seq_batch_code" "--leave-branch" "sequential batch: uses --leave-branch"
+assert_contains "$seq_batch_code" "--cleanup-on-failure" "sequential batch: uses --cleanup-on-failure"
+
+# Test: sequential batch integrates after each item (calls session_integrate)
+assert_contains "$seq_batch_code" "session_integrate_trunk" "sequential batch: integrates trunk after success"
+assert_contains "$seq_batch_code" "session_integrate_pr" "sequential batch: integrates PR after success"
+
 # ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════

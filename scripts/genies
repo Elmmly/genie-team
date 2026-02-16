@@ -1021,9 +1021,9 @@ print_batch_dry_run() {
     elif [[ "$PARALLEL_JOBS" -gt 0 ]]; then
         log_info "Mode: parallel ($PARALLEL_JOBS workers, PR-based, worktrees)"
     elif [[ "$TRUNK_MODE" == "true" ]]; then
-        log_info "Mode: sequential (trunk-based)"
+        log_info "Mode: sequential (trunk-based, worktrees)"
     else
-        log_info "Mode: sequential"
+        log_info "Mode: sequential (worktrees)"
     fi
     log_info "(dry run — not executing)"
 }
@@ -1206,18 +1206,21 @@ run_batch_sequential() {
     for entry in "${BATCH_ITEMS[@]}"; do
         local item_phase="${entry%%:*}"
         local input="${entry#*:}"
-        local display_name
+        local slug
         if [[ -f "$input" ]]; then
-            display_name=$(basename "$input" .md)
+            slug=$(basename "$input" .md)
         else
-            display_name="$input"
+            slug="$input"
         fi
 
         log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        log_info "Running: $display_name ($item_phase → $THROUGH_PHASE)"
+        log_info "Running: $slug ($item_phase → $THROUGH_PHASE)"
         log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-        local pdlc_args=(--from "$item_phase" --through "$THROUGH_PHASE" --lock)
+        # Use worktree isolation: work on a branch, integrate after success
+        local pdlc_args=(--no-preflight --worktree --finish-mode --leave-branch
+            --from "$item_phase" --through "$THROUGH_PHASE"
+            --lock --cleanup-on-failure --slug "$slug")
         [[ "$TRUNK_MODE" == "true" ]] && pdlc_args+=(--trunk)
         [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
         [[ "$SKIP_PERMISSIONS" == "false" ]] && pdlc_args+=(--no-skip-permissions)
@@ -1225,20 +1228,40 @@ run_batch_sequential() {
         [[ "$REVIEW_CYCLES" -gt 1 ]] && pdlc_args+=(--review-cycles "$REVIEW_CYCLES")
         pdlc_args+=("$input")
 
-        if "$SELF" "${pdlc_args[@]}"; then
-            succeeded=$((succeeded + 1))
-            log_info "Completed: $display_name"
+        local ec=0
+        "$SELF" "${pdlc_args[@]}" || ec=$?
+
+        if [[ $ec -eq 0 ]]; then
+            # Integrate the worktree branch
+            local integrate_ec=0
+            if [[ "$TRUNK_MODE" == "true" ]]; then
+                session_integrate_trunk "$slug" || integrate_ec=$?
+            else
+                session_integrate_pr "$slug" || integrate_ec=$?
+            fi
+
+            if [[ $integrate_ec -eq 0 ]]; then
+                succeeded=$((succeeded + 1))
+                log_info "Completed: $slug"
+            elif [[ $integrate_ec -eq 2 ]]; then
+                failed=$((failed + 1))
+                failed_items+=("$input")
+                log_error "Merge conflict: $slug (branch preserved: genie/$slug-*)"
+            else
+                failed=$((failed + 1))
+                failed_items+=("$input")
+                log_error "Integration failed (exit $integrate_ec): $slug"
+            fi
         else
-            local ec=$?
             failed=$((failed + 1))
             failed_items+=("$input")
-            log_error "Failed (exit $ec): $display_name"
+            log_error "Failed (exit $ec): $slug"
+        fi
 
-            if [[ "$CONTINUE_ON_FAILURE" != "true" ]]; then
-                log_error "Stopping batch (use --continue-on-failure to keep going)"
-                print_batch_summary "$succeeded" "$failed" "$start_time" "${failed_items[@]}"
-                exit 2
-            fi
+        if [[ $failed -gt 0 && "$CONTINUE_ON_FAILURE" != "true" ]]; then
+            log_error "Stopping batch (use --continue-on-failure to keep going)"
+            print_batch_summary "$succeeded" "$failed" "$start_time" "${failed_items[@]}"
+            exit 2
         fi
     done
 
