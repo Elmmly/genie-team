@@ -526,8 +526,8 @@ maybe_utility_commit() {
             local commit_start
             commit_start=$(date +%s)
 
-            run_phase "commit" "${item_path:-${analysis_path:-$input}}"
-            local commit_ec=$?
+            local commit_ec=0
+            run_phase "commit" "${item_path:-${analysis_path:-$input}}" || commit_ec=$?
 
             local commit_end commit_duration
             commit_end=$(date +%s)
@@ -666,14 +666,20 @@ run_phase() {
 
     log_info "[$phase] Starting (max turns: $max_turns)"
 
+    # Redirect claude stderr to log file when LOG_DIR is set, else /dev/null
+    local stderr_target="/dev/null"
+    if [[ -n "${LOG_DIR:-}" ]]; then
+        mkdir -p "$LOG_DIR"
+        stderr_target="$LOG_DIR/claude_stderr.log"
+    fi
+
     local raw_output
     if [[ "${VERBOSE_LOGGING:-false}" == "true" && -n "$LOG_DIR" ]]; then
         local verbose_log="$LOG_DIR/${phase}_verbose.jsonl"
-        mkdir -p "$LOG_DIR"
-        raw_output=$(claude "${claude_args[@]}" 2>/dev/null | tee "$verbose_log")
+        raw_output=$(claude "${claude_args[@]}" 2>>"$stderr_target" | tee "$verbose_log")
         log_info "[$phase] Verbose trace: $verbose_log"
     else
-        raw_output=$(claude "${claude_args[@]}" 2>/dev/null)
+        raw_output=$(claude "${claude_args[@]}" 2>>"$stderr_target")
     fi
     local ec=$?
 
@@ -744,13 +750,19 @@ retry_phase() {
         claude_args+=(--output-format json)
     fi
 
+    # Redirect claude stderr to log file when LOG_DIR is set, else /dev/null
+    local stderr_target="/dev/null"
+    if [[ -n "${LOG_DIR:-}" ]]; then
+        mkdir -p "$LOG_DIR"
+        stderr_target="$LOG_DIR/claude_stderr.log"
+    fi
+
     local raw_output
     if [[ "${VERBOSE_LOGGING:-false}" == "true" && -n "$LOG_DIR" ]]; then
         local verbose_log="$LOG_DIR/${phase}_retry_verbose.jsonl"
-        mkdir -p "$LOG_DIR"
-        raw_output=$(claude "${claude_args[@]}" 2>/dev/null | tee "$verbose_log")
+        raw_output=$(claude "${claude_args[@]}" 2>>"$stderr_target" | tee "$verbose_log")
     else
-        raw_output=$(claude "${claude_args[@]}" 2>/dev/null)
+        raw_output=$(claude "${claude_args[@]}" 2>>"$stderr_target")
     fi
     local ec=$?
 
@@ -1380,7 +1392,7 @@ run_batch_parallel() {
 
         log_info "Starting [$item_idx/$total]: $slug ($item_phase → $THROUGH_PHASE)"
 
-        local pdlc_args=(--worktree --finish-mode --leave-branch
+        local pdlc_args=(--no-preflight --worktree --finish-mode --leave-branch
             --from "$item_phase" --through "$THROUGH_PHASE"
             --lock --cleanup-on-failure --log-dir "$LOG_DIR"
             --slug "$slug")
@@ -1673,8 +1685,8 @@ main() {
         local start_time
         start_time=$(date +%s)
 
-        run_phase "$phase" "$phase_input"
-        local ec=$?
+        local ec=0
+        run_phase "$phase" "$phase_input" || ec=$?
 
         local end_time duration
         end_time=$(date +%s)
@@ -1684,8 +1696,8 @@ main() {
         if [[ $ec -ne 0 ]]; then
             # Check if it's turn exhaustion (exit 2 from claude)
             if [[ $ec -eq 2 && -n "$SESSION_ID" ]]; then
-                retry_phase "$phase" "$phase_input" "$SESSION_ID"
-                local retry_ec=$?
+                local retry_ec=0
+                retry_phase "$phase" "$phase_input" "$SESSION_ID" || retry_ec=$?
                 if [[ $retry_ec -ne 0 ]]; then
                     log_error "Phase '$phase' exhausted turns after retry. Stopping."
                     if [[ "$USE_WORKTREE" == "true" && "$CLEANUP_ON_FAILURE" == "true" && -n "$item_slug" ]]; then
@@ -1708,8 +1720,8 @@ main() {
         if ! check_min_turns "$phase"; then
             log_info "[$phase] Below minimum turns — retrying with fresh session"
             SESSION_ID=""
-            run_phase "$phase" "$phase_input"
-            local min_retry_ec=$?
+            local min_retry_ec=0
+            run_phase "$phase" "$phase_input" || min_retry_ec=$?
             if [[ $min_retry_ec -ne 0 ]]; then
                 log_error "Phase '$phase' failed on minimum-turn retry. Stopping."
                 if [[ "$USE_WORKTREE" == "true" && "$CLEANUP_ON_FAILURE" == "true" && -n "$item_slug" ]]; then
@@ -1758,16 +1770,16 @@ main() {
                         SESSION_ID=""  # Fresh session for retry
                         # Re-run deliver phase
                         local retry_input="${item_path:-$INPUT}"
-                        run_phase "deliver" "$retry_input"
-                        local deliver_ec=$?
+                        local deliver_ec=0
+                        run_phase "deliver" "$retry_input" || deliver_ec=$?
                         if [[ $deliver_ec -ne 0 ]]; then
                             log_error "Deliver retry failed (exit $deliver_ec). Stopping."
                             exit 1
                         fi
                         # Re-run discern phase
                         SESSION_ID=""
-                        run_phase "discern" "$retry_input"
-                        local discern_ec=$?
+                        local discern_ec=0
+                        run_phase "discern" "$retry_input" || discern_ec=$?
                         if [[ $discern_ec -ne 0 ]]; then
                             log_error "Discern retry failed (exit $discern_ec). Stopping."
                             exit 1

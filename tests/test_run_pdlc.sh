@@ -2206,6 +2206,72 @@ assert_eq "0" "$ec" "preflight: skips gh check in trunk mode"
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# Category 26: Phase failure error handling (set -e guard)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- phase failure error handling ---"
+
+# Test: phase failure exits 1 (not 127 from set -e propagation)
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/fail_responses"
+cp "$MOCK_RESPONSES"/*.json "$TEMP_DIR/fail_responses/"
+touch "$TEMP_DIR/fail_responses/deliver_fail"
+export MOCK_CLAUDE_RESPONSES_DIR="$TEMP_DIR/fail_responses"
+# Act — run as subprocess with set -e active (--no-preflight: skip env checks in test)
+output=$("$RUN_PDLC" --no-preflight --from deliver --through deliver "docs/backlog/P2-item.md" 2>&1)
+ec=$?
+# Assert
+assert_exit_code "1" "$ec" "set-e guard: phase failure exits 1 (not 127)"
+export MOCK_CLAUDE_RESPONSES_DIR="$MOCK_RESPONSES"
+teardown_temp
+
+# Test: phase failure logs error message
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/fail_responses"
+cp "$MOCK_RESPONSES"/*.json "$TEMP_DIR/fail_responses/"
+touch "$TEMP_DIR/fail_responses/deliver_fail"
+export MOCK_CLAUDE_RESPONSES_DIR="$TEMP_DIR/fail_responses"
+# Act
+output=$("$RUN_PDLC" --no-preflight --from deliver --through deliver "docs/backlog/P2-item.md" 2>&1)
+# Assert
+assert_contains "$output" "failed" "set-e guard: phase failure logs error message"
+export MOCK_CLAUDE_RESPONSES_DIR="$MOCK_RESPONSES"
+teardown_temp
+
+# Test: claude stderr captured to log file when LOG_DIR set
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/logs" "$TEMP_DIR/bin"
+# Create a mock claude that writes to stderr and returns valid JSON
+cat > "$TEMP_DIR/bin/claude" << 'MOCK_SCRIPT'
+#!/bin/bash
+echo "mock stderr warning" >&2
+echo '{"type":"result","result":"Discovery complete.","session_id":"mock-session-stderr","usage":{"turns":5,"input_tokens":100,"output_tokens":50}}'
+exit 0
+MOCK_SCRIPT
+chmod +x "$TEMP_DIR/bin/claude"
+export PATH="$TEMP_DIR/bin:$PATH"
+# Act — run as subprocess to get set -e and fresh function scope
+output=$("$RUN_PDLC" --no-preflight --log-dir "$TEMP_DIR/logs" --through discover "test topic" 2>&1)
+# Assert
+assert_file_exists "$TEMP_DIR/logs/claude_stderr.log" "stderr capture: creates claude_stderr.log"
+if [[ -f "$TEMP_DIR/logs/claude_stderr.log" ]]; then
+    stderr_content=$(cat "$TEMP_DIR/logs/claude_stderr.log")
+    assert_contains "$stderr_content" "mock stderr warning" "stderr capture: log contains stderr output"
+fi
+teardown_temp
+
+# Test: batch worker includes --no-preflight
+# Arrange — check that _launch_batch_worker includes --no-preflight in args
+# We grep the script source for the batch worker pdlc_args (the one with --worktree)
+batch_worker_code=$(grep -A2 'local pdlc_args=.*--worktree' "$RUN_PDLC")
+# Assert
+assert_contains "$batch_worker_code" "--no-preflight" "batch worker: includes --no-preflight"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 
