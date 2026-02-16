@@ -885,8 +885,8 @@ echo "--- main / exit codes ---"
 # Test: successful through-define run exits 0
 # Arrange
 setup_temp
-# Act — run as subprocess to test main()
-output=$("$RUN_PDLC" --through define "test topic" 2>&1)
+# Act — run as subprocess to test main() (--no-preflight: skip env checks in test)
+output=$("$RUN_PDLC" --no-preflight --through define "test topic" 2>&1)
 ec=$?
 # Assert
 assert_exit_code "0" "$ec" "main: --through define exits 0 on success"
@@ -900,8 +900,8 @@ mkdir -p "$TEMP_DIR/blocked_responses"
 cp "$MOCK_RESPONSES"/*.json "$TEMP_DIR/blocked_responses/"
 cp "$MOCK_RESPONSES/discern_blocked.json" "$TEMP_DIR/blocked_responses/discern.json"
 export MOCK_CLAUDE_RESPONSES_DIR="$TEMP_DIR/blocked_responses"
-# Act — run full lifecycle (includes discern)
-output=$("$RUN_PDLC" "test topic" 2>&1)
+# Act — run full lifecycle (includes discern) (--no-preflight: skip env checks in test)
+output=$("$RUN_PDLC" --no-preflight "test topic" 2>&1)
 ec=$?
 # Assert
 assert_exit_code "1" "$ec" "main: BLOCKED verdict exits 1"
@@ -911,8 +911,8 @@ teardown_temp
 # Test: validation error exits 3
 # Arrange
 setup_temp
-# Act — --from after --through
-output=$("$RUN_PDLC" --from design --through define "docs/backlog/P2-item.md" 2>&1)
+# Act — --from after --through (--no-preflight: skip env checks in test)
+output=$("$RUN_PDLC" --no-preflight --from design --through define "docs/backlog/P2-item.md" 2>&1)
 ec=$?
 # Assert
 assert_exit_code "3" "$ec" "main: validation error exits 3"
