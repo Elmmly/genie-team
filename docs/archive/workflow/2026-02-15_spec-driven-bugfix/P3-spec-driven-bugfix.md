@@ -3,12 +3,13 @@ spec_version: "1.0"
 type: shaped-work
 id: GT-33
 title: "Spec-Driven Bugfix Path"
-status: designed
+status: wontfix
 created: "2026-02-13"
 appetite: small
 priority: P3
 author: shaper
 tags: [bugfix, workflow, spec-awareness, corrections]
+refs: ["github#2"]
 acceptance_criteria:
   - id: AC-1
     description: "/bugfix accepts optional --spec flag with a path to a spec, brand guide, or ADR"
@@ -62,7 +63,7 @@ This means spec-drift corrections (~20 LOC each in the field report) require the
 
 ## Dependencies
 
-- **Benefits from GT-31** (lightweight contract variants): If `correction` work_type exists, `/bugfix --spec` could produce a correction contract instead of a light shape. But this is an enhancement, not a blocker.
+- **Absorbs GT-31 correction scope**: GT-31 (lightweight contract variants) was dropped — the spec-drift correction path is better addressed here at the command level (`/bugfix --spec`) than via a schema-level contract taxonomy. This contract is now the sole path for spec-drift fixes.
 - **Benefits from GT-30** (transition guidance): brand-awareness could suggest `/bugfix --spec` when it detects drift during `/context:refresh`.
 
 ## Options
@@ -232,3 +233,15 @@ The `/discern` command (or brand-awareness/spec-awareness skills) already valida
 ## Routing
 
 Ready for Crafter. Single file change, no architectural unknowns.
+
+---
+
+# Wontfix (2026-02-15)
+
+## Rationale
+
+Dropped after workflow review. The `--spec` flag duplicates what awareness skills already do automatically. spec-awareness and brand-awareness load specs via `spec_ref`/`brand_ref` during `/deliver` and `/discern` without any flags. The Critic already validates fixes against source-of-truth documents.
+
+The field report's 2 follow-up corrections happened because the tooling didn't remind the operator to check visual output — GT-30 (context-aware transition guidance, delivered) fixed that root cause. With GT-30 in place, spec drift is caught during the original `/deliver` or `/discern`, not as a separate bugfix after the fact.
+
+The core workflow handles spec drift: `/context:refresh` flags drift, `/bugfix` accepts the problem description, awareness skills provide spec context automatically, Critic validates the fix. No special command path needed.

@@ -3,7 +3,8 @@ spec_version: "1.0"
 type: shaped-work
 id: GT-30
 title: "Context-Aware Transition Guidance"
-status: reviewed
+status: done
+verdict: APPROVED
 created: "2026-02-13"
 appetite: medium
 priority: P1

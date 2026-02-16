@@ -3,12 +3,13 @@ spec_version: "1.0"
 type: shaped-work
 id: GT-31
 title: "Lightweight Contract Variants for Mechanical and Correction Work"
-status: designed
+status: wontfix
 created: "2026-02-13"
 appetite: medium
 priority: P2
 author: shaper
 tags: [schema, shaper, contracts, workflow]
+refs: ["github#2"]
 acceptance_criteria:
   - id: AC-1
     description: "Shaped work contract schema supports a work_type field with values: feature (default), migration, correction"
@@ -310,3 +311,20 @@ source_of_truth: "{path to spec/brand guide/ADR}"
 ## Routing
 
 Ready for Crafter. Schema evolution is additive; all changes are markdown edits.
+
+---
+
+# Wontfix (2026-02-15)
+
+## Rationale
+
+Dropped after review. The template friction described in the field report was a symptom of **shaping at task granularity** ("replace these hex values") rather than **problem granularity** ("align codebase to brand guide"). Lighter contract templates would normalize that anti-pattern by making it easier to skip problem framing for work classified as "mechanical."
+
+Genie team is a full PDLC focused on value and operational excellence outcomes. Even migrations have a problem context worth framing — the fix is shaping at the right altitude, not reducing the template.
+
+The valid portion of this contract's scope (spec-drift corrections) is absorbed by GT-33 (spec-driven bugfix path), which addresses the pain at the command level (`/bugfix --spec`) rather than requiring a schema-level taxonomy change.
+
+**Addressed by:**
+- GT-33 (`/bugfix --spec`) — fast path for spec-drift corrections
+- Contract size monitoring guideline (added to shaper) — catches over-decomposition
+- Shaper judgment — shape at problem altitude, not task altitude
