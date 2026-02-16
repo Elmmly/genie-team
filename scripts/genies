@@ -432,6 +432,17 @@ preflight_checks() {
         log_warn "Preflight: working tree has uncommitted changes"
     fi
 
+    # Prune stale worktree metadata from interrupted runs
+    git worktree prune >/dev/null 2>&1 || true
+
+    # WARN: leftover genie/* branches from previous runs
+    local genie_branch_count
+    genie_branch_count=$(git branch --list 'genie/*' 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "${genie_branch_count:-0}" -gt 0 ]]; then
+        log_warn "Preflight: $genie_branch_count leftover genie/* branch(es) found"
+        log_warn "  To clean up: git branch --list 'genie/*' | xargs git branch -D"
+    fi
+
     return 0
 }
 
@@ -718,6 +729,15 @@ run_phase() {
                 json_blob=$(echo "$raw_output" | tail -1)
             fi
         fi
+        # Defensive: handle array format (stream-json leaked into json mode)
+        if echo "$json_blob" | jq -e 'type == "array"' >/dev/null 2>&1; then
+            json_blob=$(echo "$json_blob" | jq -c '[.[] | select(.type == "result")] | last' 2>/dev/null)
+            if [[ -z "$json_blob" || "$json_blob" == "null" ]]; then
+                log_error "[$phase] JSON array with no result message"
+                OUTPUT=""
+                return 1
+            fi
+        fi
         OUTPUT=$(echo "$json_blob" | jq -r '.result // empty')
         SESSION_ID=$(echo "$json_blob" | jq -r '.session_id // empty')
         PHASE_NUM_TURNS=$(echo "$json_blob" | jq -r '.num_turns // 0')
@@ -793,6 +813,15 @@ retry_phase() {
             json_blob=$(echo "$raw_output" | grep '"type":"result"' | tail -1)
             if [[ -z "$json_blob" ]]; then
                 json_blob=$(echo "$raw_output" | tail -1)
+            fi
+        fi
+        # Defensive: handle array format (stream-json leaked into json mode)
+        if echo "$json_blob" | jq -e 'type == "array"' >/dev/null 2>&1; then
+            json_blob=$(echo "$json_blob" | jq -c '[.[] | select(.type == "result")] | last' 2>/dev/null)
+            if [[ -z "$json_blob" || "$json_blob" == "null" ]]; then
+                log_error "[$phase] JSON array with no result message"
+                OUTPUT=""
+                return 1
             fi
         fi
         OUTPUT=$(echo "$json_blob" | jq -r '.result // empty')

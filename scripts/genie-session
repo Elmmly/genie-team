@@ -184,12 +184,12 @@ _gs_finish_force() {
 
     # Force remove worktree
     if [[ -d "$worktree_dir" ]]; then
-        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+        git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
     fi
 
     # Force delete branch
     if [[ -n "${branch:-}" ]]; then
-        git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+        git -C "$repo_root" branch -D "$branch" >/dev/null 2>&1 || true
     fi
 
     _gs_log "Force-removed session: $item"
@@ -235,11 +235,11 @@ _gs_finish_merge() {
     fi
 
     # Remove worktree
-    git -C "$repo_root" worktree remove "$worktree_dir" 2>/dev/null || \
-        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+    git -C "$repo_root" worktree remove "$worktree_dir" >/dev/null 2>&1 || \
+        git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
 
     # Delete branch (safe -d: only if merged)
-    git -C "$repo_root" branch -d "$branch" 2>/dev/null || true
+    git -C "$repo_root" branch -d "$branch" >/dev/null 2>&1 || true
 
     _gs_log "Merged and cleaned up: $item"
     return 0
@@ -297,8 +297,8 @@ _gs_finish_pr() {
     fi
 
     # Remove worktree (branch stays — it backs the PR)
-    git -C "$repo_root" worktree remove "$worktree_dir" 2>/dev/null || \
-        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+    git -C "$repo_root" worktree remove "$worktree_dir" >/dev/null 2>&1 || \
+        git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
 
     _gs_log "Session finished: $item"
     return 0
@@ -313,8 +313,8 @@ _gs_finish_leave_branch() {
 
     # Remove worktree only (branch stays for later integration)
     if [[ -d "$worktree_dir" ]]; then
-        git -C "$repo_root" worktree remove "$worktree_dir" 2>/dev/null || \
-            git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+        git -C "$repo_root" worktree remove "$worktree_dir" >/dev/null 2>&1 || \
+            git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
     fi
 
     _gs_log "Detached worktree, branch preserved: $item"
@@ -345,7 +345,7 @@ session_start() {
     # Stale worktree without matching branch — clean up and recreate
     if [[ -d "$worktree_dir" ]]; then
         _gs_log "Cleaning stale worktree: $worktree_dir"
-        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+        git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
     fi
 
     # Orphaned branch without worktree — reattach via worktree checkout
@@ -417,7 +417,7 @@ session_integrate_trunk() {
 
     # Rebase branch onto default branch
     if ! git -C "$repo_root" rebase "$default_branch" "$branch" -q 2>/dev/null; then
-        git -C "$repo_root" rebase --abort 2>/dev/null || true
+        git -C "$repo_root" rebase --abort >/dev/null 2>&1 || true
 
         # Check if branch content is already on main (redundant branch)
         # Compare files the branch changed: if main's versions already contain
@@ -431,8 +431,8 @@ session_integrate_trunk() {
             branch_only_adds=$(git -C "$repo_root" diff "$default_branch" "$branch" 2>/dev/null \
                 | grep -c '^+[^+]' || true)
             if [[ "${branch_only_adds:-0}" -eq 0 ]]; then
-                git -C "$repo_root" checkout "$default_branch" -q 2>/dev/null || true
-                git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+                git -C "$repo_root" checkout "$default_branch" -q >/dev/null 2>&1 || true
+                git -C "$repo_root" branch -D "$branch" >/dev/null 2>&1 || true
                 _gs_log "Branch already integrated (redundant): $branch"
                 return 0
             fi
@@ -454,7 +454,7 @@ session_integrate_trunk() {
     fi
 
     # Delete the branch (safe -d: only if merged)
-    git -C "$repo_root" branch -d "$branch" 2>/dev/null || true
+    git -C "$repo_root" branch -d "$branch" >/dev/null 2>&1 || true
 
     _gs_log "Integrated to trunk: $item"
     return 0
@@ -502,7 +502,7 @@ session_integrate_pr() {
     fi
 
     # Delete local branch
-    git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+    git -C "$repo_root" branch -D "$branch" >/dev/null 2>&1 || true
 
     _gs_log "PR integration complete: $item"
     return 0
@@ -531,19 +531,19 @@ session_cleanup_item() {
     repo_root=$(_gs_repo_root 2>/dev/null) || { _gs_log "Cleaned up: $item"; return 0; }
 
     # Prune stale worktree references (e.g., directory manually deleted after crash)
-    git -C "$repo_root" worktree prune 2>/dev/null || true
+    git -C "$repo_root" worktree prune >/dev/null 2>&1 || true
 
     worktree_dir=$(_gs_worktree_dir "$item" 2>/dev/null) || true
     branch=$(_gs_find_branch "$item" 2>/dev/null) || true
 
     # Remove worktree if it exists
     if [[ -n "${worktree_dir:-}" && -d "${worktree_dir}" ]]; then
-        git -C "$repo_root" worktree remove --force "$worktree_dir" 2>/dev/null || true
+        git -C "$repo_root" worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
     fi
 
     # Remove branch if it exists
     if [[ -n "${branch:-}" ]]; then
-        git -C "$repo_root" branch -D "$branch" 2>/dev/null || true
+        git -C "$repo_root" branch -D "$branch" >/dev/null 2>&1 || true
     fi
 
     _gs_log "Cleaned up: $item"
