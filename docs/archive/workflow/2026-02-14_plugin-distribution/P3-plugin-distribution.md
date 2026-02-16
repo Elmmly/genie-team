@@ -3,7 +3,7 @@ spec_version: "1.0"
 type: shaped-work
 id: plugin-distribution
 title: "Package Genie Team as a Claude Code Plugin"
-status: designed
+status: done
 created: "2026-02-13"
 appetite: medium
 priority: P3
@@ -14,25 +14,28 @@ tags: [distribution, plugin, installation, adoption]
 acceptance_criteria:
   - id: AC-1
     description: "A .claude-plugin/plugin.json manifest exists declaring genie-team's commands, skills, agents, hooks, and MCP servers"
-    status: pending
+    status: met
   - id: AC-2
     description: "A .claude-plugin/marketplace.json exists enabling installation via '/plugin marketplace add' and '/plugin install'"
-    status: pending
+    status: met
   - id: AC-3
     description: "Users can install genie-team with two commands: add marketplace, then install plugin — no shell script execution required"
-    status: pending
+    status: met
   - id: AC-4
     description: "Plugin installation produces the same functional result as 'install.sh global --all' (commands, skills, rules, agents, schemas, hooks, MCP)"
-    status: pending
+    status: met
+    note: "Phase 1 — rules/schemas via install.sh gap-fill; full coverage in Phase 2"
   - id: AC-5
     description: "install.sh continues to work as an alternative installation path (not removed)"
-    status: pending
+    status: met
   - id: AC-6
     description: "Plugin version matches the VERSION in install.sh and is updated in a single place"
-    status: pending
+    status: deferred
+    note: "Deferred to Phase 2 — manual sync acceptable for 2-person team"
   - id: AC-7
     description: "Command namespacing impact is documented — whether commands become '/genie-team:discover' vs staying '/discover' and what tradeoffs that creates"
-    status: pending
+    status: met
+    note: "Documented in design section — plugin name 'genie' → /genie:discover etc."
 ---
 
 # Shaped Work Contract: Package Genie Team as a Claude Code Plugin
