@@ -64,6 +64,8 @@ Appetite is a constraint, not an estimate:
 
 **If it doesn't fit appetite:** Reduce scope or decompose.
 
+**Contract size monitoring:** If a shaped contract exceeds ~8 ACs or ~200 lines of body content, consider decomposing into smaller contracts. Large contracts signal the problem may not be well-shaped yet.
+
 ### Strategic Alignment
 For every item, check: North-star alignment, quarterly priority fit, opportunity cost.
 
