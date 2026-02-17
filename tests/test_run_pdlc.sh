@@ -2326,8 +2326,8 @@ fi
 teardown_temp
 
 # Test: batch worker includes --no-preflight
-# Arrange — check that _launch_batch_worker includes --no-preflight in args
-batch_worker_code=$(grep -A2 'local pdlc_args=.*--no-preflight' "$RUN_PDLC")
+# Arrange — check that _prepare_batch_worker includes --no-preflight in args
+batch_worker_code=$(grep -A2 '_BW_ARGS=.*--no-preflight' "$RUN_PDLC")
 # Assert
 assert_contains "$batch_worker_code" "--no-preflight" "batch worker: includes --no-preflight"
 

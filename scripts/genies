@@ -1442,47 +1442,42 @@ run_batch_parallel() {
     local queue_idx=0
     local total=${#BATCH_ITEMS[@]}
 
-    # Launch a parallel worker
-    _launch_batch_worker() {
+    # Prepare a parallel worker's args (sets _BW_* variables)
+    # Must NOT background inside $() — that makes the child a subshell orphan
+    # whose exit status is unreachable via wait (exit 127).
+    _prepare_batch_worker() {
         local entry="$1"
         local item_idx="$2"
-        local item_phase="${entry%%:*}"
-        local input="${entry#*:}"
-        local slug
-        if [[ -f "$input" ]]; then
-            slug=$(basename "$input" .md)
+        _BW_PHASE="${entry%%:*}"
+        _BW_INPUT="${entry#*:}"
+        if [[ -f "$_BW_INPUT" ]]; then
+            _BW_SLUG=$(basename "$_BW_INPUT" .md)
         else
-            slug="batch-$item_idx"
+            _BW_SLUG="batch-$item_idx"
         fi
-        local item_log="$LOG_DIR/${slug}.log"
+        _BW_LOG="$LOG_DIR/${_BW_SLUG}.log"
 
-        log_info "Starting [$item_idx/$total]: $slug ($item_phase → $THROUGH_PHASE)"
+        log_info "Starting [$item_idx/$total]: $_BW_SLUG ($_BW_PHASE → $THROUGH_PHASE)"
 
-        local pdlc_args=(--no-preflight --finish-mode --leave-branch
-            --from "$item_phase" --through "$THROUGH_PHASE"
+        _BW_ARGS=(--no-preflight --finish-mode --leave-branch
+            --from "$_BW_PHASE" --through "$THROUGH_PHASE"
             --lock --cleanup-on-failure --log-dir "$LOG_DIR"
-            --slug "$slug")
-        [[ "$TRUNK_MODE" == "true" ]] && pdlc_args+=(--trunk)
-        [[ "$VERBOSE_LOGGING" == "true" ]] && pdlc_args+=(--verbose)
-        [[ "$SKIP_PERMISSIONS" == "false" ]] && pdlc_args+=(--no-skip-permissions)
-        [[ "$REVIEW_CYCLES" -gt 1 ]] && pdlc_args+=(--review-cycles "$REVIEW_CYCLES")
-        pdlc_args+=("$input")
-
-        "$SELF" "${pdlc_args[@]}" >"$item_log" 2>&1 &
-
-        echo "$!:$input:$item_log:$slug"
+            --slug "$_BW_SLUG")
+        [[ "$TRUNK_MODE" == "true" ]] && _BW_ARGS+=(--trunk)
+        [[ "$VERBOSE_LOGGING" == "true" ]] && _BW_ARGS+=(--verbose)
+        [[ "$SKIP_PERMISSIONS" == "false" ]] && _BW_ARGS+=(--no-skip-permissions)
+        [[ "$REVIEW_CYCLES" -gt 1 ]] && _BW_ARGS+=(--review-cycles "$REVIEW_CYCLES")
+        _BW_ARGS+=("$_BW_INPUT")
     }
 
     # Launch initial batch of workers
     while [[ $queue_idx -lt $total && ${#pids[@]} -lt $PARALLEL_JOBS ]]; do
-        local worker_info
-        worker_info=$(_launch_batch_worker "${BATCH_ITEMS[$queue_idx]}" "$((queue_idx + 1))")
-        pids+=("${worker_info%%:*}")
-        local rest="${worker_info#*:}"
-        pid_inputs+=("${rest%%:*}")
-        rest="${rest#*:}"
-        pid_logs+=("${rest%%:*}")
-        pid_slugs+=("${rest#*:}")
+        _prepare_batch_worker "${BATCH_ITEMS[$queue_idx]}" "$((queue_idx + 1))"
+        "$SELF" "${_BW_ARGS[@]}" >"$_BW_LOG" 2>&1 &
+        pids+=("$!")
+        pid_inputs+=("$_BW_INPUT")
+        pid_logs+=("$_BW_LOG")
+        pid_slugs+=("$_BW_SLUG")
 
         queue_idx=$((queue_idx + 1))
     done
@@ -1522,14 +1517,12 @@ run_batch_parallel() {
 
                 # Fill the slot with next queued item
                 if [[ $queue_idx -lt $total ]]; then
-                    local worker_info
-                    worker_info=$(_launch_batch_worker "${BATCH_ITEMS[$queue_idx]}" "$((queue_idx + 1))")
-                    new_pids+=("${worker_info%%:*}")
-                    local rest="${worker_info#*:}"
-                    new_inputs+=("${rest%%:*}")
-                    rest="${rest#*:}"
-                    new_logs+=("${rest%%:*}")
-                    new_slugs+=("${rest#*:}")
+                    _prepare_batch_worker "${BATCH_ITEMS[$queue_idx]}" "$((queue_idx + 1))"
+                    "$SELF" "${_BW_ARGS[@]}" >"$_BW_LOG" 2>&1 &
+                    new_pids+=("$!")
+                    new_inputs+=("$_BW_INPUT")
+                    new_logs+=("$_BW_LOG")
+                    new_slugs+=("$_BW_SLUG")
 
                     queue_idx=$((queue_idx + 1))
                 fi
