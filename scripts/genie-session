@@ -151,11 +151,37 @@ _gs_is_merged() {
 
 # ── PR Helpers ─────────────────────────────────────────────────
 
+_gs_item_scope() {
+    local item="$1"
+    echo "${item#P[0-9]*-}"
+}
+
+_gs_item_title() {
+    local item="$1"
+    local backlog_file="docs/backlog/${item}.md"
+    if [[ -f "$backlog_file" ]]; then
+        local title
+        title=$(grep -E '^title:' "$backlog_file" 2>/dev/null | head -1 \
+            | sed 's/^title:[[:space:]]*//' | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")
+        if [[ -n "$title" ]]; then
+            echo "$title"
+            return 0
+        fi
+    fi
+    echo "${item} delivery"
+}
+
+_gs_commit_headline() {
+    local item="$1"
+    local scope title
+    scope=$(_gs_item_scope "$item")
+    title=$(_gs_item_title "$item")
+    echo "feat(${scope}): ${title}"
+}
+
 _gs_pr_title() {
     local item="$1"
-    local scope
-    scope="${item#P[0-9]*-}"
-    echo "feat(${scope}): ${item} delivery"
+    _gs_commit_headline "$item"
 }
 
 _gs_pr_body() {
@@ -226,8 +252,10 @@ _gs_finish_merge() {
         fi
     fi
 
-    # Merge branch into default branch
-    if ! git -C "$repo_root" merge "$branch" -q 2>/dev/null; then
+    # Merge branch into default branch (with conventional commit message)
+    local merge_msg
+    merge_msg=$(_gs_commit_headline "$item")
+    if ! git -C "$repo_root" merge "$branch" -m "$merge_msg" -q 2>/dev/null; then
         _gs_error "Merge conflict. Resolve conflicts in $repo_root, then run:"
         _gs_error "  git add . && git commit"
         _gs_error "  genie-session cleanup"
