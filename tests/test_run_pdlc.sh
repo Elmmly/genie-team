@@ -237,12 +237,19 @@ parse_args --turns-per-phase 80 "test topic"
 # Assert
 assert_eq "80" "$TURNS_PER_PHASE" "parse_args: --turns-per-phase sets TURNS_PER_PHASE"
 
-# Test: --worktree flag
+# Test: --no-worktree flag (worktree is default-on)
 # Arrange
 # Act
-parse_args --worktree "test topic"
+parse_args --no-worktree "test topic"
 # Assert
-assert_eq "true" "$USE_WORKTREE" "parse_args: --worktree sets USE_WORKTREE"
+assert_eq "false" "$USE_WORKTREE" "parse_args: --no-worktree disables USE_WORKTREE"
+
+# Test: default USE_WORKTREE is true
+# Arrange
+# Act
+parse_args "test topic"
+# Assert
+assert_eq "true" "$USE_WORKTREE" "parse_args: USE_WORKTREE defaults to true"
 
 # Test: --log-dir
 # Arrange
@@ -605,13 +612,13 @@ result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
 assert_eq "/deliver docs/backlog/P2-item.md" "$result" \
     "build_phase_prompt: non-trunk mode produces normal prompt"
 
-# Test: --trunk combined with --worktree both set correctly
+# Test: --trunk preserves default worktree isolation
 # Arrange
 # Act
-parse_args --trunk --worktree "docs/backlog/P2-item.md"
+parse_args --trunk "docs/backlog/P2-item.md"
 # Assert
-assert_eq "true" "$TRUNK_MODE" "parse_args: --trunk + --worktree sets TRUNK_MODE"
-assert_eq "true" "$USE_WORKTREE" "parse_args: --trunk + --worktree sets USE_WORKTREE"
+assert_eq "true" "$TRUNK_MODE" "parse_args: --trunk sets TRUNK_MODE"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --trunk preserves default USE_WORKTREE=true"
 
 # Test: --trunk combined with other flags doesn't interfere
 # Arrange
@@ -644,14 +651,14 @@ parse_args --verbose "test topic"
 # Assert
 assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose sets VERBOSE_LOGGING=true"
 
-# Test: --verbose combined with --trunk and --worktree
+# Test: --verbose combined with --trunk (worktree is default)
 # Arrange
 # Act
-parse_args --verbose --trunk --worktree "docs/backlog/P2-item.md"
+parse_args --verbose --trunk "docs/backlog/P2-item.md"
 # Assert
-assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose + --trunk + --worktree sets VERBOSE_LOGGING"
+assert_eq "true" "$VERBOSE_LOGGING" "parse_args: --verbose + --trunk sets VERBOSE_LOGGING"
 assert_eq "true" "$TRUNK_MODE" "parse_args: --verbose doesn't interfere with --trunk"
-assert_eq "true" "$USE_WORKTREE" "parse_args: --verbose doesn't interfere with --worktree"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --verbose preserves default USE_WORKTREE"
 
 # Test: --no-skip-permissions flag
 # Arrange
@@ -715,13 +722,13 @@ parse_args --finish-mode --pr "test topic"
 # Assert
 assert_eq "--pr" "$FINISH_MODE" "parse_args: --finish-mode --pr sets FINISH_MODE"
 
-# Test: --finish-mode combined with --worktree --trunk
+# Test: --finish-mode combined with --trunk (worktree is default)
 # Arrange
 # Act
-parse_args --finish-mode --leave-branch --worktree --trunk "docs/backlog/P2-item.md"
+parse_args --finish-mode --leave-branch --trunk "docs/backlog/P2-item.md"
 # Assert
-assert_eq "--leave-branch" "$FINISH_MODE" "parse_args: --finish-mode with --worktree --trunk sets FINISH_MODE"
-assert_eq "true" "$USE_WORKTREE" "parse_args: --finish-mode doesn't interfere with --worktree"
+assert_eq "--leave-branch" "$FINISH_MODE" "parse_args: --finish-mode with --trunk sets FINISH_MODE"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --finish-mode preserves default USE_WORKTREE"
 assert_eq "true" "$TRUNK_MODE" "parse_args: --finish-mode doesn't interfere with --trunk"
 
 # Test: worktree_teardown_success passes finish mode to session_finish
@@ -760,13 +767,13 @@ parse_args --slug discover-1 "test topic"
 # Assert
 assert_eq "discover-1" "$WORKTREE_SLUG" "parse_args: --slug sets WORKTREE_SLUG"
 
-# Test: --slug combined with --worktree
+# Test: --slug preserves default worktree
 # Arrange
 # Act
-parse_args --slug discover-2 --worktree "test topic"
+parse_args --slug discover-2 "test topic"
 # Assert
-assert_eq "discover-2" "$WORKTREE_SLUG" "parse_args: --slug with --worktree sets WORKTREE_SLUG"
-assert_eq "true" "$USE_WORKTREE" "parse_args: --slug doesn't interfere with --worktree"
+assert_eq "discover-2" "$WORKTREE_SLUG" "parse_args: --slug sets WORKTREE_SLUG"
+assert_eq "true" "$USE_WORKTREE" "parse_args: --slug preserves default USE_WORKTREE"
 
 # ═══════════════════════════════════════════════
 # Category 8: run_phase (5 tests)
@@ -935,7 +942,7 @@ echo "--- main / exit codes ---"
 # Arrange
 setup_temp
 # Act — run as subprocess to test main() (--no-preflight: skip env checks in test)
-output=$("$RUN_PDLC" --no-preflight --through define "test topic" 2>&1)
+output=$("$RUN_PDLC" --no-preflight --no-worktree --through define "test topic" 2>&1)
 ec=$?
 # Assert
 assert_exit_code "0" "$ec" "main: --through define exits 0 on success"
@@ -950,7 +957,7 @@ cp "$MOCK_RESPONSES"/*.json "$TEMP_DIR/blocked_responses/"
 cp "$MOCK_RESPONSES/discern_blocked.json" "$TEMP_DIR/blocked_responses/discern.json"
 export MOCK_CLAUDE_RESPONSES_DIR="$TEMP_DIR/blocked_responses"
 # Act — run full lifecycle (includes discern) (--no-preflight: skip env checks in test)
-output=$("$RUN_PDLC" --no-preflight "test topic" 2>&1)
+output=$("$RUN_PDLC" --no-preflight --no-worktree "test topic" 2>&1)
 ec=$?
 # Assert
 assert_exit_code "1" "$ec" "main: BLOCKED verdict exits 1"
@@ -961,7 +968,7 @@ teardown_temp
 # Arrange
 setup_temp
 # Act — --from after --through (--no-preflight: skip env checks in test)
-output=$("$RUN_PDLC" --no-preflight --from design --through define "docs/backlog/P2-item.md" 2>&1)
+output=$("$RUN_PDLC" --no-preflight --no-worktree --from design --through define "docs/backlog/P2-item.md" 2>&1)
 ec=$?
 # Assert
 assert_exit_code "3" "$ec" "main: validation error exits 3"
@@ -1683,13 +1690,18 @@ assert_contains "$lock_content" "$$" "AC-3: lock now contains current PID"
 release_lock 2>/dev/null
 teardown_temp
 
-# Test: single-item mode with --worktree is unchanged (AC-4)
-# Verify parse_args still accepts --worktree without new side effects
+# Test: single-item mode has worktree on by default, --no-worktree opts out (AC-4)
 # Arrange/Act
-parse_args --worktree --from deliver --through deliver test-input.md
+parse_args --from deliver --through deliver test-input.md
 # Assert
-assert_eq "true" "$USE_WORKTREE" "AC-4: --worktree flag still works"
-assert_eq "deliver" "$FROM_PHASE" "AC-4: --from still works with --worktree"
+assert_eq "true" "$USE_WORKTREE" "AC-4: worktree isolation is default-on"
+assert_eq "deliver" "$FROM_PHASE" "AC-4: --from works with default worktree"
+
+# Arrange/Act
+parse_args --no-worktree --from deliver --through deliver test-input.md
+# Assert
+assert_eq "false" "$USE_WORKTREE" "AC-4: --no-worktree opts out of isolation"
+assert_eq "deliver" "$FROM_PHASE" "AC-4: --from works with --no-worktree"
 
 # ═══════════════════════════════════════════════
 # Category 22: Minimum-turn guard (P1-minimum-turn-guard)
@@ -2269,7 +2281,7 @@ cp "$MOCK_RESPONSES"/*.json "$TEMP_DIR/fail_responses/"
 touch "$TEMP_DIR/fail_responses/deliver_fail"
 export MOCK_CLAUDE_RESPONSES_DIR="$TEMP_DIR/fail_responses"
 # Act — run as subprocess with set -e active (--no-preflight: skip env checks in test)
-output=$("$RUN_PDLC" --no-preflight --from deliver --through deliver "docs/backlog/P2-item.md" 2>&1)
+output=$("$RUN_PDLC" --no-preflight --no-worktree --from deliver --through deliver "docs/backlog/P2-item.md" 2>&1)
 ec=$?
 # Assert
 assert_exit_code "1" "$ec" "set-e guard: phase failure exits 1 (not 127)"
@@ -2284,7 +2296,7 @@ cp "$MOCK_RESPONSES"/*.json "$TEMP_DIR/fail_responses/"
 touch "$TEMP_DIR/fail_responses/deliver_fail"
 export MOCK_CLAUDE_RESPONSES_DIR="$TEMP_DIR/fail_responses"
 # Act
-output=$("$RUN_PDLC" --no-preflight --from deliver --through deliver "docs/backlog/P2-item.md" 2>&1)
+output=$("$RUN_PDLC" --no-preflight --no-worktree --from deliver --through deliver "docs/backlog/P2-item.md" 2>&1)
 # Assert
 assert_contains "$output" "failed" "set-e guard: phase failure logs error message"
 export MOCK_CLAUDE_RESPONSES_DIR="$MOCK_RESPONSES"
@@ -2304,7 +2316,7 @@ MOCK_SCRIPT
 chmod +x "$TEMP_DIR/bin/claude"
 export PATH="$TEMP_DIR/bin:$PATH"
 # Act — run as subprocess to get set -e and fresh function scope
-output=$("$RUN_PDLC" --no-preflight --log-dir "$TEMP_DIR/logs" --through discover "test topic" 2>&1)
+output=$("$RUN_PDLC" --no-preflight --no-worktree --log-dir "$TEMP_DIR/logs" --through discover "test topic" 2>&1)
 # Assert
 assert_file_exists "$TEMP_DIR/logs/claude_stderr.log" "stderr capture: creates claude_stderr.log"
 if [[ -f "$TEMP_DIR/logs/claude_stderr.log" ]]; then
@@ -2315,16 +2327,14 @@ teardown_temp
 
 # Test: batch worker includes --no-preflight
 # Arrange — check that _launch_batch_worker includes --no-preflight in args
-# We grep the script source for the batch worker pdlc_args (the one with --worktree)
-batch_worker_code=$(grep -A2 'local pdlc_args=.*--worktree' "$RUN_PDLC")
+batch_worker_code=$(grep -A2 'local pdlc_args=.*--no-preflight' "$RUN_PDLC")
 # Assert
 assert_contains "$batch_worker_code" "--no-preflight" "batch worker: includes --no-preflight"
 
-# Test: sequential batch uses worktree isolation (--worktree, --finish-mode, --leave-branch)
+# Test: sequential batch uses worktree isolation (default-on, --finish-mode, --leave-branch)
 # Arrange — grep the run_batch_sequential function for worktree args
 seq_batch_code=$(sed -n '/^run_batch_sequential/,/^}/p' "$RUN_PDLC")
-# Assert
-assert_contains "$seq_batch_code" "--worktree" "sequential batch: uses --worktree isolation"
+# Assert — worktree is default-on, so batch no longer needs explicit --worktree flag
 assert_contains "$seq_batch_code" "--finish-mode" "sequential batch: uses --finish-mode"
 assert_contains "$seq_batch_code" "--leave-branch" "sequential batch: uses --leave-branch"
 assert_contains "$seq_batch_code" "--cleanup-on-failure" "sequential batch: uses --cleanup-on-failure"
