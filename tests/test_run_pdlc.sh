@@ -2344,6 +2344,83 @@ assert_contains "$seq_batch_code" "session_integrate_trunk" "sequential batch: i
 assert_contains "$seq_batch_code" "session_integrate_pr" "sequential batch: integrates PR after success"
 
 # ═══════════════════════════════════════════════
+# Category 27: LOG_DIR absolute resolution & slug computation
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- LOG_DIR absolute resolution ---"
+
+# Test: relative LOG_DIR resolved to absolute after parse_args in main()
+# Arrange — grep main() for the resolution logic
+main_code=$(sed -n '/^main()/,/^}/p' "$RUN_PDLC")
+# Assert
+# shellcheck disable=SC2016  # Single quotes intentional — matching literal string
+assert_contains "$main_code" 'LOG_DIR="$(pwd)/$LOG_DIR"' \
+    "LOG_DIR: main() resolves relative LOG_DIR to absolute"
+
+# Test: absolute LOG_DIR left unchanged
+# Arrange
+parse_args --log-dir /tmp/absolute-logs "test topic"
+# Simulate the resolution logic from main()
+if [[ -n "$LOG_DIR" && "$LOG_DIR" != /* ]]; then
+    LOG_DIR="$(pwd)/$LOG_DIR"
+fi
+# Assert
+assert_eq "/tmp/absolute-logs" "$LOG_DIR" "LOG_DIR: absolute path left unchanged"
+
+# Test: relative LOG_DIR resolved correctly
+# Arrange
+parse_args --log-dir "logs/batch-run" "test topic"
+expected_log_dir="$(pwd)/logs/batch-run"
+# Simulate the resolution logic from main()
+if [[ -n "$LOG_DIR" && "$LOG_DIR" != /* ]]; then
+    LOG_DIR="$(pwd)/$LOG_DIR"
+fi
+# Assert
+assert_eq "$expected_log_dir" "$LOG_DIR" "LOG_DIR: relative path resolved to absolute"
+
+echo ""
+echo "--- slug computation ---"
+
+# Test: slug computed correctly for directory-prefixed input (no .md)
+# Arrange — simulate what run_batch_sequential does
+input="docs/backlog/P2-foo"
+slug=$(basename "$input" .md)
+# Assert
+assert_eq "P2-foo" "$slug" "slug: directory-prefixed input without .md produces clean slug"
+
+# Test: slug computed correctly for directory-prefixed input with .md
+# Arrange
+input="docs/backlog/P2-foo.md"
+slug=$(basename "$input" .md)
+# Assert
+assert_eq "P2-foo" "$slug" "slug: directory-prefixed input with .md strips extension"
+
+# Test: slug computed correctly for bare topic string
+# Arrange
+input="explore-auth"
+slug=$(basename "$input" .md)
+# Assert
+assert_eq "explore-auth" "$slug" "slug: bare topic string preserved as slug"
+
+# Test: parallel batch worker slug uses basename (structural)
+# Arrange — grep _prepare_batch_worker for the slug line
+parallel_slug_code=$(sed -n '/_prepare_batch_worker/,/^[[:space:]]*}/p' "$RUN_PDLC" | grep '_BW_SLUG=')
+# Assert — should be a single unconditional basename call, not an if/else
+assert_contains "$parallel_slug_code" 'basename' "parallel slug: uses basename"
+assert_not_contains "$parallel_slug_code" 'batch-' "parallel slug: no fallback to batch-N"
+
+# Test: sequential batch slug uses basename (structural)
+# Arrange — grep run_batch_sequential for the slug line
+seq_slug_code=$(sed -n '/^run_batch_sequential/,/^}/p' "$RUN_PDLC" | grep 'slug=')
+# Assert — should be a single unconditional basename call
+assert_contains "$seq_slug_code" 'basename' "sequential slug: uses basename"
+# Should not have the old if/else pattern
+seq_slug_block=$(sed -n '/^run_batch_sequential/,/^}/p' "$RUN_PDLC")
+# shellcheck disable=SC2016  # Single quotes intentional — matching literal string
+assert_not_contains "$seq_slug_block" 'slug="$input"' "sequential slug: no raw input fallback"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 

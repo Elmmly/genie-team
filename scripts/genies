@@ -1236,11 +1236,7 @@ run_batch_sequential() {
         local item_phase="${entry%%:*}"
         local input="${entry#*:}"
         local slug
-        if [[ -f "$input" ]]; then
-            slug=$(basename "$input" .md)
-        else
-            slug="$input"
-        fi
+        slug=$(basename "$input" .md)
 
         log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         log_info "Running: $slug ($item_phase → $THROUGH_PHASE)"
@@ -1450,11 +1446,7 @@ run_batch_parallel() {
         local item_idx="$2"
         _BW_PHASE="${entry%%:*}"
         _BW_INPUT="${entry#*:}"
-        if [[ -f "$_BW_INPUT" ]]; then
-            _BW_SLUG=$(basename "$_BW_INPUT" .md)
-        else
-            _BW_SLUG="batch-$item_idx"
-        fi
+        _BW_SLUG=$(basename "$_BW_INPUT" .md)
         _BW_LOG="$LOG_DIR/${_BW_SLUG}.log"
 
         log_info "Starting [$item_idx/$total]: $_BW_SLUG ($_BW_PHASE → $THROUGH_PHASE)"
@@ -1642,6 +1634,12 @@ run_batch_parallel() {
 
 main() {
     parse_args "$@"
+
+    # Resolve LOG_DIR to absolute path before any dispatch
+    # (child processes cd into worktrees, making relative paths resolve wrong)
+    if [[ -n "$LOG_DIR" && "$LOG_DIR" != /* ]]; then
+        LOG_DIR="$(pwd)/$LOG_DIR"
+    fi
 
     # Preflight environment validation
     if [[ "${NO_PREFLIGHT:-false}" != "true" ]]; then
