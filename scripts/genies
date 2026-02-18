@@ -215,6 +215,20 @@ phase_index() {
     return 1
 }
 
+# Sanitize a string into a valid git-ref-safe slug
+# Strips smart quotes, lowercases, replaces non-alnum with hyphens,
+# collapses/trims hyphens, truncates to 60 chars.
+# Usage: slug=$(sanitize_slug "multi word topic string")
+sanitize_slug() {
+    local raw="$1"
+    echo "$raw" \
+        | tr '[:upper:]' '[:lower:]' \
+        | LC_ALL=C sed 's/[^a-z0-9._-]/-/g' \
+        | sed 's/--*/-/g' \
+        | sed 's/^-//; s/-$//' \
+        | cut -c1-60
+}
+
 # Parse command-line arguments into global variables
 # Usage: parse_args "$@"
 # shellcheck disable=SC2034
@@ -353,6 +367,12 @@ parse_args() {
                 ;;
             -*)
                 echo "Error: unknown flag '$1' (see genies --help)" >&2
+                exit 3
+                ;;
+            [—–]*)
+                # Detect smart/em-dash flags (common copy-paste from rich-text editors)
+                echo "Error: '$1' uses a non-ASCII dash (em-dash or en-dash)." >&2
+                echo "  Replace with ASCII double-dash: --${1#?}" >&2
                 exit 3
                 ;;
             *)
@@ -1236,7 +1256,7 @@ run_batch_sequential() {
         local item_phase="${entry%%:*}"
         local input="${entry#*:}"
         local slug
-        slug=$(basename "$input" .md)
+        slug=$(sanitize_slug "$(basename "$input" .md)")
 
         log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         log_info "Running: $slug ($item_phase → $THROUGH_PHASE)"
@@ -1446,7 +1466,7 @@ run_batch_parallel() {
         local item_idx="$2"
         _BW_PHASE="${entry%%:*}"
         _BW_INPUT="${entry#*:}"
-        _BW_SLUG=$(basename "$_BW_INPUT" .md)
+        _BW_SLUG=$(sanitize_slug "$(basename "$_BW_INPUT" .md)")
         _BW_LOG="$LOG_DIR/${_BW_SLUG}.log"
 
         log_info "Starting [$item_idx/$total]: $_BW_SLUG ($_BW_PHASE → $THROUGH_PHASE)"
@@ -1696,7 +1716,7 @@ main() {
     local item_slug=""
     local original_dir=""
     if [[ "$USE_WORKTREE" == "true" ]]; then
-        item_slug="${WORKTREE_SLUG:-$(basename "$INPUT" .md)}"
+        item_slug="${WORKTREE_SLUG:-$(sanitize_slug "$(basename "$INPUT" .md)")}"
         log_info "Setting up worktree for $item_slug"
         local worktree_path
         worktree_path=$(worktree_setup "$item_slug") || exit 1

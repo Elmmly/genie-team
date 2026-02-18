@@ -2421,6 +2421,84 @@ seq_slug_block=$(sed -n '/^run_batch_sequential/,/^}/p' "$RUN_PDLC")
 assert_not_contains "$seq_slug_block" 'slug="$input"' "sequential slug: no raw input fallback"
 
 # ═══════════════════════════════════════════════
+# Category 28: sanitize_slug (7 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- sanitize_slug ---"
+
+# Test: spaces replaced with hyphens
+result=$(sanitize_slug "user auth flow")
+assert_eq "user-auth-flow" "$result" "sanitize_slug: spaces → hyphens"
+
+# Test: smart/curly quotes stripped
+result=$(sanitize_slug $'gift\xe2\x80\x9d')
+assert_eq "gift" "$result" "sanitize_slug: curly right-quote stripped"
+
+# Test: already-clean slug passes through (lowercased)
+result=$(sanitize_slug "P2-search-redesign")
+assert_eq "p2-search-redesign" "$result" "sanitize_slug: clean input lowercased"
+
+# Test: long string truncated to 60 chars
+long_input="identify-1-2-ways-to-improve-the-core-your-rhythm-engagement-loop-and-ui-design"
+result=$(sanitize_slug "$long_input")
+assert_eq "60" "${#result}" "sanitize_slug: truncates to 60 chars"
+
+# Test: consecutive hyphens collapsed
+result=$(sanitize_slug "foo---bar")
+assert_eq "foo-bar" "$result" "sanitize_slug: collapses consecutive hyphens"
+
+# Test: leading/trailing hyphens trimmed
+result=$(sanitize_slug "-leading-and-trailing-")
+assert_eq "leading-and-trailing" "$result" "sanitize_slug: trims leading/trailing hyphens"
+
+# Test: special chars replaced
+result=$(sanitize_slug 'hello world! @#$% test')
+assert_eq "hello-world-test" "$result" "sanitize_slug: special chars → hyphens (collapsed)"
+
+# ═══════════════════════════════════════════════
+# Category 29: em-dash/en-dash detection (3 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- em-dash/en-dash detection ---"
+
+# Test: em-dash flag rejected with helpful error
+# Arrange/Act — use $'...' to embed the em-dash (U+2014)
+output=$(parse_args $'\xe2\x80\x94continue-on-failure' "topic" 2>&1) && ec=0 || ec=$?
+# Assert
+assert_eq "3" "$ec" "em-dash: —flag exits 3"
+assert_contains "$output" "non-ASCII dash" "em-dash: error mentions non-ASCII dash"
+
+# Test: en-dash flag rejected
+output=$(parse_args $'\xe2\x80\x93from' "topic" 2>&1) && ec=0 || ec=$?
+# Assert
+assert_eq "3" "$ec" "en-dash: –flag exits 3"
+
+# Test: normal double-dash flags still work (no regression)
+parse_args --continue-on-failure "topic"
+assert_eq "true" "$CONTINUE_ON_FAILURE" "em-dash guard: --continue-on-failure still works"
+
+# ═══════════════════════════════════════════════
+# Category 30: sanitize_slug applied at slug derivation (structural)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- sanitize_slug integration ---"
+
+# Test: sequential batch uses sanitize_slug
+seq_slug_code=$(sed -n '/^run_batch_sequential/,/^}/p' "$RUN_PDLC" | grep 'slug=')
+assert_contains "$seq_slug_code" 'sanitize_slug' "sequential batch: slug uses sanitize_slug"
+
+# Test: parallel batch uses sanitize_slug
+parallel_slug_code=$(sed -n '/_prepare_batch_worker/,/^[[:space:]]*}/p' "$RUN_PDLC" | grep '_BW_SLUG=')
+assert_contains "$parallel_slug_code" 'sanitize_slug' "parallel batch: slug uses sanitize_slug"
+
+# Test: single-item mode uses sanitize_slug
+single_slug_code=$(grep 'item_slug=.*basename.*INPUT' "$RUN_PDLC")
+assert_contains "$single_slug_code" 'sanitize_slug' "single-item: slug uses sanitize_slug"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 
