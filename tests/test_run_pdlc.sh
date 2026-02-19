@@ -2499,6 +2499,26 @@ single_slug_code=$(grep 'item_slug=.*basename.*INPUT' "$RUN_PDLC")
 assert_contains "$single_slug_code" 'sanitize_slug' "single-item: slug uses sanitize_slug"
 
 # ═══════════════════════════════════════════════
+# Category 31: smart/curly quote detection (3 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- smart/curly quote detection ---"
+
+# Test: left double smart quote in --log-dir value rejected
+output=$(parse_args --log-dir $'\xe2\x80\x9clogs/test\xe2\x80\x9d' "topic" 2>&1) && ec=0 || ec=$?
+assert_eq "3" "$ec" "smart quote: log-dir with curly quotes exits 3"
+assert_contains "$output" "smart/curly quotes" "smart quote: error mentions smart/curly quotes"
+
+# Test: smart single quote in positional arg rejected
+output=$(parse_args --trunk $'\xe2\x80\x98topic\xe2\x80\x99' 2>&1) && ec=0 || ec=$?
+assert_eq "3" "$ec" "smart quote: single smart quotes in arg exits 3"
+
+# Test: normal ASCII quotes still work (no regression)
+parse_args --log-dir "logs/test" "topic"
+assert_eq "logs/test" "$LOG_DIR" "smart quote guard: ASCII-quoted --log-dir works"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 

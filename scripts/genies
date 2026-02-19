@@ -276,6 +276,23 @@ parse_args() {
     # Preflight
     NO_PREFLIGHT="false"
 
+    # Detect smart/curly quotes in arguments (common copy-paste from rich-text editors)
+    # Smart quotes are not shell delimiters — they become literal bytes in values,
+    # creating paths like "logs/ instead of logs/
+    local ldq rdq lsq rsq
+    ldq=$(printf '\xe2\x80\x9c')  # " left double
+    rdq=$(printf '\xe2\x80\x9d')  # " right double
+    lsq=$(printf '\xe2\x80\x98')  # ' left single
+    rsq=$(printf '\xe2\x80\x99')  # ' right single
+    for _arg in "$@"; do
+        if [[ "$_arg" == *"$ldq"* || "$_arg" == *"$rdq"* || "$_arg" == *"$lsq"* || "$_arg" == *"$rsq"* ]]; then
+            echo "Error: argument contains smart/curly quotes: $_arg" >&2
+            echo "  This usually happens when copy-pasting from rich-text editors." >&2
+            echo "  Replace with ASCII quotes (\"/') and try again." >&2
+            exit 3
+        fi
+    done
+
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --from)              FROM_PHASE="$2"; shift 2 ;;
