@@ -58,6 +58,7 @@ Activate Critic genie to review implementation against acceptance criteria.
 - Backlog frontmatter: `status: implemented` → `status: reviewed`
 - Backlog frontmatter: add `verdict: APPROVED|BLOCKED|CHANGES_REQUESTED` field (machine-readable verdict for the autonomous runner)
 - **Spec (if spec_ref exists):** Update spec AC statuses and append "## Review Verdict" section (see below)
+- docs/specs/{domain}/README.md (per Domain README Format, when spec_ref exists)
 
 > **Note:** Review content is appended directly to the backlog item rather than creating a separate analysis file.
 
@@ -83,6 +84,7 @@ After completing the review, update the linked spec:
    | AC-2 | unmet | {what's missing} |
    ```
 3. **Do NOT change spec status** — the spec stays `active` regardless of verdict
+4. **Regenerate `docs/specs/{domain}/README.md`** per spec-awareness Domain README Format
 
 ---
 

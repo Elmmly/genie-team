@@ -41,6 +41,7 @@ Read and internalize `.claude/agents/shaper.md` for your identity, charter, and 
 
 **WRITE:**
 - docs/backlog/{priority}-{topic}.md
+- docs/specs/{domain}/README.md (per Domain README Format, new capability only)
 - docs/decisions/ADR-{NNN}-{slug}.md (proposed ADR, when architectural choice detected — see below)
 
 **UPDATE:**
@@ -106,6 +107,7 @@ When shaping work for a capability that has no existing spec:
 2. **Create the spec** at `docs/specs/{domain}/{capability}.md` with `status: active`, `domain: {domain}`, and acceptance_criteria from the shaped contract
 3. **Link the backlog item:** Add `spec_ref: docs/specs/{domain}/{capability}.md` to the backlog item frontmatter
 4. **Create domain directory:** If `docs/specs/{domain}/` does not exist, create it
+5. **Update domain README:** Regenerate `docs/specs/{domain}/README.md` per spec-awareness Domain README Format
 
 ---
 

@@ -67,6 +67,7 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 - Backlog item: Append "# Implementation" section before "# End of Shaped Work Contract"
 - Backlog frontmatter: `status: designed` → `status: implemented`
 - **Spec (if spec_ref exists):** Append or update "## Implementation Evidence" section in the spec body (see below)
+- docs/specs/{domain}/README.md (per Domain README Format, when spec_ref exists)
 
 > **Note:** Implementation notes are appended directly to the backlog item rather than creating a separate report file.
 
@@ -89,6 +90,7 @@ After completing implementation, update the linked spec:
    ```
 2. **Do NOT modify spec acceptance_criteria statuses** — that is /discern's job
 3. **Do NOT change spec status** — the spec stays `active`
+4. **Regenerate `docs/specs/{domain}/README.md`** per spec-awareness Domain README Format
 
 ---
 

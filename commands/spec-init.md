@@ -49,6 +49,7 @@ Activate Scout genie to produce rich capability specifications from an existing 
 
 **WRITE:**
 - docs/specs/{domain}/{capability}.md (one per capability, status: active)
+- docs/specs/{domain}/README.md (per Domain README Format, for each domain that received new specs)
 - docs/architecture/system-context.md (Level 1 C4 diagram — system and external actors)
 - docs/architecture/containers.md (Level 2 C4 diagram — high-level containers)
 
@@ -82,6 +83,7 @@ Activate Scout genie to produce rich capability specifications from an existing 
    b. **Level 2 — Containers** (`docs/architecture/containers.md`): Create diagram showing high-level containers inferred from project structure (e.g., web app, API server, database, background workers). Include initial `## Coupling Notes` from observed dependencies. Set `updated_by: "/spec:init"`
    c. **Level 3 directory** — Create `docs/architecture/components/` directory. Component diagrams are created later by `/design` as domain boundaries become clearer.
    d. These are initial diagrams — `/design` refines them as architecture evolves
+   e. **Domain READMEs** — For each domain that received new specs, generate `docs/specs/{domain}/README.md` per the spec-awareness Domain README Format
 9. **Summary:** After all batches and diagrams are processed, output a summary of what was created
 
 ---

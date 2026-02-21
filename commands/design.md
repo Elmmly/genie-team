@@ -67,6 +67,7 @@ Read and internalize `.claude/agents/architect.md` for your identity, charter, a
 - docs/decisions/ADR-{NNN}-{slug}.md (create accepted ADRs, complete proposed ADRs — see ADR Behavior below)
 - docs/architecture/*.md (update C4 diagrams when boundaries change — see C4 Diagram Updates below)
 - **Spec (if spec_ref exists):** Append or update "## Design Constraints" section in the spec body (see below)
+- docs/specs/{domain}/README.md (per Domain README Format, when spec_ref exists)
 
 > **Note:** Design content is appended directly to the backlog item rather than creating a separate analysis file. This keeps all work context in one living document.
 
@@ -86,6 +87,7 @@ After completing the design, update the linked spec:
    - New ACs get `status: pending`
    - Preserve original AC numbering; new ACs continue the sequence
 3. **Do NOT change spec status** — the spec stays `active`
+4. **Regenerate `docs/specs/{domain}/README.md`** per spec-awareness Domain README Format
 
 ---
 
