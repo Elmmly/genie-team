@@ -11,7 +11,16 @@ Activate Scout genie to explore opportunities and surface assumptions.
   - `--assumptions` - Focus on assumption mapping only
   - `--evidence` - Focus on evidence gathering only
   - `--feasibility` - Include Architect feasibility check
+  - `--fast` - Prioritize speed over exhaustive analysis
   - `--workshop` - Interactive multi-phase discovery workshop with HTML artifacts
+
+---
+
+## Speed Mode (`--fast`)
+
+**When `$ARGUMENTS` contains `--fast`:** Prioritize speed over exhaustive analysis. Use heuristic judgment, skip thorough counter-evidence search, produce concise output. Set `reasoning_mode: fast` in the Opportunity Snapshot frontmatter.
+
+**When `$ARGUMENTS` does NOT contain `--fast` (default):** Use deep reasoning mode. Follow all Deep Reasoning directives in the Scout agent definition. Set `reasoning_mode: deep` in the Opportunity Snapshot frontmatter.
 
 ---
 

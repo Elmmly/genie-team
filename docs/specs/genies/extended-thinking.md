@@ -76,8 +76,16 @@ The design philosophy: deep is the default because analysis quality matters more
 - Four files total, all additive edits: `agents/scout.md`, `agents/architect.md`, `commands/discover.md`, `commands/design.md`
 
 ## Implementation Evidence
+<!-- Updated by /deliver on 2026-02-25 from P1-extended-thinking-integration -->
 
-_To be populated by Crafter during /deliver phase._
+### Test Coverage
+- tests/test_extended_thinking.sh: 34 test cases covering AC-1 through AC-7
+
+### Implementation Files
+- agents/scout.md: model upgrade (haiku→sonnet), Deep Reasoning section, reasoning_mode in Opportunity Snapshot template
+- agents/architect.md: Deep Reasoning section, reasoning_mode in Design Document template
+- commands/discover.md: --fast flag handling with Speed Mode section
+- commands/design.md: --fast flag handling with Speed Mode section
 
 ## Review Verdict
 

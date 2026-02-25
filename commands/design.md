@@ -11,6 +11,15 @@ Activate Architect genie to create technical design within shaped boundaries.
   - `--interfaces` - Just interface definitions
   - `--spike` - Feasibility investigation only
   - `--review` - Review existing design
+  - `--fast` - Prioritize speed over exhaustive analysis
+
+---
+
+## Speed Mode (`--fast`)
+
+**When `$ARGUMENTS` contains `--fast`:** Prioritize speed over exhaustive analysis. Use heuristic judgment, skip thorough alternative-approach comparison, produce concise output. Set `reasoning_mode: fast` in the Design Document frontmatter.
+
+**When `$ARGUMENTS` does NOT contain `--fast` (default):** Use deep reasoning mode. Follow all Deep Reasoning directives in the Architect agent definition. Set `reasoning_mode: deep` in the Design Document frontmatter.
 
 ---
 

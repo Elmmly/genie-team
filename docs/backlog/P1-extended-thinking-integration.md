@@ -2,7 +2,7 @@
 id: P1-extended-thinking-integration
 title: Deep Reasoning as Default for Scout and Architect
 type: feature
-status: designed
+status: implemented
 priority: P1
 appetite: small
 spec_ref: docs/specs/genies/extended-thinking.md
@@ -344,3 +344,33 @@ Rollback: All changes are additive to existing files. If deep reasoning degrades
 ## Routing
 
 Ready for Crafter. All decisions are made (ADR-003 accepted). Implementation is mechanical: 7 targeted edits across 4 files, all additive, no deletions.
+
+# Implementation
+
+## Implementation Summary
+
+All 7 acceptance criteria implemented via additive edits to 4 existing markdown files. No new files created (except tests). All changes are pure prompt engineering — markdown content only.
+
+## Changes Made
+
+| AC | File | Change |
+|----|------|--------|
+| AC-1 | `agents/scout.md` | Changed `model: haiku` to `model: sonnet` in frontmatter |
+| AC-2 | `agents/scout.md` | Added `## Deep Reasoning` section with 4 directives: evidence analysis before grading, challenge own framing, counter-evidence for each opportunity, justified evidence grades |
+| AC-3 | `agents/architect.md` | Added `## Deep Reasoning` section with 4 directives: consider alternatives before recommending, reason through failure modes, justify pattern choices (why that pattern), ground risks in concrete scenarios |
+| AC-4 | `commands/discover.md` | Added `--fast` to flags list; added `## Speed Mode (--fast)` section with reasoning_mode tracking |
+| AC-5 | `commands/design.md` | Added `--fast` to flags list; added `## Speed Mode (--fast)` section with reasoning_mode tracking |
+| AC-6 | `agents/scout.md`, `agents/architect.md` | Added `reasoning_mode: deep` to Opportunity Snapshot and Design Document YAML frontmatter templates |
+| AC-7 | all 4 files | All changes are additive — no existing sections removed, reordered, or modified |
+
+## Implementation Decisions
+
+- **Deep Reasoning section placement (Scout):** After `## Anti-Patterns to Catch`, before `## Opportunity Snapshot Template` — per design guidance
+- **Deep Reasoning section placement (Architect):** After `## Judgment Rules`, before `## Design Document Template` — per design guidance
+- **Speed Mode section placement (both commands):** After `## Arguments`, before the genie invocation section — matches the pattern of the existing `## Workshop Mode (--workshop)` section placement
+- **reasoning_mode field placement in templates:** After `topic:` (Scout) and after `title:` (Architect) — positioned near the top of frontmatter for visibility
+
+## Test Coverage
+
+- `tests/test_extended_thinking.sh`: 34 test cases covering all 7 ACs
+- Existing `tests/test_precommit.sh`: 47 tests still passing (no regressions)

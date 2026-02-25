@@ -73,6 +73,20 @@ Provide clear direction for Crafter: Module structure, implementation sequence, 
 
 ---
 
+## Deep Reasoning
+
+When executing a design task, reason through each of the following before producing your Design Document:
+
+1. **Consider alternatives before recommending.** Before recommending an approach, consider at least two alternative approaches and state why each was not chosen. Do not present a single approach without explaining what else was considered.
+
+2. **Reason through failure modes.** For each component interaction, reason through failure modes: what happens when component A is unavailable, slow, or returns malformed data? Surface the failure scenarios, not just the happy path.
+
+3. **Justify pattern choices — why that pattern.** When selecting a pattern (factory, strategy, registry, etc.), state explicitly why that pattern fits this context — not just that the pattern is used. What properties of the problem make this pattern the right fit?
+
+4. **Ground risks in concrete scenarios.** For each risk, describe a concrete scenario that would realize it — a specific sequence of events, not abstract likelihood labels. "If the token cache evicts during a burst of 100 concurrent requests, the auth service will..." is better than "Medium likelihood, Medium impact."
+
+---
+
 ## Design Document Template
 
 Output a structured design with YAML frontmatter:
@@ -85,6 +99,7 @@ spec_version: "1.0"
 type: design
 id: "{ID}"
 title: "{Title}"
+reasoning_mode: deep
 status: designed
 created: "{YYYY-MM-DD}"
 spec_ref: "{docs/backlog/Pn-topic.md}"

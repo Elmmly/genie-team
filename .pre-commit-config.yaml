@@ -54,9 +54,11 @@ repos:
         types: [markdown]
 
       # Tier 4: Test suite
+      # env -u GIT_INDEX_FILE: prevent pre-commit's index from leaking into
+      # test subprocesses that create temporary git repos
       - id: run-tests
         name: Run test suite
-        entry: make test
+        entry: env -u GIT_INDEX_FILE make test
         language: system
         pass_filenames: false
         always_run: true
