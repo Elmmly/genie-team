@@ -60,6 +60,7 @@ Optional: `updated`, `author`, `target_project`, `tags`, `extends`
 This skill activates during:
 - `/brand` — Create or evolve brand guide via interactive workshop
 - `/brand:image` — Generate brand-consistent images
+- `/brand:review` — Review design artifacts against brand guidelines and UX heuristics
 - `/brand:tokens` — Extract W3C Design Tokens from brand guide
 - `/design` — Inject brand constraints as Architect context
 - `/deliver` — Surface design tokens for Crafter theming
@@ -122,6 +123,22 @@ Generates brand-consistent images with cost-tiered routing:
 
 **Reads:** `docs/brand/*.md`, backlog `brand_ref`
 **Writes:** `docs/brand/assets/*.png`, `docs/brand/assets/manifest.md`
+
+### During /brand:review
+
+Loads brand guide and injects brand rules as review criteria:
+
+1. Load brand guide via common pattern
+2. If brand guide found: Extract review criteria and inject into command context:
+   - From visual.colors: all color hex values with their roles (primary, secondary, accent, semantic)
+   - From visual.typography: font families and their roles (headings, body, mono)
+   - From visual.imagery: style, mood, subjects, avoid list
+   - Inject as "Brand Review Criteria" block for designer agent to use in Brand Adherence section
+3. If no brand guide found: Set review_mode to heuristics-only; report header notes the fallback
+4. Never block — heuristics-only mode produces a useful review
+
+**Reads:** `docs/brand/*.md`, backlog `brand_ref`
+**Writes:** Nothing (read-only — criteria injection only)
 
 ### During /brand:tokens (AC-4)
 

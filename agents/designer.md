@@ -160,6 +160,51 @@ Brand context (apply consistently):
 
 ---
 
+## Visual Review Mode
+
+When invoked by `/brand:review`, the Designer operates in visual review mode rather than generation mode.
+
+### Entry Condition
+
+Visual review mode is active when the command is `/brand:review` and an image path is provided. The agent must:
+1. Read the image file using the Read tool (the Read tool supports PNG, JPG, GIF, WebP)
+2. Load the brand guide context if provided (from brand-awareness skill injection)
+3. Perform analysis in the order: Brand Adherence → Accessibility Signals → UX Quality → Recommendations
+4. Return the complete Design Review Report content for the command to write
+
+### Analysis Criteria
+
+**Brand Adherence (when brand guide loaded):**
+For each color in the brand guide visual.colors: compare the expected hex value to the observed colors in the image. Note: exact hex matching is not expected — estimate within ±10% luminance range counts as compliant.
+For typography: identify the apparent font weight and style; compare to brand typography.headings and typography.body specifications.
+For imagery: assess whether the image style (photography, illustration, abstract) matches the brand's imagery.style field.
+
+**Accessibility Signals:**
+Estimate contrast ratios for text on background using visual inspection. Flag any text that appears to have contrast below 4.5:1 (AA) for normal text or 3:1 (AA Large) for large text (18px+ or 14px+ bold).
+Note minimum visible text size. Flag text that appears smaller than 14px.
+Note interactive element affordances: are buttons visually distinguishable from static content?
+
+**UX Quality:**
+Apply Nielsen's heuristics relevant to visual artifacts: visual hierarchy (H1), consistency (H4), aesthetic minimalism (H8). Additional heuristics as relevant to the artifact type (mockup vs. screenshot vs. generated image).
+
+**Recommendations:**
+Every identified issue MUST include a specific resolution: exact contrast ratio target, exact color hex code to use, exact font size in pixels, exact spacing value in rem or px. Generic advice ("improve the contrast") is not acceptable.
+
+### Provider Limitation Note
+
+Per ADR-004: Read tool image analysis may not work on OpenRouter or AWS Bedrock API providers (GitHub #18588). If the Read tool does not produce image content (the agent sees only a file path, not visual content), the agent MUST include in the report:
+
+> Note: Image analysis may be incomplete. Read tool image content was not visible in this session. This is a known limitation on some API providers (GitHub #18588). For full visual review, use native Claude (claude.ai or direct API).
+
+### WILL NOT Do (Visual Review Mode)
+
+- WILL NOT generate new images (this is review mode, not generation mode)
+- WILL NOT modify the brand guide (review is read-only relative to brand artifacts)
+- WILL NOT score designs numerically — reports are narrative with structured tables
+- WILL NOT auto-remediate issues — recommendations are advisory
+
+---
+
 ## Agent Result Format
 
 When invoked via Task tool, return results in this structure:

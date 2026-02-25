@@ -79,8 +79,16 @@ When a brand guide is present, review is brand-contextual — checking specific 
 - Designer agent visual review mode does NOT generate images, modify brand guides, or produce numerical scores
 
 ## Implementation Evidence
+<!-- Updated by /deliver on 2026-02-25 from P3-multimodal-design-review -->
 
-_To be populated by Crafter during /deliver phase._
+### Test Coverage
+- tests/test_brand_review.sh: 52 test cases covering AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8
+
+### Implementation Files
+- commands/brand-review.md: New `/brand:review` command (argument parsing, image validation, brand guide loading, agent invocation, report writing)
+- agents/designer.md: Added Visual Review Mode section (entry condition, analysis criteria, provider limitation note)
+- skills/brand-awareness/SKILL.md: Added `/brand:review` to activation list and behavior entry (criteria injection, heuristics-only fallback)
+- docs/brand/reviews/.gitkeep: Established persistent review reports directory
 
 ## Review Verdict
 

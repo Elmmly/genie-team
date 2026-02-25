@@ -2,7 +2,7 @@
 id: P3-multimodal-design-review
 title: Multimodal Design Review for Designer Genie
 type: feature
-status: designed
+status: implemented
 priority: P3
 appetite: medium
 spec_ref: docs/specs/genies/multimodal-design-review.md
@@ -476,3 +476,48 @@ Rollback: `commands/brand-review.md` is a new file — deleting it removes the f
 ## Routing
 
 Ready for Crafter. ADR-004 accepted (Option A: native Read tool vision). Implementation is three files (one new, two modified). All decisions are made. No further design questions outstanding.
+
+# Implementation
+<!-- Added by /deliver on 2026-02-25 -->
+
+## Summary
+
+Implemented the multimodal design review capability as three file changes plus one directory creation, following the design specification exactly. TDD approach: 52 structural tests written first (RED), then implementation (GREEN), all passing with zero regressions across 147 total project tests.
+
+## Files Changed
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `commands/brand-review.md` | created | New `/brand:review` command following `brand-image.md` pattern — argument parsing, image path validation, brand guide loading, designer agent invocation in visual review mode, report writing |
+| `agents/designer.md` | modified | Added `## Visual Review Mode` section between Image Generation and Agent Result Format — entry condition, analysis criteria (Brand Adherence, Accessibility Signals, UX Quality, Recommendations), provider limitation note, WILL NOT Do list |
+| `skills/brand-awareness/SKILL.md` | modified | Added `/brand:review` to activation list and `### During /brand:review` behavior entry between `/brand:image` and `/brand:tokens` — brand guide loading, criteria injection, heuristics-only fallback |
+| `docs/brand/reviews/.gitkeep` | created | Established persistent review reports directory in git |
+| `tests/test_brand_review.sh` | created | 52 structural validation tests covering all 8 ACs |
+
+## Implementation Decisions
+
+1. **Report template embedded in command** — the Design Review Report template lives in `commands/brand-review.md` rather than a separate template file, matching how `brand-image.md` embeds its prompt augmentation template
+2. **No new skill file** — the `/brand:review` behavior is a new entry in the existing `brand-awareness` skill, not a separate skill, consistent with how `/brand:image` and `/brand:tokens` are organized
+3. **Directory creation via .gitkeep** — `docs/brand/reviews/` established with `.gitkeep` so it exists in git before first review, same pattern as `docs/brand/assets/`
+
+## Test Results
+
+```
+test_brand_review.sh: 52 tests, 52 passed, 0 failed
+test_execute.sh:      62 tests, 62 passed, 0 failed (no regression)
+test_hooks.sh:        38 tests, 38 passed, 0 failed (no regression)
+test_precommit.sh:    47 tests, 47 passed, 0 failed (no regression)
+```
+
+## AC Coverage
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | covered | `commands/brand-review.md` accepts image-path, references designer.md, invokes visual review mode via Read tool |
+| AC-2 | covered | Report template in command includes all 4 sections (Brand Adherence, Accessibility Signals, UX Quality, Recommendations) with `type: design-review` frontmatter; output path `docs/brand/reviews/{timestamp}_{stem}-review.md` |
+| AC-3 | covered | `agents/designer.md` Visual Review Mode Analysis Criteria specifies brand-aware comparison of hex values, font families, imagery style |
+| AC-4 | covered | Command and agent both handle heuristics-only mode; report notes "No brand guide found; review uses universal UX heuristics"; Nielsen's 10 referenced |
+| AC-5 | covered | Agent instruction mandates specific values (contrast ratios, hex codes, pixel sizes); generic advice explicitly prohibited |
+| AC-6 | covered | `docs/brand/reviews/` directory created with `.gitkeep`; command writes reports there; explicitly noted as never-archived |
+| AC-7 | covered | Image Path Validation section: checks presence, file existence, extension (.png, .jpg, .jpeg, .gif, .webp); error messages for each case; no partial report on failure |
+| AC-8 | covered | `commands/brand-review.md` follows `brand-image.md` pattern: Arguments, Agent Identity, Context Loading, Usage Examples, Routing, Notes, `ARGUMENTS: $ARGUMENTS` |
