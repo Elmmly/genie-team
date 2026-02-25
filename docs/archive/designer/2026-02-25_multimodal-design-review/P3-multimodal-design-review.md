@@ -2,7 +2,7 @@
 id: P3-multimodal-design-review
 title: Multimodal Design Review for Designer Genie
 type: feature
-status: reviewed
+status: done
 verdict: APPROVED
 priority: P3
 appetite: medium
