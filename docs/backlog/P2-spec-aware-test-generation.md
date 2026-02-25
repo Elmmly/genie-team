@@ -2,7 +2,8 @@
 id: P2-spec-aware-test-generation
 title: Spec-Aware Test Generation Factory for Crafter RED Phase
 type: feature
-status: implemented
+status: reviewed
+verdict: APPROVED
 priority: P2
 appetite: medium
 spec_ref: docs/specs/genies/spec-aware-test-generation.md
@@ -366,3 +367,38 @@ Added one bullet to Headless constraints: "In headless mode, the spec-to-stub ma
 
 - `tests/test_spec_aware_stubs.sh`: 36 tests, 36 passed, 0 failed
 - `tests/test_execute.sh`: 62 tests, 62 passed, 0 failed (no regression)
+
+# Review
+
+## Verdict: APPROVED
+
+**ACs verified:** 7/7 met | **Test coverage:** 36/36 passed | **Regression:** None (62/62 existing)
+
+## AC Verification
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | crafter.md:55-57 — Mapping pass is first sub-step of RED phase; "one failing test stub per AC before any other test writing" |
+| AC-2 | met | crafter.md:68,77-86 — ac_id comment as first line inside test; syntax table for 6 frameworks |
+| AC-3 | met | crafter.md:69-75 — AAA skeleton with TODO in Arrange/Act, failing assertions for Python, JS/TS, Bash, Go |
+| AC-4 | met | crafter.md:88-89 — "at least one edge-case... MUST contain more tests than the number of ACs" |
+| AC-5 | met | crafter.md:93-104 — Coverage table with AC, Test Stub Name(s), Coverage Type (direct/edge-case/missing) |
+| AC-6 | met | crafter.md:59-61 — Guard: "No ACs found; proceeding with manual test writing"; skips mapping pass |
+| AC-7 | met | crafter.md:48,55 — Lives under "### TDD Cycle (Mandatory)"; headless mode updated at line 223 |
+
+## Quality Assessment
+
+- **Code quality:** Implementation follows existing constraint pattern (numbered rules + code examples). Consistent markdown formatting. Clear, actionable instruction language.
+- **Test coverage:** 36 tests covering all 7 ACs with edge cases. Tests match existing infrastructure patterns.
+- **Security:** No concerns — prompt engineering change only.
+- **Performance:** No concerns — no runtime implications.
+- **Scope discipline:** Implementation stays within design boundaries. No changes to deliver command or tdd-discipline skill (as designed).
+- **ADR compliance:** No ADRs referenced (`adr_refs: []`).
+
+## Observations (Informational)
+
+1. The shaped contract's "Behavioral Delta" describes conceptual updates to `crafter-implementation.md` (AC-3, AC-4, new AC-5). These spec updates were not made — the design explicitly scoped changes to `agents/crafter.md` only. Consider a maintenance pass to update `crafter-implementation.md`.
+
+## Routing
+
+Ready for `/done docs/backlog/P2-spec-aware-test-generation.md`

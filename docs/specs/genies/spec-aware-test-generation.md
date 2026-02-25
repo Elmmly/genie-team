@@ -13,39 +13,39 @@ acceptance_criteria:
       When /deliver:tests is invoked with a spec that has acceptance_criteria
       frontmatter, Crafter performs a spec-to-stub mapping pass before any
       other test writing — producing one failing test stub per AC minimum
-    status: pending
+    status: met
   - id: AC-2
     description: >-
       Each generated stub includes an ac_id comment (e.g., # ac_id: AC-3) linking
       the test to its source acceptance criterion
-    status: pending
+    status: met
   - id: AC-3
     description: >-
       Each generated stub follows the AAA pattern with a TODO marker in the
       Act section and a failing assertion (e.g., fail("not implemented"),
       assert False, or equivalent) in the Assert section
-    status: pending
+    status: met
   - id: AC-4
     description: >-
       After the spec-to-stub mapping pass, Crafter adds edge-case tests beyond
       the direct AC stubs; the final test file contains more tests than ACs
-    status: pending
+    status: met
   - id: AC-5
     description: >-
       At the end of RED phase, Crafter outputs a coverage table mapping each
       AC id to its test stub name(s) and coverage type (direct / edge-case)
-    status: pending
+    status: met
   - id: AC-6
     description: >-
       When a spec has no acceptance_criteria frontmatter, Crafter logs a warning
       ("no ACs found; proceeding with manual test writing") and continues with
       existing RED phase behavior — no regression
-    status: pending
+    status: met
   - id: AC-7
     description: >-
       The spec-to-stub behavior is documented in agents/crafter.md under the
       TDD Cycle section so Crafter follows it consistently across all invocations
-    status: pending
+    status: met
 ---
 
 # Spec-Aware Test Generation
@@ -78,5 +78,19 @@ The capability is a Crafter-only enhancement (prompt instruction in `agents/craf
 - agents/crafter.md: Added Spec-to-Stub Mapping Pass sub-section in TDD Cycle, coverage table instruction, and headless mode clarification
 
 ## Review Verdict
+<!-- Updated by /discern on 2026-02-25 from P2-spec-aware-test-generation -->
 
-_To be populated by Critic during /discern phase._
+**Verdict:** APPROVED
+**ACs verified:** 7/7 met
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | crafter.md:55-57 — Mapping pass section is first sub-step of RED phase, "one failing test stub per AC before any other test writing" |
+| AC-2 | met | crafter.md:68,77-86 — ac_id comment as first line inside test, syntax table for 6 frameworks |
+| AC-3 | met | crafter.md:69-75 — AAA skeleton with TODO in Arrange/Act, failing assertion in Assert for 4 languages |
+| AC-4 | met | crafter.md:88-89 — "add at least one edge-case... The final test file MUST contain more tests than the number of ACs" |
+| AC-5 | met | crafter.md:93-104 — Coverage table with AC, Test Stub Name(s), Coverage Type (direct/edge-case/missing) |
+| AC-6 | met | crafter.md:59-61 — Guard clause: "No ACs found; proceeding with manual test writing" and skip mapping pass |
+| AC-7 | met | crafter.md:48,55 — Section lives under "### TDD Cycle (Mandatory)"; headless mode updated at line 223 |
+
+**Informational observation:** The shaped contract's "Behavioral Delta" describes conceptual updates to `crafter-implementation.md` (AC-3, AC-4, new AC-5). These were not made — the design explicitly scoped changes to `agents/crafter.md` only. Consider a maintenance pass to update `crafter-implementation.md` to reflect the new behavior.
