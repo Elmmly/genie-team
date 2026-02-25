@@ -2,7 +2,8 @@
 id: P3-multimodal-design-review
 title: Multimodal Design Review for Designer Genie
 type: feature
-status: implemented
+status: reviewed
+verdict: APPROVED
 priority: P3
 appetite: medium
 spec_ref: docs/specs/genies/multimodal-design-review.md
@@ -521,3 +522,44 @@ test_precommit.sh:    47 tests, 47 passed, 0 failed (no regression)
 | AC-6 | covered | `docs/brand/reviews/` directory created with `.gitkeep`; command writes reports there; explicitly noted as never-archived |
 | AC-7 | covered | Image Path Validation section: checks presence, file existence, extension (.png, .jpg, .jpeg, .gif, .webp); error messages for each case; no partial report on failure |
 | AC-8 | covered | `commands/brand-review.md` follows `brand-image.md` pattern: Arguments, Agent Identity, Context Loading, Usage Examples, Routing, Notes, `ARGUMENTS: $ARGUMENTS` |
+
+# Review
+<!-- Added by /discern on 2026-02-25 -->
+
+## Verdict: APPROVED
+
+**ACs verified:** 8/8 met
+**Tests:** 52/52 passed (0 regressions across 147 total project tests)
+**ADR compliance:** ADR-004 YES
+
+## AC Verification
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | `commands/brand-review.md` accepts `image-path` (line 9), references `designer.md` (line 19), activates Visual Review Mode, uses Read tool per ADR-004 (line 84) |
+| AC-2 | met | Report template (lines 102-160) has `type: design-review` frontmatter, all 4 sections (Brand Adherence, Accessibility Signals, UX Quality, Recommendations), output path `docs/brand/reviews/{YYYYMMDD}_{HHmmss}_{stem}-review.md` |
+| AC-3 | met | Command injects color hex values, font families, imagery guidelines (lines 85-88); designer agent compares expected vs observed values (designer.md lines 177-180); skill extracts brand rules (SKILL.md lines 132-136) |
+| AC-4 | met | Heuristics-only mode: Context Loading (line 30), fallback message (lines 162-163): "No brand guide found at docs/brand/. Review uses universal UX heuristics (Nielsen's 10, WCAG contrast, visual hierarchy)"; Brand Adherence omitted in fallback (line 165) |
+| AC-5 | met | Command (lines 94-98) and agent (designer.md lines 190-191) mandate specific values; generic advice explicitly prohibited; example includes contrast ratios and hex codes |
+| AC-6 | met | `docs/brand/reviews/` exists with `.gitkeep`; reports explicitly "never archived, never deleted" (line 180); notes confirm "append-only audit trail" (line 261) |
+| AC-7 | met | Three-step validation (lines 42-66): missing argument, file not found, unsupported extension; "Do NOT create a partial report if validation fails" (line 66); error examples in Usage Examples (lines 239-243) |
+| AC-8 | met | `commands/brand-review.md` matches `brand-image.md` pattern: Arguments, Agent Identity, Context Loading, Routing, Notes, Usage Examples; ends with `ARGUMENTS: $ARGUMENTS` (line 266) |
+
+## ADR Compliance
+
+| ADR | Decision | Compliant? | Notes |
+|-----|----------|------------|-------|
+| ADR-004 | Native Read tool vision (Option A) | YES | Image delivery via Read tool (no new MCP servers, no base64); provider limitation (GitHub #18588) documented in command (line 186) and agent (designer.md lines 193-197) |
+
+## Findings
+
+- Implementation follows the design specification with zero deviations
+- Three files changed (one new, two modified) plus one directory creation — minimal, focused scope
+- All test patterns follow established conventions (`test_execute.sh`, `test_hooks.sh`)
+- Rollback is trivial: delete `commands/brand-review.md` and remove additive sections from `agents/designer.md` and `skills/brand-awareness/SKILL.md`
+- No security concerns — review is a read-only analysis that produces markdown artifacts
+- No performance concerns — image token cost ~$0.024 per review (ADR-004)
+
+## Routing
+
+Ready for `/done`. All acceptance criteria met, all tests passing, ADR-004 compliant.
