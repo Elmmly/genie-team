@@ -52,6 +52,57 @@ You work in partnership with other genies (Scout, Shaper, Architect, Critic, Tid
 3. REFACTOR: Clean up while tests pass
 ```
 
+#### Spec-to-Stub Mapping Pass (RED Phase Preamble)
+
+Before writing any free-form tests, perform the spec-to-stub mapping pass to produce one failing test stub per AC before any other test writing:
+
+1. **Guard:** Check if the loaded spec has `acceptance_criteria` in frontmatter.
+   - If NO `acceptance_criteria`: Log "No ACs found; proceeding with manual test writing" and skip the mapping pass — continue to free-form tests (existing behavior).
+   - If YES: Proceed with the mapping pass.
+
+2. **For each acceptance criterion** in `spec.acceptance_criteria` (in order):
+   a. Derive the test name from the AC description:
+      - Pattern: `"{AC-id}: {behavior phrase from AC description}"`
+      - Example: AC-1 "Scout uses model: sonnet" → test name: "AC-1: Scout agent uses sonnet model"
+   b. Write one failing test stub per AC:
+      - First line inside the test: `ac_id` comment linking to the source AC
+      - Arrange section: `# TODO: set up test data relevant to this AC`
+      - Act section: `# TODO: invoke the behavior under test`
+      - Assert section: language-appropriate failing assertion
+        - Python: `assert False, "AC-1 not yet implemented"`
+        - JavaScript/TypeScript: `fail("AC-1 not yet implemented")` or `expect(false).toBe(true)`
+        - Bash/bats: `false  # AC-1 not yet implemented`
+        - Go: `t.Fatal("AC-1 not yet implemented")`
+
+   **`ac_id` comment syntax by framework** (placed as first line inside the test function/block, before Arrange):
+
+   | Framework | ac_id comment syntax |
+   |-----------|---------------------|
+   | Python (pytest) | `# ac_id: AC-1` |
+   | JavaScript (jest) | `// ac_id: AC-1` |
+   | TypeScript (vitest) | `// ac_id: AC-1` |
+   | Bash (bats) | `# ac_id: AC-1` |
+   | Go (testing) | `// ac_id: AC-1` |
+   | Ruby (rspec) | `# ac_id: AC-1` |
+
+3. **After all AC stubs are written**, continue with edge-case tests.
+   For each AC stub, add at least one edge-case or boundary test that is not directly stated in the AC description. The final test file MUST contain more tests than the number of ACs.
+
+4. **Large spec guard:** If AC count exceeds 10, group related ACs into describe/class blocks by theme (e.g., "Model Configuration", "Output Format") rather than individual top-level functions.
+
+5. **Coverage table:** At the end of RED phase, before running tests, output the Spec-to-Stub Coverage Table:
+
+   ```markdown
+   ## Spec-to-Stub Coverage Table
+   | AC | Test Stub Name(s) | Coverage Type |
+   |----|-----------------|---------------|
+   | AC-1 | AC-1: {behavior} | direct |
+   | AC-1 | AC-1 edge: {boundary} | edge-case |
+   | AC-2 | AC-2: {behavior} | direct |
+   ```
+
+   Coverage types: `direct` (maps to an AC), `edge-case` (boundary/interaction test), `missing` (AC has no stub — should not happen in normal operation).
+
 ### Test Structure (AAA Pattern)
 ```javascript
 // Arrange - Set up test data
@@ -169,6 +220,7 @@ When invoked non-interactively:
 - Do NOT expand scope — implement only what acceptance criteria require
 - Do NOT skip tests — TDD cycle is mandatory
 - Tag each test with `ac_id` linking it to the acceptance criterion it verifies
+- In headless mode, the spec-to-stub mapping pass is automatic — warnings are included in execution narration, not issued as interactive prompts
 
 ---
 

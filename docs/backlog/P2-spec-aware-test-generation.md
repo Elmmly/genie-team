@@ -2,7 +2,7 @@
 id: P2-spec-aware-test-generation
 title: Spec-Aware Test Generation Factory for Crafter RED Phase
 type: feature
-status: designed
+status: implemented
 priority: P2
 appetite: medium
 spec_ref: docs/specs/genies/spec-aware-test-generation.md
@@ -328,3 +328,41 @@ Rollback: Single additive edit to `agents/crafter.md`. If the mapping pass degra
 ## Routing
 
 Ready for Crafter. Option A is selected (prompt instruction in `agents/crafter.md`). Implementation is a single file, three targeted additions (mapping pass sub-section, coverage table instruction, headless mode note). All decisions are made — no ADR needed (no architectural alternatives with lasting consequences).
+
+# Implementation
+
+## Summary
+
+Implemented the spec-to-stub mapping pass as three targeted additions to `agents/crafter.md`, following Option A from the shaped work contract. No new files, commands, or skills were created.
+
+## Changes
+
+### 1. `agents/crafter.md` — Spec-to-Stub Mapping Pass (lines 55–104)
+
+Added `#### Spec-to-Stub Mapping Pass (RED Phase Preamble)` sub-section within the existing TDD Cycle section, as the first sub-step of Phase 1: RED. Contains:
+
+- **Guard clause** (AC-6): When no `acceptance_criteria` in spec, logs "No ACs found; proceeding with manual test writing" and skips to existing behavior
+- **Mapping loop** (AC-1, AC-2, AC-3): For each AC, generates a named failing test stub with `ac_id` comment as first line, AAA skeleton with TODO markers in Arrange/Act, and language-appropriate failing assertion in Assert
+- **`ac_id` syntax table** (AC-2): Documents comment syntax for Python, JavaScript, TypeScript, Bash, Go, and Ruby
+- **Edge-case instruction** (AC-4): After all AC stubs, add at least one edge-case test per AC; final test count MUST exceed AC count
+- **Large spec guard** (AC-1 edge): When AC count exceeds 10, group into describe/class blocks by theme
+- **Coverage table instruction** (AC-5): Output Spec-to-Stub Coverage Table at end of RED phase with AC, test stub names, and coverage type (direct/edge-case/missing)
+
+### 2. `agents/crafter.md` — Headless Mode Clarification (line 223)
+
+Added one bullet to Headless constraints: "In headless mode, the spec-to-stub mapping pass is automatic — warnings are included in execution narration, not issued as interactive prompts"
+
+### 3. `tests/test_spec_aware_stubs.sh` (new file)
+
+36 tests covering all 7 ACs plus edge cases. Tests validate the content of `agents/crafter.md` to ensure all required instructions are present and correctly structured.
+
+## Decisions
+
+- **No changes to `commands/deliver.md`**: The command already defers TDD behavior to the agent. The design explicitly ruled this out.
+- **No changes to `skills/tdd-discipline/SKILL.md`**: The mapping pass is Crafter-specific, not cross-cutting. The shaped contract explicitly rejected adding this to a skill.
+- **Test strategy**: Content-based validation of `agents/crafter.md` using bash grep patterns, matching the existing test infrastructure pattern (`tests/test_execute.sh`).
+
+## Test Results
+
+- `tests/test_spec_aware_stubs.sh`: 36 tests, 36 passed, 0 failed
+- `tests/test_execute.sh`: 62 tests, 62 passed, 0 failed (no regression)

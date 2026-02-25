@@ -69,8 +69,13 @@ The capability is a Crafter-only enhancement (prompt instruction in `agents/craf
 - Changes are limited to `agents/crafter.md` (three additive edits: mapping pass sub-section, coverage table instruction, headless mode clarification)
 
 ## Implementation Evidence
+<!-- Updated by /deliver on 2026-02-25 from P2-spec-aware-test-generation -->
 
-_To be populated by Crafter during /deliver phase._
+### Test Coverage
+- tests/test_spec_aware_stubs.sh: 36 test cases covering AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7
+
+### Implementation Files
+- agents/crafter.md: Added Spec-to-Stub Mapping Pass sub-section in TDD Cycle, coverage table instruction, and headless mode clarification
 
 ## Review Verdict
 
