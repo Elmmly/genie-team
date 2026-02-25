@@ -2,7 +2,7 @@
 id: P1-extended-thinking-integration
 title: Deep Reasoning as Default for Scout and Architect
 type: feature
-status: implemented
+status: done
 priority: P1
 appetite: small
 spec_ref: docs/specs/genies/extended-thinking.md

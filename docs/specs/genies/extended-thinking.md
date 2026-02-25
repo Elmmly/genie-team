@@ -12,41 +12,41 @@ acceptance_criteria:
     description: >-
       Scout agent definition uses model: sonnet (upgraded from haiku) for
       deeper reasoning on discovery tasks
-    status: pending
+    status: met
   - id: AC-2
     description: >-
       Scout agent definition includes deep reasoning instructions directing
       thorough assumption analysis, counter-evidence consideration, and
       justified evidence grading
-    status: pending
+    status: met
   - id: AC-3
     description: >-
       Architect agent definition includes deep reasoning instructions directing
       alternative approach consideration, failure mode analysis, justified
       pattern choices, and concrete risk scenarios
-    status: pending
+    status: met
   - id: AC-4
     description: >-
       /discover supports --fast flag that adds speed-over-depth prompt
       instruction; Opportunity Snapshot frontmatter includes
       reasoning_mode: fast when flag is present
-    status: pending
+    status: met
   - id: AC-5
     description: >-
       /design supports --fast flag with the same speed-over-depth behavior;
       Design Document frontmatter includes reasoning_mode: fast when flag
       is present
-    status: pending
+    status: met
   - id: AC-6
     description: >-
       Default behavior (no flag) produces reasoning_mode: deep in output
       frontmatter for both Scout and Architect
-    status: pending
+    status: met
   - id: AC-7
     description: >-
       Output formats (Opportunity Snapshot, Design Document) are unchanged
       except for the new reasoning_mode frontmatter field
-    status: pending
+    status: met
 ---
 
 # Deep Reasoning for Analysis Genies
@@ -88,5 +88,18 @@ The design philosophy: deep is the default because analysis quality matters more
 - commands/design.md: --fast flag handling with Speed Mode section
 
 ## Review Verdict
+<!-- Updated by /discern on 2026-02-25 -->
 
-_To be populated by Critic during /discern phase._
+**APPROVED** — 7/7 acceptance criteria met.
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | `agents/scout.md` frontmatter: `model: sonnet` (was `haiku`) |
+| AC-2 | met | `agents/scout.md` line 85: `## Deep Reasoning` section with 4 directives (evidence analysis, challenge framing, counter-evidence, justified grades) |
+| AC-3 | met | `agents/architect.md` line 76: `## Deep Reasoning` section with 4 directives (alternative approaches, failure modes, pattern justification, concrete risk scenarios) |
+| AC-4 | met | `commands/discover.md` line 19: `## Speed Mode (--fast)` section with conditional instruction and `reasoning_mode: fast` tracking |
+| AC-5 | met | `commands/design.md` line 18: `## Speed Mode (--fast)` section with same pattern |
+| AC-6 | met | `agents/scout.md` line 107 and `agents/architect.md` line 102: `reasoning_mode: deep` in output frontmatter templates |
+| AC-7 | met | Output templates unchanged — only additive `reasoning_mode` field; all existing sections preserved |
+
+34 test cases pass in `tests/test_extended_thinking.sh`.
