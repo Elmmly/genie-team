@@ -2,7 +2,7 @@
 id: P2-spec-aware-test-generation
 title: Spec-Aware Test Generation Factory for Crafter RED Phase
 type: feature
-status: reviewed
+status: done
 verdict: APPROVED
 priority: P2
 appetite: medium

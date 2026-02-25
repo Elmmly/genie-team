@@ -1,7 +1,7 @@
 ---
 type: discover
 topic: AI-augmented Product Development Lifecycle Trends 2025-2026
-status: active
+status: completed
 created: 2026-02-25
 confidence: high
 scope: product-market-positioning
