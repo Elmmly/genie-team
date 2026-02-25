@@ -36,3 +36,6 @@ Desktop.ini
 
 # Logs
 *.log
+
+# Generated outputs (test images, etc.)
+outputs/
