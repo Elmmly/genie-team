@@ -66,6 +66,49 @@ acceptance_criteria:
       Worktree cleanup calls git worktree prune before branch deletion to clear
       stale references from manually-deleted worktree directories.
     status: pending
+  - id: AC-11
+    description: >-
+      genies daemon subcommand starts a continuous loop that scans the backlog
+      for actionable items, runs a batch, sleeps for --interval seconds, and
+      repeats until stopped or --max-cycles reached
+    status: pending
+  - id: AC-12
+    description: >-
+      Daemon writes a JSON status file after each cycle containing daemon_pid,
+      cycle count, timestamps, cumulative cost, completed/failed/in-progress
+      item lists, and daemon status
+    status: pending
+  - id: AC-13
+    description: >-
+      SIGINT and SIGTERM trigger graceful shutdown: finishes current phase,
+      commits work, cleans up worktrees, writes final status with stopped,
+      and exits 0
+    status: pending
+  - id: AC-14
+    description: >-
+      Review cycles default to 3 in daemon mode so CHANGES REQUESTED verdicts
+      automatically retry deliver-discern up to 3 times; non-daemon invocations
+      retain the existing default of 1
+    status: pending
+  - id: AC-15
+    description: >-
+      genies daemon stop reads the PID from the status file and sends SIGTERM
+      for clean remote shutdown
+    status: pending
+  - id: AC-16
+    description: >-
+      Daemon supports --projects flag accepting multiple local repo paths,
+      scanning each project's backlog independently per cycle; single-project
+      mode (no flag) defaults to the current working directory
+    status: pending
+  - id: AC-17
+    description: >-
+      Finisher pass runs after each batch cycle, scanning genie/* branches
+      across all managed projects, reading backlog item status from each branch,
+      and re-entering at the correct phase to complete stalled work (e.g.,
+      re-run discern for implemented items, deliver-discern for CHANGES
+      REQUESTED items, commit-done for APPROVED items with uncommitted changes)
+    status: pending
 ---
 
 # Autonomous Lifecycle Runner
@@ -138,6 +181,16 @@ discover → define → design → deliver → discern → commit → done
 - PATH command naming: `genies` is the single CLI entry point (lifecycle runner + `session` subcommand + `quality` subcommand). `genie-session` is a library sourced by `genies`. No `.sh` extensions for PATH commands. Internal `scripts/validate/*.sh` keep extensions.
 - Preflight validation runs before any execution path (batch, single, recover). FATAL checks (claude CLI, git repo, gh auth in PR mode) exit 3. WARN checks (dirty tree) log and continue. Skippable via `--no-preflight`.
 - Worktree cleanup calls `git worktree prune` before branch deletion to clear stale references from manually-deleted worktree directories.
+<!-- Updated by /design on 2026-02-26 from P1-continuous-overseer -->
+- `genies daemon` is a subcommand following the existing `genies session` / `genies quality` dispatch pattern — not a separate script
+- Daemon mode sets `REVIEW_CYCLES=3` by default (vs 1 in single-run) via `DAEMON_MODE=true` flag; overridable with `--review-cycles`
+- Finisher reuses `run_phase()` for phase execution and `session_start()` / `session_finish()` / `session_cleanup_item()` for worktree lifecycle — no new execution paths
+- Finisher state-to-phase mapping reads backlog item `status` and `verdict` frontmatter fields to determine re-entry point; extends existing `status_to_phase()` logic
+- Status file uses atomic write (tmp + mv) following `write_batch_manifest()` JSON pattern; no jq dependency
+- `interruptible_sleep()` sleeps in 1-second increments checking `DAEMON_STOPPING` flag for responsive shutdown
+- Multi-project support via `DAEMON_PROJECTS[]` array; daemon `cd`s into each project per cycle, returns to original directory after
+- `project_health_check()` validates git state (bare=true, index locks) before scanning each project — defense against the corruption discovered in field testing
+- Default status file at `~/.genie-daemon-status.json` (home dir, not project dir) since daemon can manage multiple projects
 
 ## Implementation Evidence
 <!-- Appended by /deliver on 2026-02-12 -->
