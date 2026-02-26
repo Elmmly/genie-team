@@ -3,7 +3,7 @@ type: spike
 question: "Can extended thinking budget be set in agent YAML frontmatter for Claude Code agents?"
 status: complete
 date: 2026-02-25
-backlog_ref: docs/backlog/P1-extended-thinking-integration.md
+backlog_ref: docs/archive/agents/2026-02-25_extended-thinking-integration/P1-extended-thinking-integration.md
 adr_ref: docs/decisions/ADR-003-extended-thinking-activation-strategy.md
 ---
 

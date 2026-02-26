@@ -10,7 +10,7 @@ deciders: [navigator]
 domain: genies
 spec_refs:
   - docs/specs/genies/extended-thinking.md
-backlog_ref: docs/backlog/P1-extended-thinking-integration.md
+backlog_ref: docs/archive/agents/2026-02-25_extended-thinking-integration/P1-extended-thinking-integration.md
 tags: [extended-thinking, scout, architect, reasoning, model-selection]
 ---
 

@@ -11,7 +11,7 @@ domain: genies
 spec_refs:
   - docs/specs/genies/multimodal-design-review.md
   - docs/specs/genies/designer.md
-backlog_ref: docs/backlog/P3-multimodal-design-review.md
+backlog_ref: docs/archive/designer/2026-02-25_multimodal-design-review/P3-multimodal-design-review.md
 tags: [multimodal, vision, designer, brand-review, image-content]
 ---
 

@@ -3,7 +3,7 @@ type: spike
 question: "Can Claude CLI pass local image paths as vision content to agents?"
 status: complete
 date: 2026-02-25
-backlog_ref: docs/backlog/P3-multimodal-design-review.md
+backlog_ref: docs/archive/designer/2026-02-25_multimodal-design-review/P3-multimodal-design-review.md
 adr_ref: docs/decisions/ADR-004-multimodal-design-review-integration.md
 ---
 
