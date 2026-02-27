@@ -71,36 +71,36 @@ acceptance_criteria:
       genies daemon subcommand starts a continuous loop that scans the backlog
       for actionable items, runs a batch, sleeps for --interval seconds, and
       repeats until stopped or --max-cycles reached
-    status: pending
+    status: met
   - id: AC-12
     description: >-
       Daemon writes a JSON status file after each cycle containing daemon_pid,
       cycle count, timestamps, cumulative cost, completed/failed/in-progress
       item lists, and daemon status
-    status: pending
+    status: met
   - id: AC-13
     description: >-
       SIGINT and SIGTERM trigger graceful shutdown: finishes current phase,
       commits work, cleans up worktrees, writes final status with stopped,
       and exits 0
-    status: pending
+    status: met
   - id: AC-14
     description: >-
       Review cycles default to 3 in daemon mode so CHANGES REQUESTED verdicts
       automatically retry deliver-discern up to 3 times; non-daemon invocations
       retain the existing default of 1
-    status: pending
+    status: met
   - id: AC-15
     description: >-
       genies daemon stop reads the PID from the status file and sends SIGTERM
       for clean remote shutdown
-    status: pending
+    status: met
   - id: AC-16
     description: >-
       Daemon supports --projects flag accepting multiple local repo paths,
       scanning each project's backlog independently per cycle; single-project
       mode (no flag) defaults to the current working directory
-    status: pending
+    status: met
   - id: AC-17
     description: >-
       Finisher pass runs after each batch cycle, scanning genie/* branches
@@ -108,7 +108,7 @@ acceptance_criteria:
       and re-entering at the correct phase to complete stalled work (e.g.,
       re-run discern for implemented items, deliver-discern for CHANGES
       REQUESTED items, commit-done for APPROVED items with uncommitted changes)
-    status: pending
+    status: met
 ---
 
 # Autonomous Lifecycle Runner

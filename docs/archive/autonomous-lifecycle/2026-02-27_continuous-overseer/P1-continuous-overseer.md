@@ -2,7 +2,7 @@
 id: P1-continuous-overseer
 title: Continuous PDLC Overseer
 type: feature
-status: designed
+status: done
 priority: P1
 appetite: medium
 spec_ref: docs/specs/workflow/autonomous-lifecycle.md
@@ -532,5 +532,55 @@ Rollback: The daemon subcommand is purely additive. Removing it doesn't affect a
 ## Routing
 
 Ready for Crafter. No architectural decisions require ADRs — the daemon subcommand follows established patterns (ADR-001 thin orchestrator), and the finisher is the natural evolution of `--recover`. Implementation is ~200-300 lines of additive bash in `scripts/genies` plus ~40-60 test cases.
+
+# Implementation
+
+## Implementation Summary
+
+All 9 ACs implemented via TDD in `scripts/genies` (~280 lines additive) with 58 new test assertions in `tests/test_run_pdlc.sh`.
+
+### Functions Added
+
+| Function | Lines | Purpose |
+|----------|-------|---------|
+| `log_daemon_status_line()` | 4 | One-line stderr status during sleep |
+| `interruptible_sleep()` | 10 | Sleep with DAEMON_STOPPING check per second |
+| `write_daemon_status()` | 45 | Atomic JSON status file writer (printf, no jq) |
+| `project_health_check()` | 15 | Git state validation (bare repo, index.lock) |
+| `parse_daemon_args()` | 45 | Daemon-specific flag parsing, sets REVIEW_CYCLES=3 |
+| `finisher_state_to_phases()` | 25 | Pure function: status+verdict → phase list |
+| `run_finisher()` | 80 | Head chef pass: scan genie/* branches, complete stalled work |
+| `run_daemon_cycle()` | 45 | One scan+batch pass across all projects |
+| `run_daemon()` | 40 | Main loop: signal handling, cost/cycle limits |
+| `run_daemon_stop()` | 22 | PID lookup + SIGTERM from status file |
+
+### Minor Changes to Existing Code
+
+- `run_phase()`: Promoted `cost` local to `PHASE_COST` global for daemon cost tracking
+- `parse_args()` help text: Added daemon subcommand to usage
+- Subcommand dispatch: Added `daemon)` case with sub-subcommands (stop, status, start)
+
+### Test Categories Added (58 assertions)
+
+| Category | Tests | Component |
+|----------|-------|-----------|
+| 32 | 10 | `parse_daemon_args` |
+| 33 | 4 | `interruptible_sleep` |
+| 34 | 3 | `log_daemon_status_line` |
+| 35 | 7 | `write_daemon_status` |
+| 36 | 5 | `project_health_check` |
+| 37 | 8 | `finisher_state_to_phases` |
+| 38 | 8 | `run_daemon` loop control |
+| 39 | 4 | `run_daemon_stop` |
+| 40 | 5 | Daemon subcommand dispatch |
+| 41 | 4 | `run_daemon_cycle` |
+
+### AC Status
+
+All 9 acceptance criteria implemented. Full test suite: 331 assertions, 0 failures.
+
+## Routing
+
+Ready for Critic. Verify via: `bash tests/test_run_pdlc.sh` (all 331 pass), `shellcheck scripts/genies` (clean), and `genies daemon --help` for CLI smoke test.
 
 # End of Shaped Work Contract

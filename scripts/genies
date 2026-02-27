@@ -327,10 +327,12 @@ parse_args() {
             -h|--help)
                 echo "Usage: genies [OPTIONS] [<topic|backlog-item-path>...]"
                 echo "       genies session <command> [args]"
+                echo "       genies daemon [OPTIONS]"
                 echo "       genies quality [files...]"
                 echo ""
                 echo "Subcommands:"
                 echo "  session    Manage parallel worktree sessions (start, list, finish, cleanup)"
+                echo "  daemon     Run continuous PDLC loop (daemon start|stop|status)"
                 echo "  quality    Run quality validation scripts against files"
                 echo ""
                 echo "Single item (one input, no --parallel):"
@@ -784,6 +786,7 @@ run_phase() {
         PHASE_TOKENS=$((input_tokens + output_tokens))
         local cost
         cost=$(echo "$json_blob" | jq -r '.total_cost_usd // 0')
+        PHASE_COST="$cost"
         log_info "[$phase] Completed ($PHASE_NUM_TURNS turns, $PHASE_TOKENS tokens, \$$cost)"
     else
         OUTPUT="$raw_output"
@@ -887,6 +890,176 @@ log_phase_usage() {
         mkdir -p "$LOG_DIR"
         echo "{\"phase\":\"$phase\",\"turns\":$turns,\"tokens\":$tokens,\"duration_secs\":$duration,\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" \
             >> "$LOG_DIR/run-pdlc.jsonl"
+    fi
+}
+
+# ─────────────────────────────────────────────
+# Daemon Utility Functions
+# ─────────────────────────────────────────────
+
+# Print one-line daemon status to stderr
+# Reads: DAEMON_CYCLE, DAEMON_COMPLETED, DAEMON_FAILED, DAEMON_COST, DAEMON_INTERVAL
+log_daemon_status_line() {
+    local next_mins=$(( DAEMON_INTERVAL / 60 ))
+    log_info "[daemon] Cycle $DAEMON_CYCLE | $DAEMON_COMPLETED completed, $DAEMON_FAILED failed | \$$DAEMON_COST spent | next scan in ${next_mins}m"
+}
+
+# Interruptible sleep — checks DAEMON_STOPPING each second
+# Usage: interruptible_sleep <seconds>
+interruptible_sleep() {
+    local remaining="${1:-0}"
+    local tick=0
+    while [[ "$remaining" -gt 0 && "$DAEMON_STOPPING" != "true" ]]; do
+        sleep 1
+        remaining=$((remaining - 1))
+        tick=$((tick + 1))
+        if [[ $((tick % 30)) -eq 0 ]]; then
+            log_daemon_status_line
+        fi
+    done
+}
+
+# Write JSON daemon status file (atomic: tmp + mv)
+# Usage: write_daemon_status <status>
+# status: "starting" | "scanning" | "running" | "finishing" | "sleeping" | "stopped" | "budget_exceeded"
+write_daemon_status() {
+    local status="$1"
+    local tmpfile="${DAEMON_STATUS_FILE}.tmp"
+    local now
+    now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+    local next_scan_at=""
+    if [[ "$status" == "sleeping" ]]; then
+        next_scan_at=$(date -u -v+"${DAEMON_INTERVAL}"S +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "+${DAEMON_INTERVAL} seconds" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
+    fi
+
+    # Build completed items JSON array
+    local completed_json=""
+    local first=true
+    for item in "${DAEMON_COMPLETED_ITEMS[@]+"${DAEMON_COMPLETED_ITEMS[@]}"}"; do
+        [[ -z "$item" ]] && continue
+        [[ "$first" == "true" ]] && first=false || completed_json="$completed_json,"
+        completed_json="$completed_json\"$item\""
+    done
+
+    # Build failed items JSON array
+    local failed_json=""
+    first=true
+    for item in "${DAEMON_FAILED_ITEMS[@]+"${DAEMON_FAILED_ITEMS[@]}"}"; do
+        [[ -z "$item" ]] && continue
+        [[ "$first" == "true" ]] && first=false || failed_json="$failed_json,"
+        failed_json="$failed_json\"$item\""
+    done
+
+    # Build stalled items JSON array
+    local stalled_json=""
+    first=true
+    for item in "${DAEMON_STALLED_ITEMS[@]+"${DAEMON_STALLED_ITEMS[@]}"}"; do
+        [[ -z "$item" ]] && continue
+        [[ "$first" == "true" ]] && first=false || stalled_json="$stalled_json,"
+        stalled_json="$stalled_json\"$item\""
+    done
+
+    {
+        printf '{\n'
+        printf '  "daemon_pid": %s,\n' "$$"
+        printf '  "started_at": "%s",\n' "${DAEMON_STARTED_AT:-$now}"
+        printf '  "current_cycle": %s,\n' "${DAEMON_CYCLE:-0}"
+        printf '  "last_cycle_at": "%s",\n' "$now"
+        printf '  "cumulative_cost_usd": %s,\n' "${DAEMON_COST:-0}"
+        printf '  "status": "%s",\n' "$status"
+        printf '  "next_scan_at": "%s",\n' "$next_scan_at"
+        printf '  "items_completed": [%s],\n' "$completed_json"
+        printf '  "items_failed": [%s],\n' "$failed_json"
+        printf '  "items_stalled": [%s],\n' "$stalled_json"
+        printf '  "totals": {\n'
+        printf '    "completed": %s,\n' "${DAEMON_COMPLETED:-0}"
+        printf '    "failed": %s,\n' "${DAEMON_FAILED:-0}"
+        printf '    "stalled": %s,\n' "${DAEMON_STALLED:-0}"
+        printf '    "finisher_recovered": %s\n' "${DAEMON_FINISHER_RECOVERED:-0}"
+        printf '  }\n'
+        printf '}\n'
+    } > "$tmpfile"
+
+    mv "$tmpfile" "$DAEMON_STATUS_FILE"
+}
+
+# Validate a project's git state before scanning
+# Usage: project_health_check <project_path>
+# Returns: 0 if healthy, 1 if broken
+project_health_check() {
+    local project_path="$1"
+
+    if [[ ! -d "$project_path" ]]; then
+        log_error "[health] Directory not found: $project_path"
+        return 1
+    fi
+
+    if ! git -C "$project_path" rev-parse --is-inside-work-tree &>/dev/null; then
+        log_error "[health] Not a git repository: $project_path"
+        return 1
+    fi
+
+    local is_bare
+    is_bare=$(git -C "$project_path" config core.bare 2>/dev/null || echo "false")
+    if [[ "$is_bare" == "true" ]]; then
+        log_error "[health] Bare repository detected: $project_path"
+        return 1
+    fi
+
+    if [[ -f "$project_path/.git/index.lock" ]]; then
+        log_warn "[health] Index lock file exists: $project_path/.git/index.lock"
+    fi
+
+    return 0
+}
+
+# Parse daemon-specific arguments
+# Usage: parse_daemon_args <mode> [flags...]
+# mode: "start" | "stop" | "status"
+parse_daemon_args() {
+    # shellcheck disable=SC2034  # mode used by callers for dispatch context
+    local mode="$1"
+    shift
+
+    # Set daemon defaults
+    # shellcheck disable=SC2034  # DAEMON_MODE read by tests and external callers
+    DAEMON_MODE=true
+    DAEMON_PROJECTS=()
+    DAEMON_INTERVAL=300
+    DAEMON_MAX_CYCLES=""
+    DAEMON_MAX_COST=""
+    DAEMON_STATUS_FILE="${HOME}/.genie-daemon-status.json"
+    PARALLEL_JOBS=3
+    TRUNK_MODE=true
+    REVIEW_CYCLES=3
+    SKIP_PERMISSIONS=true
+    LOG_DIR=""
+    VERBOSE_LOGGING=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --projects)          DAEMON_PROJECTS+=("$2"); shift 2 ;;
+            --interval)          DAEMON_INTERVAL="$2"; shift 2 ;;
+            --max-cycles)        DAEMON_MAX_CYCLES="$2"; shift 2 ;;
+            --max-cost)          DAEMON_MAX_COST="$2"; shift 2 ;;
+            --status-file)       DAEMON_STATUS_FILE="$2"; shift 2 ;;
+            --parallel)          PARALLEL_JOBS="$2"; shift 2 ;;
+            --trunk)             TRUNK_MODE=true; shift ;;
+            --review-cycles)     REVIEW_CYCLES="$2"; shift 2 ;;
+            --verbose)           VERBOSE_LOGGING=true; shift ;;
+            --log-dir)           LOG_DIR="$2"; shift 2 ;;
+            --no-skip-permissions) SKIP_PERMISSIONS=false; shift ;;
+            -*)
+                echo "Error: unknown daemon flag '$1'" >&2
+                exit 3
+                ;;
+            *)  shift ;;
+        esac
+    done
+
+    # Default projects to current directory
+    if [[ ${#DAEMON_PROJECTS[@]} -eq 0 ]]; then
+        DAEMON_PROJECTS=(".")
     fi
 }
 
@@ -1439,6 +1612,334 @@ run_recover() {
     return 0
 }
 
+# ─────────────────────────────────────────────
+# Daemon Execution Functions
+# ─────────────────────────────────────────────
+
+# Map branch state to remaining phases for the finisher
+# Usage: finisher_state_to_phases <status> <verdict> <has_uncommitted>
+# Returns: space-separated phase list on stdout
+finisher_state_to_phases() {
+    local status="$1"
+    local verdict="$2"
+    local has_uncommitted="$3"
+
+    case "$status" in
+        implemented)
+            if [[ "$has_uncommitted" == "true" ]]; then
+                echo "commit discern commit done"
+            else
+                echo "discern commit done"
+            fi
+            ;;
+        reviewed)
+            if [[ "$verdict" == "APPROVED" ]]; then
+                if [[ "$has_uncommitted" == "true" ]]; then
+                    echo "commit done"
+                else
+                    echo "done"
+                fi
+            elif [[ "$verdict" == "CHANGES_REQUESTED" ]]; then
+                echo "deliver discern"
+            fi
+            ;;
+        designed)
+            echo "deliver discern commit done"
+            ;;
+        *)
+            if [[ "$has_uncommitted" == "true" ]]; then
+                echo "commit"
+            fi
+            ;;
+    esac
+}
+
+# Run finisher pass — scan genie/* branches and complete stalled work
+# This is the "head chef" quality pass across all managed projects
+# Returns: 0 always (failures are logged, not fatal)
+run_finisher() {
+    local original_dir
+    original_dir="$(pwd)"
+    local recovered=0
+
+    for project_path in "${DAEMON_PROJECTS[@]+"${DAEMON_PROJECTS[@]}"}"; do
+        [[ -z "$project_path" ]] && continue
+
+        if ! project_health_check "$project_path" 2>/dev/null; then
+            log_warn "[finisher] Skipping unhealthy project: $project_path"
+            continue
+        fi
+
+        cd "$project_path" || continue
+
+        # List genie/* branches
+        local branches=()
+        while IFS= read -r branch; do
+            [[ -n "$branch" ]] && branches+=("${branch#genie/}")
+        done < <(git branch --list 'genie/*' --format='%(refname:short)' 2>/dev/null)
+
+        if [[ ${#branches[@]} -eq 0 ]]; then
+            cd "$original_dir"
+            continue
+        fi
+
+        log_info "[finisher] Found ${#branches[@]} genie/* branches in $project_path"
+
+        for slug_branch in "${branches[@]}"; do
+            # Extract item slug (remove phase suffix)
+            local slug="${slug_branch%-*}"
+
+            # Clean up prior worktree if exists, then create fresh
+            session_cleanup_item "$slug_branch" 2>/dev/null || true
+            local worktree_path
+            worktree_path=$(session_start "$slug_branch" "finisher" 2>/dev/null) || {
+                log_warn "[finisher] Failed to create worktree for $slug_branch"
+                DAEMON_STALLED_ITEMS+=("$slug_branch")
+                DAEMON_STALLED=$((DAEMON_STALLED + 1))
+                continue
+            }
+
+            cd "$worktree_path" || continue
+
+            # Find backlog item file
+            local item_file=""
+            for f in docs/backlog/"${slug}"*.md docs/backlog/"${slug_branch}"*.md; do
+                [[ -f "$f" ]] && { item_file="$f"; break; }
+            done
+
+            if [[ -z "$item_file" ]]; then
+                log_warn "[finisher] No backlog item found for $slug_branch"
+                cd "$project_path"
+                session_cleanup_item "$slug_branch" 2>/dev/null || true
+                continue
+            fi
+
+            # Read state from frontmatter
+            local item_status item_verdict has_uncommitted
+            item_status=$(get_frontmatter_field "$item_file" "status" 2>/dev/null || echo "")
+            item_verdict=$(get_frontmatter_field "$item_file" "verdict" 2>/dev/null || echo "")
+            has_uncommitted="false"
+            if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+                has_uncommitted="true"
+            fi
+
+            # Determine phases to run
+            local phases
+            phases=$(finisher_state_to_phases "$item_status" "$item_verdict" "$has_uncommitted")
+
+            if [[ -z "$phases" ]]; then
+                log_info "[finisher] No action needed for $slug_branch (status=$item_status)"
+                cd "$project_path"
+                session_cleanup_item "$slug_branch" 2>/dev/null || true
+                continue
+            fi
+
+            log_info "[finisher] $slug_branch: status=$item_status verdict=$item_verdict → phases: $phases"
+
+            # Execute phases
+            local phase_failed=false
+            for phase in $phases; do
+                run_phase "$phase" "$item_file" || {
+                    log_warn "[finisher] Phase $phase failed for $slug_branch"
+                    phase_failed=true
+                    break
+                }
+                # Accumulate cost
+                if [[ -n "${PHASE_COST:-}" ]]; then
+                    DAEMON_COST=$(echo "$DAEMON_COST + $PHASE_COST" | bc -l 2>/dev/null || echo "$DAEMON_COST")
+                fi
+            done
+
+            cd "$project_path"
+
+            if [[ "$phase_failed" == "true" ]]; then
+                log_warn "[finisher] Preserving worktree for failed item: $slug_branch"
+                DAEMON_STALLED_ITEMS+=("$slug_branch")
+                DAEMON_STALLED=$((DAEMON_STALLED + 1))
+            else
+                # Integrate completed work
+                local integrate_ec=0
+                if [[ "${TRUNK_MODE:-false}" == "true" ]]; then
+                    session_integrate_trunk "$slug_branch" 2>/dev/null || integrate_ec=$?
+                else
+                    session_integrate_pr "$slug_branch" 2>/dev/null || integrate_ec=$?
+                fi
+
+                if [[ $integrate_ec -eq 0 ]]; then
+                    log_info "[finisher] Recovered: $slug_branch"
+                    recovered=$((recovered + 1))
+                    DAEMON_FINISHER_RECOVERED=$((DAEMON_FINISHER_RECOVERED + 1))
+                else
+                    log_warn "[finisher] Integration failed for $slug_branch"
+                    DAEMON_STALLED_ITEMS+=("$slug_branch")
+                    DAEMON_STALLED=$((DAEMON_STALLED + 1))
+                fi
+            fi
+        done
+
+        cd "$original_dir"
+    done
+
+    if [[ $recovered -gt 0 ]]; then
+        log_info "[finisher] Recovered $recovered items"
+    fi
+
+    return 0
+}
+
+# Execute one daemon cycle — scan and batch across all projects
+# Usage: run_daemon_cycle
+run_daemon_cycle() {
+    local original_dir
+    original_dir="$(pwd)"
+
+    write_daemon_status "scanning" 2>/dev/null || true
+
+    for project_path in "${DAEMON_PROJECTS[@]+"${DAEMON_PROJECTS[@]}"}"; do
+        [[ -z "$project_path" ]] && continue
+
+        if ! project_health_check "$project_path" 2>/dev/null; then
+            log_warn "[daemon] Skipping unhealthy project: $project_path"
+            continue
+        fi
+
+        cd "$project_path" || continue
+        log_info "[daemon] Scanning project: $project_path"
+
+        # Ensure log dir
+        if [[ -z "$LOG_DIR" ]]; then
+            LOG_DIR="logs/daemon-$(date +%Y%m%d-%H%M%S)"
+        fi
+
+        # Resolve batch items
+        INPUTS=()
+        resolve_batch_items 2>/dev/null || true
+
+        if [[ ${#BATCH_ITEMS[@]} -eq 0 ]]; then
+            log_info "[daemon] No actionable items in $project_path"
+            cd "$original_dir"
+            continue
+        fi
+
+        log_info "[daemon] Found ${#BATCH_ITEMS[@]} actionable items in $project_path"
+        write_daemon_status "running" 2>/dev/null || true
+
+        # Execute batch (continue on failure — daemon handles errors per cycle)
+        if [[ "$PARALLEL_JOBS" -gt 0 ]]; then
+            run_batch_parallel || log_warn "[daemon] Batch parallel failed for $project_path"
+        else
+            run_batch_sequential || log_warn "[daemon] Batch sequential failed for $project_path"
+        fi
+
+        # Accumulate results from batch manifest if available
+        if [[ -f "$LOG_DIR/batch-manifest.json" ]] && command -v jq &>/dev/null; then
+            local batch_completed batch_failed
+            batch_completed=$(jq -r '.succeeded | length' "$LOG_DIR/batch-manifest.json" 2>/dev/null || echo "0")
+            batch_failed=$(jq -r '.failed | length' "$LOG_DIR/batch-manifest.json" 2>/dev/null || echo "0")
+            DAEMON_COMPLETED=$((DAEMON_COMPLETED + batch_completed))
+            DAEMON_FAILED=$((DAEMON_FAILED + batch_failed))
+
+            # Collect item names
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && DAEMON_COMPLETED_ITEMS+=("$item")
+            done < <(jq -r '.succeeded[]' "$LOG_DIR/batch-manifest.json" 2>/dev/null)
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && DAEMON_FAILED_ITEMS+=("$item")
+            done < <(jq -r '.failed[]' "$LOG_DIR/batch-manifest.json" 2>/dev/null)
+        fi
+
+        cd "$original_dir"
+    done
+
+    return 0
+}
+
+# Run the daemon — continuous loop with signal handling
+# Usage: run_daemon
+run_daemon() {
+    DAEMON_STOPPING=false
+    DAEMON_CYCLE=0
+    DAEMON_COST=0
+    DAEMON_COMPLETED=0
+    DAEMON_FAILED=0
+    DAEMON_STALLED=0
+    DAEMON_FINISHER_RECOVERED=0
+    DAEMON_COMPLETED_ITEMS=()
+    DAEMON_FAILED_ITEMS=()
+    DAEMON_STALLED_ITEMS=()
+    DAEMON_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+    trap 'DAEMON_STOPPING=true; log_info "[daemon] Shutdown requested..."' INT TERM
+
+    log_info "[daemon] Starting (interval=${DAEMON_INTERVAL}s, max-cycles=${DAEMON_MAX_CYCLES:-unlimited}, max-cost=${DAEMON_MAX_COST:-unlimited})"
+    write_daemon_status "starting"
+
+    while [[ "$DAEMON_STOPPING" != "true" ]]; do
+        # Cycle limit check (before increment — DAEMON_CYCLE reflects completed cycles)
+        if [[ -n "$DAEMON_MAX_CYCLES" && "$DAEMON_CYCLE" -ge "$DAEMON_MAX_CYCLES" ]]; then
+            break
+        fi
+
+        DAEMON_CYCLE=$((DAEMON_CYCLE + 1))
+
+        log_info "[daemon] --- Cycle $DAEMON_CYCLE ---"
+
+        run_daemon_cycle
+        run_finisher
+
+        # Cost limit check
+        if [[ -n "$DAEMON_MAX_COST" ]] && (( $(echo "$DAEMON_COST > $DAEMON_MAX_COST" | bc -l 2>/dev/null || echo "0") )); then
+            log_warn "[daemon] Cost budget exceeded: \$$DAEMON_COST > \$$DAEMON_MAX_COST"
+            write_daemon_status "budget_exceeded"
+            break
+        fi
+
+        write_daemon_status "sleeping"
+        interruptible_sleep "$DAEMON_INTERVAL"
+    done
+
+    # Only write "stopped" if we didn't already write a terminal status (budget_exceeded)
+    local last_status=""
+    if [[ -f "$DAEMON_STATUS_FILE" ]] && command -v jq &>/dev/null; then
+        last_status=$(jq -r '.status' "$DAEMON_STATUS_FILE" 2>/dev/null)
+    fi
+    if [[ "$last_status" != "budget_exceeded" ]]; then
+        write_daemon_status "stopped"
+    fi
+    log_info "[daemon] Stopped after $DAEMON_CYCLE cycles (\$$DAEMON_COST spent)"
+}
+
+# Stop a running daemon by reading PID from status file
+# Usage: run_daemon_stop
+run_daemon_stop() {
+    if [[ ! -f "$DAEMON_STATUS_FILE" ]]; then
+        log_error "No daemon status file found: $DAEMON_STATUS_FILE"
+        return 1
+    fi
+
+    local daemon_pid=""
+    if command -v jq &>/dev/null; then
+        daemon_pid=$(jq -r '.daemon_pid' "$DAEMON_STATUS_FILE" 2>/dev/null)
+    else
+        daemon_pid=$(grep -o '"daemon_pid": *[0-9]*' "$DAEMON_STATUS_FILE" | grep -o '[0-9]*')
+    fi
+
+    if [[ -z "$daemon_pid" || "$daemon_pid" == "null" ]]; then
+        log_error "Could not read daemon PID from $DAEMON_STATUS_FILE"
+        return 1
+    fi
+
+    if ! kill -0 "$daemon_pid" 2>/dev/null; then
+        log_error "Daemon (PID $daemon_pid) is not running"
+        return 1
+    fi
+
+    log_info "Sending SIGTERM to daemon (PID $daemon_pid)..."
+    kill -TERM "$daemon_pid"
+    log_info "Shutdown signal sent. Daemon will finish current phase and exit."
+    return 0
+}
+
 # Execute batch items in parallel with worker pool
 run_batch_parallel() {
     # Ensure log dir exists
@@ -1949,6 +2450,49 @@ case "${1:-}" in
             bash "$script" "$@" || exit_code=1
         done
         exit $exit_code
+        ;;
+    daemon)
+        shift
+        case "${1:-}" in
+            stop)
+                shift
+                parse_daemon_args stop "$@"
+                run_daemon_stop
+                ;;
+            status)
+                shift
+                parse_daemon_args status "$@"
+                if [[ -f "$DAEMON_STATUS_FILE" ]]; then
+                    cat "$DAEMON_STATUS_FILE"
+                else
+                    log_error "No status file found: $DAEMON_STATUS_FILE"
+                    exit 1
+                fi
+                ;;
+            -h|--help)
+                echo "Usage: genies daemon [OPTIONS]"
+                echo "       genies daemon stop [--status-file <path>]"
+                echo "       genies daemon status [--status-file <path>]"
+                echo ""
+                echo "Run a continuous PDLC loop across one or more projects."
+                echo ""
+                echo "Options:"
+                echo "  --projects <path>...    Local repos to manage (default: current directory)"
+                echo "  --interval <seconds>    Sleep between cycles (default: 300)"
+                echo "  --max-cycles <N>        Stop after N cycles (default: unlimited)"
+                echo "  --max-cost <dollars>    Stop when cumulative cost exceeds budget (default: unlimited)"
+                echo "  --status-file <path>    JSON status file path (default: ~/.genie-daemon-status.json)"
+                echo "  --parallel <N>          Workers per project batch (default: 3)"
+                echo "  --trunk                 Use trunk-based mode (default)"
+                echo "  --review-cycles <N>     Review retry limit (default: 3 in daemon mode)"
+                echo "  --verbose               Write full claude session trace"
+                echo "  --log-dir <dir>         Log directory"
+                ;;
+            *)
+                parse_daemon_args start "$@"
+                run_daemon
+                ;;
+        esac
         ;;
     *)
         main "$@"

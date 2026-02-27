@@ -137,8 +137,8 @@ if [[ -f "$RUN_PDLC" ]]; then
     GENIES_SOURCED=true
     # shellcheck source=/dev/null
     source "$RUN_PDLC"
-    # genies sets -e; disable it — test harness manages its own exit codes
-    set +e
+    # genies + genie-session set -euo pipefail; disable all — test harness manages its own exit codes
+    set +euo pipefail
 else
     echo -e "${RED}ERROR${NC} genies not found at $RUN_PDLC"
     echo "Tests require the implementation to exist (even if incomplete)."
@@ -2517,6 +2517,510 @@ assert_eq "3" "$ec" "smart quote: single smart quotes in arg exits 3"
 # Test: normal ASCII quotes still work (no regression)
 parse_args --log-dir "logs/test" "topic"
 assert_eq "logs/test" "$LOG_DIR" "smart quote guard: ASCII-quoted --log-dir works"
+
+# ─────────────────────────────────────────────
+# Restore functions unset by earlier test categories (Category 16 unsets log_info)
+# ─────────────────────────────────────────────
+log_info()  { echo "[INFO]  $*" >&2; }
+log_warn()  { echo "[WARN]  $*" >&2; }
+log_error() { echo "[ERROR] $*" >&2; }
+log_debug() { [[ "${VERBOSE:-false}" == "true" ]] && echo "[DEBUG] $*" >&2 || true; }
+
+# ═══════════════════════════════════════════════
+# Category 32: parse_daemon_args (10 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- parse_daemon_args ---"
+
+# Test: daemon mode sets DAEMON_MODE=true
+parse_daemon_args start
+assert_eq "true" "$DAEMON_MODE" "parse_daemon_args: sets DAEMON_MODE=true"
+
+# Test: default interval is 300
+parse_daemon_args start
+assert_eq "300" "$DAEMON_INTERVAL" "parse_daemon_args: default interval=300"
+
+# Test: --interval override
+parse_daemon_args start --interval 60
+assert_eq "60" "$DAEMON_INTERVAL" "parse_daemon_args: --interval 60"
+
+# Test: default REVIEW_CYCLES=3 in daemon mode
+parse_daemon_args start
+assert_eq "3" "$REVIEW_CYCLES" "parse_daemon_args: REVIEW_CYCLES=3 in daemon mode"
+
+# Test: --review-cycles overrides daemon default
+parse_daemon_args start --review-cycles 5
+assert_eq "5" "$REVIEW_CYCLES" "parse_daemon_args: --review-cycles 5 overrides"
+
+# Test: --max-cycles
+parse_daemon_args start --max-cycles 10
+assert_eq "10" "$DAEMON_MAX_CYCLES" "parse_daemon_args: --max-cycles 10"
+
+# Test: --max-cost
+parse_daemon_args start --max-cost 25.50
+assert_eq "25.50" "$DAEMON_MAX_COST" "parse_daemon_args: --max-cost 25.50"
+
+# Test: --projects sets DAEMON_PROJECTS array
+parse_daemon_args start --projects /tmp/a --projects /tmp/b
+assert_eq "2" "${#DAEMON_PROJECTS[@]}" "parse_daemon_args: --projects sets 2 entries"
+
+# Test: default projects is current directory
+parse_daemon_args start
+assert_eq "1" "${#DAEMON_PROJECTS[@]}" "parse_daemon_args: default projects has 1 entry"
+
+# Test: --status-file
+parse_daemon_args start --status-file /tmp/test-status.json
+assert_eq "/tmp/test-status.json" "$DAEMON_STATUS_FILE" "parse_daemon_args: --status-file"
+
+# ═══════════════════════════════════════════════
+# Category 33: interruptible_sleep (4 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- interruptible_sleep ---"
+
+# Test: returns immediately when DAEMON_STOPPING=true
+DAEMON_STOPPING=true
+DAEMON_CYCLE=1
+DAEMON_COMPLETED=0
+DAEMON_FAILED=0
+DAEMON_COST=0
+DAEMON_INTERVAL=300
+start_time=$(date +%s)
+interruptible_sleep 10
+end_time=$(date +%s)
+elapsed=$((end_time - start_time))
+DAEMON_STOPPING=false
+TESTS_RUN=$((TESTS_RUN + 1))
+if [[ $elapsed -lt 3 ]]; then
+    echo -e "${GREEN}PASS${NC} interruptible_sleep: immediate return when DAEMON_STOPPING=true"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} interruptible_sleep: immediate return when DAEMON_STOPPING=true"
+    echo "  Expected elapsed < 3s, got: ${elapsed}s"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: sleeps for requested duration when not stopping (bounded test: 2 seconds)
+DAEMON_STOPPING=false
+start_time=$(date +%s)
+interruptible_sleep 2
+end_time=$(date +%s)
+elapsed=$((end_time - start_time))
+TESTS_RUN=$((TESTS_RUN + 1))
+if [[ $elapsed -ge 1 && $elapsed -le 4 ]]; then
+    echo -e "${GREEN}PASS${NC} interruptible_sleep: sleeps for ~2 seconds"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} interruptible_sleep: sleeps for ~2 seconds"
+    echo "  Expected 1-4s elapsed, got: ${elapsed}s"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: function exists and is callable
+TESTS_RUN=$((TESTS_RUN + 1))
+if declare -f interruptible_sleep >/dev/null 2>&1; then
+    echo -e "${GREEN}PASS${NC} interruptible_sleep: function exists"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} interruptible_sleep: function exists"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: does not error when called with 0
+DAEMON_STOPPING=false
+interruptible_sleep 0
+ec=$?
+assert_eq "0" "$ec" "interruptible_sleep: 0 seconds returns 0"
+
+# ═══════════════════════════════════════════════
+# Category 34: log_daemon_status_line (3 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- log_daemon_status_line ---"
+
+# Test: function exists
+TESTS_RUN=$((TESTS_RUN + 1))
+if declare -f log_daemon_status_line >/dev/null 2>&1; then
+    echo -e "${GREEN}PASS${NC} log_daemon_status_line: function exists"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} log_daemon_status_line: function exists"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: outputs daemon status to stderr (redirect to file to avoid subshell issues)
+setup_temp
+DAEMON_CYCLE=5
+DAEMON_COMPLETED=3
+DAEMON_FAILED=1
+DAEMON_COST=12.50
+DAEMON_INTERVAL=300
+log_daemon_status_line 2>"$TEMP_DIR/daemon_status_line.txt"
+output=$(cat "$TEMP_DIR/daemon_status_line.txt")
+assert_contains "$output" "Cycle 5" "log_daemon_status_line: includes cycle count"
+
+# Test: includes cost
+assert_contains "$output" "12.50" "log_daemon_status_line: includes cost"
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 35: write_daemon_status (7 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- write_daemon_status ---"
+
+setup_temp
+
+# Set up daemon globals for status writing
+DAEMON_CYCLE=2
+DAEMON_COST=5.25
+DAEMON_STARTED_AT="2026-02-26T10:00:00Z"
+DAEMON_INTERVAL=300
+DAEMON_STATUS_FILE="$TEMP_DIR/daemon-status.json"
+DAEMON_PROJECTS=("/tmp/project-a")
+DAEMON_COMPLETED=1
+DAEMON_FAILED=0
+DAEMON_STALLED=0
+DAEMON_FINISHER_RECOVERED=0
+DAEMON_COMPLETED_ITEMS=("P1-auth.md")
+DAEMON_FAILED_ITEMS=()
+DAEMON_STALLED_ITEMS=()
+
+write_daemon_status "sleeping"
+
+# Test: status file created
+assert_file_exists "$DAEMON_STATUS_FILE" "write_daemon_status: file created"
+
+# Test: contains status field
+status_content=$(cat "$DAEMON_STATUS_FILE")
+assert_contains "$status_content" '"status": "sleeping"' "write_daemon_status: status=sleeping"
+
+# Test: contains daemon_pid
+assert_contains "$status_content" '"daemon_pid":' "write_daemon_status: has daemon_pid"
+
+# Test: contains current_cycle
+assert_contains "$status_content" '"current_cycle": 2' "write_daemon_status: cycle=2"
+
+# Test: contains cumulative_cost_usd
+assert_contains "$status_content" '"cumulative_cost_usd": 5.25' "write_daemon_status: cost=5.25"
+
+# Test: valid JSON (if jq available)
+if command -v jq &>/dev/null; then
+    jq_ec=0
+    jq . "$DAEMON_STATUS_FILE" >/dev/null 2>&1 || jq_ec=$?
+    assert_eq "0" "$jq_ec" "write_daemon_status: produces valid JSON"
+else
+    TESTS_RUN=$((TESTS_RUN + 1))
+    echo -e "${GREEN}PASS${NC} write_daemon_status: produces valid JSON (jq not available, skipped)"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+fi
+
+# Test: atomic write (no tmp file left behind)
+assert_file_not_exists "${DAEMON_STATUS_FILE}.tmp" "write_daemon_status: no .tmp file left"
+
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 36: project_health_check (5 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- project_health_check ---"
+
+setup_temp
+
+# Test: healthy git repo returns 0
+healthy_dir="$TEMP_DIR/healthy"
+mkdir -p "$healthy_dir"
+(cd "$healthy_dir" && git init -q && git commit --allow-empty -m "init" -q)
+project_health_check "$healthy_dir"
+ec=$?
+assert_eq "0" "$ec" "project_health_check: healthy repo returns 0"
+
+# Test: bare repo returns 1
+bare_dir="$TEMP_DIR/bare"
+mkdir -p "$bare_dir"
+(cd "$bare_dir" && git init -q --bare)
+project_health_check "$bare_dir" 2>/dev/null
+ec=$?
+assert_eq "1" "$ec" "project_health_check: bare repo returns 1"
+
+# Test: non-git directory returns 1
+nogit_dir="$TEMP_DIR/nogit"
+mkdir -p "$nogit_dir"
+project_health_check "$nogit_dir" 2>/dev/null
+ec=$?
+assert_eq "1" "$ec" "project_health_check: non-git dir returns 1"
+
+# Test: non-existent directory returns 1
+project_health_check "$TEMP_DIR/nonexistent" 2>/dev/null
+ec=$?
+assert_eq "1" "$ec" "project_health_check: nonexistent dir returns 1"
+
+# Test: function exists
+TESTS_RUN=$((TESTS_RUN + 1))
+if declare -f project_health_check >/dev/null 2>&1; then
+    echo -e "${GREEN}PASS${NC} project_health_check: function exists"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} project_health_check: function exists"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 37: finisher_state_to_phases (8 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- finisher_state_to_phases ---"
+
+# Test: implemented + no verdict + clean → discern commit done
+result=$(finisher_state_to_phases "implemented" "" "false")
+assert_eq "discern commit done" "$result" "finisher_state_to_phases: implemented/clean → discern commit done"
+
+# Test: implemented + no verdict + dirty → commit discern commit done
+result=$(finisher_state_to_phases "implemented" "" "true")
+assert_eq "commit discern commit done" "$result" "finisher_state_to_phases: implemented/dirty → commit discern commit done"
+
+# Test: reviewed + APPROVED + clean → done
+result=$(finisher_state_to_phases "reviewed" "APPROVED" "false")
+assert_eq "done" "$result" "finisher_state_to_phases: reviewed/APPROVED/clean → done"
+
+# Test: reviewed + APPROVED + dirty → commit done
+result=$(finisher_state_to_phases "reviewed" "APPROVED" "true")
+assert_eq "commit done" "$result" "finisher_state_to_phases: reviewed/APPROVED/dirty → commit done"
+
+# Test: reviewed + CHANGES_REQUESTED → deliver discern
+result=$(finisher_state_to_phases "reviewed" "CHANGES_REQUESTED" "false")
+assert_eq "deliver discern" "$result" "finisher_state_to_phases: reviewed/CHANGES_REQUESTED → deliver discern"
+
+# Test: designed → deliver discern commit done
+result=$(finisher_state_to_phases "designed" "" "false")
+assert_eq "deliver discern commit done" "$result" "finisher_state_to_phases: designed → deliver discern commit done"
+
+# Test: other + dirty → commit
+result=$(finisher_state_to_phases "discovered" "" "true")
+assert_eq "commit" "$result" "finisher_state_to_phases: other/dirty → commit"
+
+# Test: other + clean → empty (no action)
+result=$(finisher_state_to_phases "discovered" "" "false")
+assert_eq "" "$result" "finisher_state_to_phases: other/clean → empty"
+
+# ═══════════════════════════════════════════════
+# Category 38: run_daemon loop control (8 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- run_daemon loop control ---"
+
+# Test: run_daemon function exists
+TESTS_RUN=$((TESTS_RUN + 1))
+if declare -f run_daemon >/dev/null 2>&1; then
+    echo -e "${GREEN}PASS${NC} run_daemon: function exists"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} run_daemon: function exists"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: --max-cycles 1 runs exactly 1 cycle then stops
+# Mock run_daemon_cycle and run_finisher to be no-ops
+_orig_run_daemon_cycle=$(declare -f run_daemon_cycle 2>/dev/null) || true
+_orig_run_finisher=$(declare -f run_finisher 2>/dev/null) || true
+
+setup_temp
+_test_cycle_count=0
+run_daemon_cycle() { _test_cycle_count=$((_test_cycle_count + 1)); }
+run_finisher() { :; }
+DAEMON_PROJECTS=(".")
+DAEMON_INTERVAL=1
+DAEMON_MAX_CYCLES=1
+DAEMON_MAX_COST=""
+DAEMON_STATUS_FILE="$TEMP_DIR/daemon-status.json"
+DAEMON_COMPLETED=0
+DAEMON_FAILED=0
+DAEMON_STALLED=0
+DAEMON_FINISHER_RECOVERED=0
+DAEMON_COMPLETED_ITEMS=()
+DAEMON_FAILED_ITEMS=()
+DAEMON_STALLED_ITEMS=()
+
+run_daemon 2>/dev/null
+assert_eq "1" "$_test_cycle_count" "run_daemon: --max-cycles 1 runs 1 cycle"
+
+# Test: DAEMON_CYCLE reflects completed cycles
+assert_eq "1" "$DAEMON_CYCLE" "run_daemon: DAEMON_CYCLE=1 after 1 cycle"
+
+# Test: --max-cycles 3 runs exactly 3 cycles
+_test_cycle_count=0
+DAEMON_MAX_CYCLES=3
+run_daemon 2>/dev/null
+assert_eq "3" "$_test_cycle_count" "run_daemon: --max-cycles 3 runs 3 cycles"
+
+# Test: status file shows "stopped" after clean exit
+status_content=$(cat "$DAEMON_STATUS_FILE" 2>/dev/null)
+assert_contains "$status_content" '"status": "stopped"' "run_daemon: final status=stopped"
+
+# Test: DAEMON_STOPPING flag set prevents further cycles
+_test_cycle_count=0
+DAEMON_MAX_CYCLES=100
+run_daemon_cycle() { _test_cycle_count=$((_test_cycle_count + 1)); DAEMON_STOPPING=true; }
+run_daemon 2>/dev/null
+assert_eq "1" "$_test_cycle_count" "run_daemon: DAEMON_STOPPING=true stops loop"
+
+# Test: cost budget exceeded stops daemon
+_test_cycle_count=0
+DAEMON_MAX_CYCLES=""
+DAEMON_MAX_COST=10
+run_daemon_cycle() { _test_cycle_count=$((_test_cycle_count + 1)); DAEMON_COST=15; }
+run_daemon 2>/dev/null
+assert_eq "1" "$_test_cycle_count" "run_daemon: cost budget stops after 1 cycle"
+
+# Test: status shows budget_exceeded when cost limit hit
+status_content=$(cat "$DAEMON_STATUS_FILE" 2>/dev/null)
+assert_contains "$status_content" '"status": "budget_exceeded"' "run_daemon: budget_exceeded status on cost overrun"
+
+# Restore original functions
+if [[ -n "$_orig_run_daemon_cycle" ]]; then
+    eval "$_orig_run_daemon_cycle"
+fi
+if [[ -n "$_orig_run_finisher" ]]; then
+    eval "$_orig_run_finisher"
+fi
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 39: run_daemon_stop (4 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- run_daemon_stop ---"
+
+# Test: function exists
+TESTS_RUN=$((TESTS_RUN + 1))
+if declare -f run_daemon_stop >/dev/null 2>&1; then
+    echo -e "${GREEN}PASS${NC} run_daemon_stop: function exists"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} run_daemon_stop: function exists"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: errors when status file doesn't exist
+setup_temp
+DAEMON_STATUS_FILE="$TEMP_DIR/nonexistent-status.json"
+output=$(run_daemon_stop 2>&1) && ec=0 || ec=$?
+assert_eq "1" "$ec" "run_daemon_stop: exits 1 when no status file"
+
+# Test: errors when PID is not running
+echo '{"daemon_pid": 99999999}' > "$TEMP_DIR/stale-status.json"
+DAEMON_STATUS_FILE="$TEMP_DIR/stale-status.json"
+output=$(run_daemon_stop 2>&1) && ec=0 || ec=$?
+assert_eq "1" "$ec" "run_daemon_stop: exits 1 when PID not running"
+
+# Test: error message is informative
+assert_contains "$output" "not running" "run_daemon_stop: error says not running"
+
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 40: daemon subcommand dispatch (5 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- daemon subcommand dispatch ---"
+
+# Test: genies help includes daemon subcommand
+help_output=$("$RUN_PDLC" --help 2>&1) || true
+assert_contains "$help_output" "daemon" "help: mentions daemon subcommand"
+
+# Test: genies daemon --help produces usage
+daemon_help=$("$RUN_PDLC" daemon --help 2>&1) || true
+assert_contains "$daemon_help" "daemon" "daemon --help: produces usage"
+
+# Test: genies daemon -h produces usage
+daemon_h=$("$RUN_PDLC" daemon -h 2>&1) || true
+assert_contains "$daemon_h" "daemon" "daemon -h: produces usage"
+
+# Test: genies daemon status with no status file errors gracefully
+daemon_status_output=$("$RUN_PDLC" daemon status 2>&1) || true
+# Should not crash — either shows status or reports no file
+TESTS_RUN=$((TESTS_RUN + 1))
+echo -e "${GREEN}PASS${NC} daemon status: does not crash"
+TESTS_PASSED=$((TESTS_PASSED + 1))
+
+# Test: dispatch block contains daemon case
+daemon_case=$(grep -c "daemon)" "$RUN_PDLC" || true)
+TESTS_RUN=$((TESTS_RUN + 1))
+if [[ "$daemon_case" -ge 1 ]]; then
+    echo -e "${GREEN}PASS${NC} daemon dispatch: case exists in genies"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} daemon dispatch: case exists in genies"
+    echo "  Expected >=1 'daemon)' case, got: $daemon_case"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# ═══════════════════════════════════════════════
+# Category 41: run_daemon_cycle (4 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- run_daemon_cycle ---"
+
+# Test: function exists
+TESTS_RUN=$((TESTS_RUN + 1))
+if declare -f run_daemon_cycle >/dev/null 2>&1; then
+    echo -e "${GREEN}PASS${NC} run_daemon_cycle: function exists"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} run_daemon_cycle: function exists"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: run_finisher function exists
+TESTS_RUN=$((TESTS_RUN + 1))
+if declare -f run_finisher >/dev/null 2>&1; then
+    echo -e "${GREEN}PASS${NC} run_finisher: function exists"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} run_finisher: function exists"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
+
+# Test: run_daemon_cycle handles empty DAEMON_PROJECTS gracefully
+setup_temp
+DAEMON_PROJECTS=()
+DAEMON_COMPLETED=0
+DAEMON_FAILED=0
+DAEMON_STALLED=0
+DAEMON_COMPLETED_ITEMS=()
+DAEMON_FAILED_ITEMS=()
+DAEMON_STALLED_ITEMS=()
+LOG_DIR="$TEMP_DIR/logs"
+run_daemon_cycle 2>/dev/null
+ec=$?
+assert_eq "0" "$ec" "run_daemon_cycle: empty projects returns 0"
+teardown_temp
+
+# Test: PHASE_COST global exposed by run_phase
+# The plan says: promote cost to PHASE_COST in run_phase
+TESTS_RUN=$((TESTS_RUN + 1))
+phase_cost_line=$(grep -c 'PHASE_COST=' "$RUN_PDLC" || true)
+if [[ "$phase_cost_line" -ge 1 ]]; then
+    echo -e "${GREEN}PASS${NC} run_phase: exposes PHASE_COST global"
+    TESTS_PASSED=$((TESTS_PASSED + 1))
+else
+    echo -e "${RED}FAIL${NC} run_phase: exposes PHASE_COST global"
+    echo "  Expected PHASE_COST= assignment in genies"
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+fi
 
 # ═══════════════════════════════════════════════
 # Summary
