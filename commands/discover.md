@@ -16,6 +16,24 @@ Activate Scout genie to explore opportunities and surface assumptions.
 
 ---
 
+## Input Modes
+
+### String topic (default)
+When `$ARGUMENTS` is a plain-text topic string, use it directly as the discovery topic.
+
+### Topic file
+When `$ARGUMENTS` is a path to a `.md` file (e.g., `docs/topics/20260227-auth-reliability.md`):
+1. **Read** the file to extract:
+   - `title` frontmatter field → use as the discovery topic
+   - `context` frontmatter field → include as background evidence
+   - Body markdown → treat as additional background
+2. After producing the Opportunity Snapshot, **update** the topic file:
+   - Set `status: done`
+   - Add `result_ref: docs/analysis/YYYYMMDD_discover_{topic}.md`
+3. Proceed with standard flow using the extracted title
+
+---
+
 ## Speed Mode (`--fast`)
 
 **When `$ARGUMENTS` contains `--fast`:** Prioritize speed over exhaustive analysis. Use heuristic judgment, skip thorough counter-evidence search, produce concise output. Set `reasoning_mode: fast` in the Opportunity Snapshot frontmatter.
@@ -37,8 +55,11 @@ Activate Scout genie to explore opportunities and surface assumptions.
 
 **READ (automatic):**
 - CLAUDE.md
-- docs/context/system_architecture.md
-- docs/context/recent_decisions.md
+- docs/context/strategy.md (if present)
+- docs/context/market.md (if present)
+- docs/context/season.md (if present)
+- docs/context/assumptions.md (if present)
+- docs/context/current_work.md (if present)
 - docs/decisions/ADR-*.md (scan for ADRs relevant to the discovery topic)
 - Any provided telemetry/data
 

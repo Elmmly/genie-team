@@ -600,8 +600,10 @@ TRUNK_MODE="true"
 # Act
 result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
 # Assert
-assert_eq "git-mode: trunk. /deliver docs/backlog/P2-item.md" "$result" \
+assert_contains "$result" "git-mode: trunk." \
     "build_phase_prompt: trunk mode prepends git-mode prefix"
+assert_contains "$result" "/deliver docs/backlog/P2-item.md" \
+    "build_phase_prompt: trunk mode includes phase command and input"
 
 # Test: build_phase_prompt with TRUNK_MODE=false produces normal prompt
 # Arrange
@@ -609,8 +611,10 @@ TRUNK_MODE="false"
 # Act
 result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
 # Assert
-assert_eq "/deliver docs/backlog/P2-item.md" "$result" \
-    "build_phase_prompt: non-trunk mode produces normal prompt"
+assert_contains "$result" "/deliver docs/backlog/P2-item.md" \
+    "build_phase_prompt: non-trunk mode includes phase command and input"
+assert_not_contains "$result" "git-mode: trunk." \
+    "build_phase_prompt: non-trunk mode omits git-mode prefix"
 
 # Test: --trunk preserves default worktree isolation
 # Arrange
@@ -3021,6 +3025,293 @@ else
     echo "  Expected PHASE_COST= assignment in genies"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
+
+# ═══════════════════════════════════════════════
+# Category 42: Context protocol — topics/ intake scanning (10 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- Context protocol: topics/ intake ---"
+
+# Test: Pending topic file enqueued as discover:filepath
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog" "$TEMP_DIR/docs/topics"
+cat > "$TEMP_DIR/docs/topics/20260227-auth-reliability.md" << 'EOF'
+---
+title: Auth reliability issues
+status: pending
+priority: P1
+---
+Investigate auth service timeouts.
+EOF
+# Add an empty backlog so the scanner doesn't error
+echo "# Backlog" > "$TEMP_DIR/docs/backlog/README.md"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "1" "${#BATCH_ITEMS[@]}" "topics: pending topic file → 1 batch item"
+assert_contains "${BATCH_ITEMS[0]}" "discover:" "topics: batch item starts with discover:"
+assert_contains "${BATCH_ITEMS[0]}" "20260227-auth-reliability.md" "topics: batch item contains topic filename"
+teardown_temp
+
+# Test: Non-pending topic (status: done) → skipped
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog" "$TEMP_DIR/docs/topics"
+cat > "$TEMP_DIR/docs/topics/20260227-old-topic.md" << 'EOF'
+---
+title: Old topic
+status: done
+priority: P1
+---
+EOF
+echo "# Backlog" > "$TEMP_DIR/docs/backlog/README.md"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "0" "${#BATCH_ITEMS[@]}" "topics: status done → skipped"
+teardown_temp
+
+# Test: Non-pending topic (status: processing) → skipped
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog" "$TEMP_DIR/docs/topics"
+cat > "$TEMP_DIR/docs/topics/20260227-in-progress.md" << 'EOF'
+---
+title: In progress topic
+status: processing
+priority: P1
+---
+EOF
+echo "# Backlog" > "$TEMP_DIR/docs/backlog/README.md"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "0" "${#BATCH_ITEMS[@]}" "topics: status processing → skipped"
+teardown_temp
+
+# Test: Topic without frontmatter → skipped
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog" "$TEMP_DIR/docs/topics"
+echo "Just a plain markdown file" > "$TEMP_DIR/docs/topics/no-frontmatter.md"
+echo "# Backlog" > "$TEMP_DIR/docs/backlog/README.md"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "0" "${#BATCH_ITEMS[@]}" "topics: no frontmatter → skipped"
+teardown_temp
+
+# Test: Topics + backlog items batched together
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog" "$TEMP_DIR/docs/topics"
+cat > "$TEMP_DIR/docs/backlog/P1-feature.md" << 'EOF'
+---
+status: designed
+priority: P1
+title: "Feature"
+---
+EOF
+cat > "$TEMP_DIR/docs/topics/20260227-new-idea.md" << 'EOF'
+---
+title: New idea
+status: pending
+priority: P1
+---
+EOF
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "2" "${#BATCH_ITEMS[@]}" "topics: backlog + topic batched together"
+teardown_temp
+
+# Test: Missing docs/topics/ dir → no error, backlog still works
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+# Intentionally NOT creating docs/topics/
+cat > "$TEMP_DIR/docs/backlog/P1-item.md" << 'EOF'
+---
+status: shaped
+priority: P1
+title: "Item"
+---
+EOF
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+local_exit=$?
+popd > /dev/null || exit
+
+# Assert
+assert_exit_code "0" "$local_exit" "topics: missing topics dir → no error"
+assert_eq "1" "${#BATCH_ITEMS[@]}" "topics: missing topics dir → backlog still works"
+teardown_temp
+
+# Test: Priority filter applies to topics
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog" "$TEMP_DIR/docs/topics"
+cat > "$TEMP_DIR/docs/topics/20260227-p1-topic.md" << 'EOF'
+---
+title: P1 topic
+status: pending
+priority: P1
+---
+EOF
+cat > "$TEMP_DIR/docs/topics/20260227-p2-topic.md" << 'EOF'
+---
+title: P2 topic
+status: pending
+priority: P2
+---
+EOF
+echo "# Backlog" > "$TEMP_DIR/docs/backlog/README.md"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=("P1")
+resolve_batch_items
+popd > /dev/null || exit
+
+# Assert
+assert_eq "1" "${#BATCH_ITEMS[@]}" "topics: priority filter keeps only P1 topic"
+assert_contains "${BATCH_ITEMS[0]}" "p1-topic" "topics: filtered item is P1 topic"
+teardown_temp
+
+# Test: Pending topic marked processing after enqueue
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog" "$TEMP_DIR/docs/topics"
+cat > "$TEMP_DIR/docs/topics/20260227-mark-test.md" << 'EOF'
+---
+title: Mark test
+status: pending
+priority: P1
+---
+EOF
+echo "# Backlog" > "$TEMP_DIR/docs/backlog/README.md"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+resolve_batch_items
+local_status=$(get_frontmatter_field "docs/topics/20260227-mark-test.md" "status")
+popd > /dev/null || exit
+
+# Assert
+assert_eq "processing" "$local_status" "topics: pending topic marked processing after enqueue"
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 43: Context protocol — build_phase_prompt context injection (4 tests)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- Context protocol: build_phase_prompt context injection ---"
+
+# Test: Context dir exists → prompt contains docs/context/ reference
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/context"
+TRUNK_MODE="false"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
+popd > /dev/null || exit
+
+# Assert
+assert_contains "$result" "docs/context/" \
+    "context injection: context dir exists → prompt references docs/context/"
+teardown_temp
+
+# Test: Context dir exists → prompt still contains phase command and input
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/context"
+TRUNK_MODE="false"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
+popd > /dev/null || exit
+
+# Assert
+assert_contains "$result" "/deliver docs/backlog/P2-item.md" \
+    "context injection: prompt still contains phase command and input"
+teardown_temp
+
+# Test: Context dir absent → no context injection
+# Arrange
+setup_temp
+# Intentionally NOT creating docs/context/
+TRUNK_MODE="false"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
+popd > /dev/null || exit
+
+# Assert
+assert_not_contains "$result" "docs/context/" \
+    "context injection: no context dir → no injection"
+teardown_temp
+
+# Test: Trunk mode + context dir → both prefixes present
+# Arrange
+setup_temp
+mkdir -p "$TEMP_DIR/docs/context"
+TRUNK_MODE="true"
+
+# Act
+pushd "$TEMP_DIR" > /dev/null || exit
+result=$(build_phase_prompt "deliver" "docs/backlog/P2-item.md")
+popd > /dev/null || exit
+
+# Assert
+assert_contains "$result" "docs/context/" \
+    "context injection: trunk + context → context reference present"
+assert_contains "$result" "git-mode: trunk." \
+    "context injection: trunk + context → git-mode prefix present"
+teardown_temp
 
 # ═══════════════════════════════════════════════
 # Summary

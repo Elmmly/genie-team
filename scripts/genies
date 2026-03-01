@@ -687,11 +687,16 @@ check_min_turns() {
 build_phase_prompt() {
     local phase="$1"
     local input="$2"
+    local context_note=""
+
+    if [[ -d "docs/context" ]]; then
+        context_note="Strategic context in docs/context/ — read relevant files before proceeding. "
+    fi
 
     if [[ "${TRUNK_MODE:-false}" == "true" ]]; then
-        echo "git-mode: trunk. /$phase $input"
+        echo "${context_note}git-mode: trunk. /$phase $input"
     else
-        echo "/$phase $input"
+        echo "${context_note}/$phase $input"
     fi
 }
 
@@ -1205,6 +1210,35 @@ resolve_batch_items() {
 
             BATCH_ITEMS+=("$item_phase:$file")
         done
+
+        # Scan docs/topics/ for pending intake items
+        local topics_dir="docs/topics"
+        if [[ -d "$topics_dir" ]]; then
+            for file in "$topics_dir"/*.md; do
+                [[ -f "$file" ]] || continue
+                head -1 "$file" | grep -q '^---$' || continue
+
+                local topic_status
+                topic_status=$(get_frontmatter_field "$file" "status")
+                [[ "$topic_status" == "pending" ]] || continue
+
+                # Priority filter (same logic as backlog)
+                if [[ ${#PRIORITIES[@]} -gt 0 ]]; then
+                    local topic_priority match
+                    topic_priority=$(get_frontmatter_field "$file" "priority")
+                    match="false"
+                    for p in "${PRIORITIES[@]}"; do
+                        [[ "$topic_priority" == "$p" ]] && { match="true"; break; }
+                    done
+                    [[ "$match" == "true" ]] || continue
+                fi
+
+                # Mark processing to prevent re-enqueue in next cycle
+                set_frontmatter_field "$file" "status" "processing"
+                log_info "Enqueued topic: $(basename "$file") → discover"
+                BATCH_ITEMS+=("discover:$file")
+            done
+        fi
     else
         # Process explicit inputs
         for input in "${INPUTS[@]}"; do
