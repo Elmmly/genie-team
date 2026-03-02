@@ -173,6 +173,21 @@ ONLY after all tests pass:
 - Tests MUST stay green throughout refactoring
 - If tests fail during refactor, revert and try again
 
+### Phase 4: Wiring Check (MANDATORY for integration ACs)
+
+After all tests pass, verify that the implementation is reachable from the running system:
+
+1. **Interface implementations exist** — Every interface defined in the design has a concrete implementation, not just a mock. If only mocks exist, flag it explicitly in the Implementation section as "mock-only — requires wiring."
+2. **Service bootstrap** — New components are instantiated and injected in the service startup code (e.g., `main.go`, `cmd/api/`, `index.ts`). If not, flag it.
+3. **Consumers/workers** — If the design specifies async jobs, Kafka topics, event handlers, or background workers, verify the consumer is registered. If not, flag it.
+4. **No dead code** — Code that exists but has no path from an entrypoint is incomplete, not delivered.
+
+If any wiring is missing, either:
+- **Implement it** — wire the component into the running system, OR
+- **Flag it explicitly** — mark the affected ACs as **partially met (logic only)** in the Implementation section and explain what's missing
+
+**When this phase is trivial:** For pure library code, utilities, or prompt-only changes with no service bootstrap, note "Phase 4: N/A — no service wiring required" and proceed.
+
 ---
 
 ## Usage Examples

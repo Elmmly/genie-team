@@ -37,6 +37,28 @@ acceptance_criteria:
       after 3 failed attempts; red flags trigger immediate stop (shotgun debugging,
       symptom fixing, unexplained passes, escalating complexity, test modification)
     status: met
+  - id: AC-5
+    description: >-
+      /deliver command includes Phase 4: Wiring Check after TDD phases that verifies
+      interface implementations exist (not just mocks), components are instantiated in
+      service bootstrap, consumers/workers are registered, and no dead code exists without
+      a path from an entrypoint. Missing wiring is either implemented or flagged as
+      "partially met (logic only)" in the Implementation section.
+    status: met
+  - id: AC-6
+    description: >-
+      /discern review checklist includes wiring verification (item 10) that checks for
+      real (non-mock) interface implementations, service bootstrap instantiation, event
+      handler/consumer registration, and traceable call paths. Mock-only passing tests
+      are explicitly insufficient for integration ACs. Calibration exception: never APPROVE
+      when integration wiring is missing for end-to-end behavior ACs.
+    status: met
+  - id: AC-7
+    description: >-
+      tdd-discipline rule includes Mock Boundary Awareness section distinguishing
+      "logic works" (unit tests with mocks) from "feature works" (real implementation +
+      service wiring), stating both are required for ACs describing system behavior.
+    status: met
 ---
 
 # Development Standards Enforcement
@@ -59,6 +81,15 @@ The `conventional-commits` skill produces commit messages following commitlint s
 ### AC-4: Systematic debugging protocol
 The `debugging` skill provides a structured 4-phase investigation protocol when tests fail unexpectedly. Phase 1: Reproduce and Read (run failing test, read every line of error, identify expected vs actual). Phase 2: Pattern Analysis (git diff, compare with passing tests, look for simplest explanation). Phase 3: Hypothesis Testing (ONE hypothesis, ONE change, run test — if wrong, revert before next). Phase 4: Implement Fix (revert hack, write failing test for root cause, implement proper fix). Attempt counter triggers mandatory escalation after 3 failed attempts: re-read original error, question all assumptions, read code path from entry to failure. Red flags trigger immediate stop: shotgun debugging, symptom fixing, unexplained passes, escalating complexity, test modification.
 
+### AC-5: Integration wiring check in /deliver
+The `/deliver` command includes a mandatory Phase 4: Wiring Check after TDD phases (red-green-refactor). This phase verifies: (1) every interface defined in the design has a concrete implementation, not just a mock; (2) new components are instantiated and injected in service startup code; (3) async consumers/workers are registered; (4) no dead code exists without a path from an entrypoint. Missing wiring must be either implemented or explicitly flagged as "partially met (logic only)" in the Implementation section. For pure library/utility/prompt work with no service bootstrap, the phase notes "N/A — no service wiring required."
+
+### AC-6: Wiring verification in /discern review
+The `/discern` review checklist includes item 10: Wiring verification. For ACs describing system behavior (triggers, syncs, pushes, sends), the Critic verifies a code path exists from the running application to the implemented logic. Checks: real (non-mock) interface implementations, service bootstrap instantiation, event handler/consumer registration, traceable call paths from handlers to business logic to external effects. Mock-only results mark the AC as unmet. The calibration section includes an exception: never APPROVE when integration wiring is missing for end-to-end behavior ACs — this warrants CHANGES REQUESTED regardless of unit test coverage.
+
+### AC-7: Mock boundary awareness in TDD discipline
+The `tdd-discipline` rule includes a Mock Boundary Awareness section that distinguishes: unit tests with mocks = "logic works" (algorithm correctness); real implementation + service wiring = "feature works" (users can reach it). Both are required for ACs that describe system behavior. Mock-only delivery is explicitly called out as incomplete — "a library with no caller."
+
 ## Evidence
 
 ### Source Code
@@ -72,3 +103,27 @@ The `debugging` skill provides a structured 4-phase investigation protocol when 
 ### Documentation
 - `rules/tdd-discipline.md`: Always-on TDD rule (complements the skill)
 - `rules/code-quality.md`: Always-on code quality rule (complements the skill)
+
+## Implementation Evidence
+<!-- Updated by /deliver on 2026-03-02 from P1-integration-wiring-verification -->
+
+### Implementation Files
+- `commands/deliver.md`: Phase 4: Wiring Check added after TDD Phase 3 (AC-5)
+- `commands/discern.md`: Review checklist item 10 + calibration exception (AC-6)
+- `rules/tdd-discipline.md`: Mock Boundary Awareness section (AC-7)
+
+## Review Verdict
+<!-- Updated by /discern on 2026-03-02 from P1-integration-wiring-verification -->
+
+**Verdict:** APPROVED
+**ACs verified:** 7/7 met
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | TDD discipline enforced by skill (previously verified) |
+| AC-2 | met | Code quality enforced by skill (previously verified) |
+| AC-3 | met | Conventional commits enforced by skill (previously verified) |
+| AC-4 | met | Debugging protocol enforced by skill (previously verified) |
+| AC-5 | met | `commands/deliver.md` Phase 4: Wiring Check with 4 verification points |
+| AC-6 | met | `commands/discern.md` checklist item 10 + calibration exception |
+| AC-7 | met | `rules/tdd-discipline.md` Mock Boundary Awareness section |

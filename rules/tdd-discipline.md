@@ -33,6 +33,16 @@ expect(result.role).toBe('admin');
 - No conditional logic (if/else) in tests
 - Separate AAA sections with blank lines
 
+## Mock Boundary Awareness
+
+Unit tests against mocks prove logic correctness, NOT system integration. When delivering work that uses interfaces (stores, queues, external services):
+
+- **Unit tests with mocks** = "logic works" — the algorithm is correct
+- **Real implementation + service wiring** = "feature works" — users can reach it
+- **Both are required** for ACs that describe system behavior (triggers, syncs, pushes, sends)
+
+If you only have mock-passing tests and no real implementation wired into the running system, the feature is not delivered — it's a library with no caller.
+
 ## Using /deliver Command
 
 The `/deliver` command enforces TDD:

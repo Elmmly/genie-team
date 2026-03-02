@@ -119,6 +119,12 @@ Critic evaluates:
 7. Error handling adequate?
 8. Risks identified and mitigated?
 9. **ADR compliance?** (if adr_refs exist — does implementation follow each accepted decision?)
+10. **Wiring verification?** — For ACs that describe system behavior (e.g., "auto-trigger," "writes to repo," "pushes to," "syncs," "sends"), verify there is a code path from the running application to the implemented logic. Mock-passing tests are NOT sufficient evidence for integration ACs. Check:
+    - Are interfaces implemented with real (non-mock) types?
+    - Is the component instantiated in service bootstrap?
+    - Are event handlers/consumers registered?
+    - Can you trace a call path from HTTP/gRPC handler → business logic → external effect?
+    If mock-only: mark AC as **unmet** with note "logic implemented but not wired into running system."
 
 ---
 
@@ -206,3 +212,5 @@ After review:
 - Pedantic concerns that don't affect correctness or maintainability
 
 **When in doubt, APPROVE with notes** rather than requesting changes. Append observations to the review as informational findings, not blocking issues.
+
+**Exception: Never APPROVE when integration wiring is missing.** If an AC describes end-to-end behavior (triggers, syncs, pushes, sends) and there is no code path from the running application to the implemented logic, that AC is **unmet** regardless of unit test coverage. This warrants CHANGES REQUESTED, not "APPROVED with notes."
