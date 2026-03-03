@@ -33,7 +33,7 @@ Genie Team is a playground for discovering new ways of working. It's not a finis
 
 **Genies, not agents.** AI coding assistants work best when you think of them as genies, powerful entities that grant wishes but interpret those wishes on their own terms. Without structure, they drift: expanding scope, losing context mid-session, and confidently building the wrong thing. Genie Team adds the constraints that make wishes reliable: specialized roles, scoped tools, structured prompts, and persistent context that survives the conversation window.
 
-**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization. Each genie has platform-enforced tool restrictions, scoped prompts, and persistent memory that improves over time.
+**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization.
 
 **Context accumulates.** Structured outputs (Opportunity Snapshots, Design Documents, Implementation Reports) create a document trail that builds project knowledge over time. Genie memory complements this with meta-learning: patterns noticed across sessions, calibrations, and shortcuts that help each genie work more effectively on *your* project.
 
@@ -446,8 +446,6 @@ genies --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
 ---
 
 ## The Genies
-
-Each genie is a native Claude Code agent (`.claude/agents/{name}.md`) with platform-enforced tool restrictions, scoped prompts, and persistent memory.
 
 | Genie | Command | Purpose |
 |-------|---------|---------|
