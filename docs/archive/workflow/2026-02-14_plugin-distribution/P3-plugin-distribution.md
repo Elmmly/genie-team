@@ -182,11 +182,11 @@ genie-team/                    ← this IS the plugin root
 **Gap resolution for Phase 1:** The second developer runs:
 ```bash
 # Plugin install (commands, agents, skills, hooks, MCP)
-/plugin marketplace add nolan/genie-team
+/plugin marketplace add elmmly/genie-team
 /plugin install genie@genie-team --scope user
 
 # Gap fill (rules, schemas)
-git clone git@github.com:nolan/genie-team.git ~/genie-team
+git clone git@github.com:elmmly/genie-team.git ~/genie-team
 cd ~/genie-team && ./install.sh global --rules --schemas
 ```
 
@@ -216,9 +216,9 @@ The colon pattern is already familiar from existing sub-commands (`/context:load
   "version": "2.0.0",
   "description": "Structured AI workflows for product discovery and delivery. 7 specialist genies, 30+ commands, TDD enforcement, and architecture governance.",
   "author": {
-    "name": "Nolan Patterson"
+    "name": "Elmmly LLC"
   },
-  "repository": "https://github.com/nolan/genie-team",
+  "repository": "https://github.com/elmmly/genie-team",
   "license": "MIT",
   "keywords": ["workflow", "tdd", "architecture", "product-discovery", "genies"]
 }
@@ -235,7 +235,7 @@ No explicit `commands`, `agents`, `skills` fields needed — the plugin system a
     "description": "Specialist AI genies for product discovery and delivery workflows"
   },
   "owner": {
-    "name": "Nolan Patterson"
+    "name": "Elmmly LLC"
   },
   "plugins": [
     {
@@ -251,7 +251,7 @@ Self-contained marketplace: the repo is both the marketplace and the single plug
 
 ```bash
 # From GitHub (second developer)
-/plugin marketplace add nolan/genie-team
+/plugin marketplace add elmmly/genie-team
 /plugin install genie@genie-team --scope user
 
 # Local development (you)
@@ -314,7 +314,7 @@ Second developer needs `GOOGLE_API_KEY` in their shell environment for image gen
 |----|-----------------|-------|
 | AC-1 | Create plugin.json — plugin system auto-discovers commands/, agents/, skills/ at root | `.claude-plugin/plugin.json` |
 | AC-2 | Create marketplace.json with self-contained repo-as-marketplace pattern | `.claude-plugin/marketplace.json` |
-| AC-3 | Two-command install: `/plugin marketplace add nolan/genie-team` + `/plugin install genie@genie-team` | Both manifests |
+| AC-3 | Two-command install: `/plugin marketplace add elmmly/genie-team` + `/plugin install genie@genie-team` | Both manifests |
 | AC-4 | Plugin covers commands, skills, agents, hooks, MCP. Rules + schemas via `install.sh global --rules --schemas` | `.claude-plugin/*`, `hooks/hooks.json`, `.mcp.json` |
 | AC-5 | install.sh unchanged — no modifications | No changes needed |
 | AC-6 | **Deferred to Phase 2.** Version is hardcoded in both plugin.json and install.sh. Manual sync for 2 people. | — |

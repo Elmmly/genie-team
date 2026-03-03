@@ -6,6 +6,41 @@
 >
 > What if your AI assistant was a team of specialists instead of one generalist? Genie Team brings industry practices, insight, and workflows to Claude Code. Curated wishes, focused expertise, and a document trail that builds shared understanding as things evolve over time. It's an experiment in whether structured AI collaboration can reduce friction, align practices, and help teams move faster without sacrificing craft and pride of ownership.
 
+## Table of Contents
+
+- [Philosophy & Vision](#philosophy--vision)
+- [Install](#1-install)
+- [Bootstrap a New Project](#2-bootstrap-a-new-project)
+- [Bootstrap an Existing Project](#3-bootstrap-an-existing-project)
+- [Working with Genie Team](#4-working-with-genie-team)
+- [Local Dev, CI/CD & Deployment](#5-local-dev-cicd--deployment)
+- [The Genies](#the-genies)
+- [Commands & Skills](#commands--skills)
+- [Structure](#structure)
+- [Inspiration & Credits](#inspiration--credits)
+
+---
+
+## Philosophy & Vision
+
+### The Aspiration
+
+We're at an inflection point in how software gets made. AI assistants are powerful but unpredictable. They'll grant your wishes, just not always the way you intended. This project is an exploration: *What if we could shape that power into something more deliberate?*
+
+Genie Team is a playground for discovering new ways of working. It's not a finished product but an ongoing harvesting of experiments in human-AI collaboration. This is an attempt to find patterns that make augmented development more effective, more sustainable, more intentional, more craft-oriented, and even a little fun.
+
+### Guiding Principles
+
+**Genies, not agents.** AI coding assistants work best when you think of them as genies, powerful entities that grant wishes but interpret those wishes on their own terms. Without structure, they drift: expanding scope, losing context mid-session, and confidently building the wrong thing. Genie Team adds the constraints that make wishes reliable: specialized roles, scoped tools, structured prompts, and persistent context that survives the conversation window.
+
+**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization. Each genie has platform-enforced tool restrictions, its own model selection, and persistent memory that improves over time.
+
+**Context accumulates.** Structured outputs (Opportunity Snapshots, Design Documents, Implementation Reports) create a document trail that builds project knowledge over time. Genie memory complements this with meta-learning: patterns noticed across sessions, calibrations, and shortcuts that help each genie work more effectively on *your* project.
+
+**Efficiency matters.** AI tokens cost money and time. Structured prompts with clear scope reduce wasted iterations, hallucinated features, and context drift. Per-genie model selection routes research tasks (Scout, Tidier) to cheaper models while keeping judgment-heavy work (Critic, Architect) on more capable ones.
+
+**Tinkering as practice.** This is exploratory work. Forking, adapting, and sharing configurations is part of our craft. The goal isn't to prescribe a workflow but to provide a starting point for your own experiments in augmented development.
+
 ---
 
 ## 1. Install
@@ -16,30 +51,10 @@
 - **[`gh` CLI](https://cli.github.com/)** (optional) — For PR creation in PR-mode workflows
 - **[`jq`](https://jqlang.github.io/jq/)** (optional) — For the headless runner's JSON parsing
 
-### Option A: Plugin Install
-
-Install as a Claude Code plugin. Commands are namespaced as `/genie:command` (e.g., `/genie:discover`, `/genie:deliver`).
-
-```
-/plugin marketplace add nolan/genie-team
-/plugin install genie@genie-team --scope user
-```
-
-The plugin provides commands, genies, skills, hooks, and the MCP image generation server. Rules and schemas require a one-time supplemental install:
+### Script Install
 
 ```bash
-git clone git@github.com:nolan/genie-team.git ~/genie-team
-cd ~/genie-team && ./install.sh global --rules --schemas
-```
-
-> **Private repo?** Plugin install works with private repositories as long as you have git access (SSH key or `gh auth login`). For background auto-updates on private repos, set `GITHUB_TOKEN` in your shell environment.
-
-### Option B: Script Install
-
-Install via shell script. Commands use short names (`/discover`, `/deliver`). Includes all components — no supplemental step needed.
-
-```bash
-git clone git@github.com:nolan/genie-team.git ~/genie-team
+git clone git@github.com:elmmly/genie-team.git ~/genie-team
 cd ~/genie-team
 
 # Install globally (available to all projects)
@@ -56,6 +71,27 @@ cd ~/genie-team
 
 **Project install** puts everything in `/path/to/project/.claude/` for isolation. Best for trying out the workflow or when different projects need different configurations.
 
+<details>
+<summary>Plugin Install (Experimental)</summary>
+
+> **Note:** Plugin install is experimental. The Claude Code plugin system is still evolving, and plugin installs may not include all components. The script install above is the recommended approach.
+
+Install as a Claude Code plugin. Commands are namespaced as `/genie:command` (e.g., `/genie:discover`, `/genie:deliver`).
+
+```
+/plugin marketplace add elmmly/genie-team
+/plugin install genie@genie-team --scope user
+```
+
+The plugin provides commands, genies, skills, hooks, and the MCP image generation server. Rules and schemas require a supplemental step:
+
+```bash
+git clone git@github.com:elmmly/genie-team.git ~/genie-team
+cd ~/genie-team && ./install.sh global --rules --schemas
+```
+
+</details>
+
 ### Post-Install
 
 Start a Claude session and load context:
@@ -63,32 +99,25 @@ Start a Claude session and load context:
 ```bash
 cd /path/to/your/project
 claude
-```
-
-Plugin install:
-```
-> /genie:context:load
-```
-
-Script install:
-```
 > /context:load
 ```
 
 This scans for existing specs, ADRs, diagrams, and backlog items, then recommends next steps.
 
+> Plugin users: use `/genie:context:load` instead (all commands are namespaced under `/genie:`).
+
 ### What Gets Installed
 
-| Component | Plugin | Script | Purpose |
-|-----------|:------:|:------:|---------|
-| **Commands** | Yes | Yes | Slash commands (`/discover`, `/deliver`, etc.) |
-| **Genies** | Yes | Yes | Specialist definitions with per-genie model, tools, and memory |
-| **Skills** | Yes | Yes | Automatic behaviors (TDD, code quality, brand awareness) |
-| **Hooks** | Yes | Yes | Context re-injection on compaction |
-| **MCP** | Yes | Yes | Image generation server (Designer genie via Gemini) |
-| **Rules** | — | Yes | Always-on constraints (workflow, code quality, conventions) |
-| **Schemas** | — | Yes | Document format definitions (ADR, spec, shaped contract) |
-| **Scripts** | — | Yes | `genies` (headless runner + session management + quality checks) |
+| Component | Purpose |
+|-----------|---------|
+| **Commands** | Slash commands (`/discover`, `/deliver`, etc.) |
+| **Genies** | Specialist definitions with per-genie model, tools, and memory |
+| **Skills** | Automatic behaviors (TDD, code quality, brand awareness) |
+| **Hooks** | Context re-injection on compaction |
+| **MCP** | Image generation server (Designer genie via Gemini) |
+| **Rules** | Always-on constraints (workflow, code quality, conventions) |
+| **Schemas** | Document format definitions (ADR, spec, shaped contract) |
+| **Scripts** | `genies` (headless runner + session management + quality checks) |
 
 <details>
 <summary>All script install options</summary>
@@ -420,15 +449,15 @@ genies --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
 
 Each genie is a native Claude Code agent (`.claude/agents/{name}.md`) with platform-enforced tool restrictions, per-genie model selection, and persistent memory.
 
-| Genie | Script Install | Plugin Install | Model | Purpose |
-|-------|---------------|----------------|-------|---------|
-| **Scout** | `/discover` | `/genie:discover` | haiku | Discovery, research, opportunity mapping |
-| **Shaper** | `/define` | `/genie:define` | sonnet | Problem framing, appetite, constraints |
-| **Architect** | `/design`, `/diagnose` | `/genie:design`, `/genie:diagnose` | sonnet | Technical design, patterns, health |
-| **Crafter** | `/deliver` | `/genie:deliver` | sonnet | TDD implementation, code quality |
-| **Critic** | `/discern` | `/genie:discern` | sonnet | Review, acceptance criteria, risks |
-| **Tidier** | `/tidy` | `/genie:tidy` | haiku | Refactoring, cleanup, tech debt |
-| **Designer** | `/brand` | `/genie:brand` | sonnet | Brand identity, visual assets, design tokens |
+| Genie | Command | Model | Purpose |
+|-------|---------|-------|---------|
+| **Scout** | `/discover` | haiku | Discovery, research, opportunity mapping |
+| **Shaper** | `/define` | sonnet | Problem framing, appetite, constraints |
+| **Architect** | `/design`, `/diagnose` | sonnet | Technical design, patterns, health |
+| **Crafter** | `/deliver` | sonnet | TDD implementation, code quality |
+| **Critic** | `/discern` | sonnet | Review, acceptance criteria, risks |
+| **Tidier** | `/tidy` | haiku | Refactoring, cleanup, tech debt |
+| **Designer** | `/brand` | sonnet | Brand identity, visual assets, design tokens |
 
 **Cost optimization:** Scout and Tidier run on haiku (10-20x cheaper) for research/analysis. Crafter, Critic, Architect, Shaper, and Designer run on sonnet where judgment quality matters.
 
@@ -541,26 +570,6 @@ Two complementary persistence systems:
 
 **Document trail** stores what the project knows. **Genie memory** stores what each genie has learned about working on this project. Genies get better at *your specific project* over time.
 
-## Philosophy & Vision
-
-### The Aspiration
-
-We're at an inflection point in how software gets made. AI assistants are powerful but unpredictable. They'll grant your wishes, just not always the way you intended. This project is an exploration: *What if we could shape that power into something more deliberate?*
-
-Genie Team is a playground for discovering new ways of working. It's not a finished product but an ongoing harvesting of experiments in human-AI collaboration. This is an attempt to find patterns that make augmented development more effective, more sustainable, more intentional, more craft-oriented, and even a little fun.
-
-### Guiding Principles
-
-**Genies, not agents.** AI coding assistants work best when you think of them as genies; powerful entities that grant wishes, but benefit from clear, well-formed requests. A genie does exactly what you ask in the way that the genie interprets what you ask, which means the quality of output depends on the quality of input and some blend of context management of the AI context.
-
-**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization. Each genie has platform-enforced tool restrictions, its own model selection, and persistent memory that improves over time.
-
-**Context accumulates.** Structured outputs (Opportunity Snapshots, Design Documents, Implementation Reports) create a document trail that builds project knowledge over time. Genie memory complements this with meta-learning — patterns noticed across sessions, calibrations, and shortcuts that help each genie work more effectively on *your* project.
-
-**Efficiency matters.** AI tokens cost money and time. Structured prompts with clear scope reduce wasted iterations, hallucinated features, and context drift. Per-genie model selection routes research tasks (Scout, Tidier) to cheaper models while keeping judgment-heavy work (Critic, Architect) on more capable ones.
-
-**Tinkering as practice.** This is exploratory work. Forking, adapting, and sharing configurations is part of our craft. The goal isn't to prescribe a workflow but to provide a starting point for your own experiments in augmented development.
-
 ## Inspiration & Credits
 
 This project draws heavily from the work of:
@@ -593,4 +602,4 @@ The "genie" framing for AI coding assistants comes from Beck's writing on his [T
 
 ---
 
-Last updated: 2026-02-14
+Last updated: 2026-03-03

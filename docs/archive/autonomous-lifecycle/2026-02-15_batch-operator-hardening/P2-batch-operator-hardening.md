@@ -6,7 +6,7 @@ concept: autonomous-lifecycle
 enhancement: batch-operator-hardening
 created: 2026-02-15
 spec_ref: docs/specs/workflow/autonomous-lifecycle.md
-source: https://github.com/npatterson/genie-team/issues/4
+source: https://github.com/elmmly/genie-team/issues/4
 tags: [batch, resilience, preflight, worktree, operator]
 ---
 
