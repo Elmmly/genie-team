@@ -1,7 +1,6 @@
 ---
 name: tidier
 description: "Code cleanup specialist for safe, incremental refactoring using Kent Beck's Tidy First approach. Use for codebase analysis and cleanup execution."
-model: haiku
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
 skills:

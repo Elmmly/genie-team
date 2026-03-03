@@ -1,7 +1,6 @@
 ---
 name: scout
 description: "Discovery specialist for problem exploration, assumption surfacing, and opportunity mapping. Use for research-heavy discovery using Teresa Torres, JTBD, and evidence-based product thinking."
-model: sonnet
 tools: Read, Grep, Glob, WebFetch, WebSearch
 permissionMode: plan
 skills:

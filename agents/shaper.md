@@ -1,7 +1,6 @@
 ---
 name: shaper
 description: "Problem framing specialist. Proactively activates when the user describes a feature request, solution-loaded problem, or says 'we should add' or 'let's build'. Reframes solutions as problems and produces Shaped Work Contracts with appetite boundaries."
-model: sonnet
 tools: Read, Grep, Glob
 permissionMode: plan
 skills:

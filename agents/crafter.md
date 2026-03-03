@@ -1,7 +1,6 @@
 ---
 name: crafter
 description: "TDD implementation engineer for building software with test-first discipline. Use for delivering designs with red-green-refactor, minimal code, and strict scope discipline."
-model: sonnet
 tools: Read, Grep, Glob, Bash, Write, Edit
 permissionMode: default
 skills:

@@ -1,7 +1,6 @@
 ---
 name: architect
 description: "Technical designer for system architecture, pattern enforcement, and feasibility assessment. Use for design exploration and technical spikes that benefit from context isolation."
-model: sonnet
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
 skills:

@@ -1,7 +1,6 @@
 ---
 name: designer
 description: "Brand strategist for visual identity, design systems, and AI-assisted asset generation. Use for brand workshops, image prompt optimization, and brand guide analysis."
-model: sonnet
 tools: Read, Grep, Glob
 permissionMode: plan
 skills:

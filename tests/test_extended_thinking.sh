@@ -80,15 +80,12 @@ discover=$(cat "$DISCOVER")
 design=$(cat "$DESIGN")
 
 # ─────────────────────────────────────────────
-# AC-1: Scout model upgraded from haiku to sonnet
+# AC-1: Scout has no hardcoded model (inherits from parent)
 # ─────────────────────────────────────────────
-echo "--- AC-1: Scout model upgrade ---"
+echo "--- AC-1: Scout model inheritance ---"
 
-assert_contains "$scout" "model: sonnet" \
-    "AC-1: Scout frontmatter has model: sonnet"
-
-assert_not_contains "$scout" "model: haiku" \
-    "AC-1: Scout frontmatter no longer has model: haiku"
+assert_not_contains "$scout" "model:" \
+    "AC-1: Scout frontmatter has no hardcoded model"
 
 # ─────────────────────────────────────────────
 # AC-2: Scout Deep Reasoning section

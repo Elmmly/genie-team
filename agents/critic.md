@@ -1,7 +1,6 @@
 ---
 name: critic
 description: "Code review specialist for acceptance criteria verification, pattern compliance, and quality assessment. Use when reviewing implementations against specs and designs."
-model: sonnet
 tools: Read, Grep, Glob, Bash
 permissionMode: plan
 skills:
