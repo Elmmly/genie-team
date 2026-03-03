@@ -204,7 +204,9 @@ Output: Target examples saved with provenance.
 
 #### Phase 6: Consolidation
 
-Write the complete brand guide:
+Write three brand guide artifacts:
+
+##### 6a. Markdown Brand Guide (`docs/brand/{name}.md`)
 
 1. **YAML frontmatter** — All structured data per `schemas/brand-spec.schema.md`:
    - `spec_version: "1.0"`
@@ -220,18 +222,54 @@ Write the complete brand guide:
    - Imagery guidelines and dos/don'ts
    - Workshop decisions captured (why this palette, why this imagery style)
 
-3. **Design Tokens** — Generate `docs/brand/tokens.json` in W3C format
+##### 6b. HTML Brand Guide (`docs/brand/index.html`)
 
-4. **Status report:**
-   ```
-   > Brand guide complete!
-   >
-   > Saved: docs/brand/{name}.md (status: draft)
-   > Saved: docs/brand/tokens.json
-   > Saved: docs/brand/assets/manifest.md ({N} target examples)
-   >
-   > Review the guide. When ready: /brand docs/brand/{name}.md --activate
-   ```
+**Write a rich, self-contained HTML brand guide** that consolidates all workshop decisions into a polished, browsable document. This is the primary visual reference for the brand.
+
+The HTML file MUST:
+- Be **fully self-contained** (inline CSS, no external dependencies except Google Fonts CDN)
+- Use the brand's own colors, fonts, and design language throughout
+- Include CSS custom properties (`:root` variables) matching the brand's design tokens
+
+**Required sections:**
+
+1. **Fixed navigation** — Sticky top nav with scroll anchors to each section, brand name, and status badge (Draft/Active)
+2. **Hero** — Brand name, tagline, and key visual concept. Reference any generated target images from Phase 5 via relative paths (`assets/target-*.png`)
+3. **Story / Mission** — The brand narrative from Phase 1. Why this brand exists, what it stands for
+4. **Design Principles** — 2-4 principles derived from workshop decisions. Each with a name, description, and a litmus test ("Does this feel like X? Or Y?")
+5. **Color Palette** — Visual swatches for every color (primary, secondary, accent, semantic, dark mode). Each swatch shows: color block, name, hex value, role/usage. Include a "colors in context" section showing the palette applied to realistic UI patterns
+6. **Typography** — Font pairings with live Google Fonts rendering. Show the type scale (h1-h6, body, caption) with actual sizes and weights. Include 2-3 real-world usage scenarios
+7. **Imagery** — Style guidelines with references to generated assets from Phase 4-5. Describe the tiers (e.g., photography, illustration, abstract) with dos and don'ts
+8. **Voice & Tone** — Writing guidelines from Phase 1. Include do/don't examples for different contexts (marketing, UI, notifications, error messages)
+9. **Decision Log** — Key workshop decisions with rationale (why this palette over alternatives, why these fonts, etc.)
+10. **Quick Reference** — Prompt guidance for generating brand-consistent content with AI tools
+
+**Design quality standards:**
+- Responsive layout (readable on mobile and desktop)
+- Generous whitespace, clear visual hierarchy
+- Section eyebrows (small labels above headings) for scannability
+- Smooth scroll behavior
+- The guide itself should exemplify the brand — it's the first proof that the system works
+
+**Tell the user** to open: `open docs/brand/index.html`
+
+##### 6c. Design Tokens (`docs/brand/tokens.json`)
+
+Generate in W3C format.
+
+##### 6d. Status Report
+
+```
+> Brand guide complete!
+>
+> Saved: docs/brand/{name}.md (structured reference)
+> Saved: docs/brand/index.html (visual brand guide — open in browser)
+> Saved: docs/brand/tokens.json (W3C design tokens)
+> Saved: docs/brand/assets/manifest.md ({N} target examples)
+>
+> Open the visual guide: open docs/brand/index.html
+> When ready to activate: /brand docs/brand/{name}.md --activate
+```
 
 ### Mode 2: Review & Affirm (existing guide found, no flags)
 
@@ -335,7 +373,7 @@ The workshop uses two output strategies:
 | Phase 3: Typography | **HTML file** (Write tool, Google Fonts CDN) | Real fonts rendered in browser, exact colors |
 | Phase 4: Imagery | **Image generation** (MCP tool) | Can't show photo vs illustration vs abstract without AI |
 | Phase 5: Targets | **Image generation** (MCP tool) | Brand north star needs actual generated images |
-| Phase 6: Consolidation | **Markdown file** (Write tool) | Brand guide document, no visuals needed |
+| Phase 6: Consolidation | **HTML file** + Markdown + tokens (Write tool) | Rich visual brand guide, structured reference, design tokens |
 
 **For Phases 2-3:** Always write an HTML file to `docs/brand/assets/` and tell the user to open it (`open docs/brand/assets/{file}.html`). HTML gives pixel-perfect color rendering and real font previews — better than any image generation for these use cases.
 
