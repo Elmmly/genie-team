@@ -44,6 +44,8 @@ Before implementing, identify project patterns:
 | Rust | `impl User { pub fn new(data: UserInput) -> Result<Self> { ... } }` |
 | C# | `public static User Create(UserInput data) { ... }` |
 | Java | `public static User create(UserInput data) { ... }` |
+| Swift | `static func create(from data: UserInput) -> User { ... }` |
+| Kotlin | `fun createUser(data: UserInput): User { ... }` (top-level or companion object) |
 
 ### Data Patterns
 
@@ -66,6 +68,8 @@ Before implementing, identify project patterns:
 | Rust | `.context("what failed")?` (anyhow) or custom error types (thiserror) |
 | C# | `throw new AppException("context", ex)` — inner exception chaining |
 | Java | `throw new AppException("context", e)` — cause chaining |
+| Swift | `throw AppError.operationFailed(context: "what failed", cause: error)` |
+| Kotlin | `throw AppException("context", cause = e)` — cause chaining |
 
 ### Integration Patterns
 

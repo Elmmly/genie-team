@@ -90,6 +90,38 @@ case "$ext" in
             fi
         fi
         ;;
+    swift)
+        if command -v swift &>/dev/null && [[ -f "Package.swift" ]]; then
+            output=$(swift build 2>&1) || true
+            filtered=$(echo "$output" | grep -E "error:|warning:" | head -20)
+            if [[ -n "$filtered" ]]; then
+                echo "--- Stack Verification (swift build) ---"
+                echo "$filtered"
+                echo "---"
+            fi
+        elif command -v xcodebuild &>/dev/null; then
+            output=$(xcodebuild build -quiet 2>&1) || true
+            filtered=$(echo "$output" | grep -E "error:|warning:" | head -20)
+            if [[ -n "$filtered" ]]; then
+                echo "--- Stack Verification (xcodebuild) ---"
+                echo "$filtered"
+                echo "---"
+            fi
+        fi
+        ;;
+    kt|kts)
+        if [[ -f "gradlew" ]] || [[ -f "build.gradle.kts" ]] || [[ -f "build.gradle" ]]; then
+            gradlew="gradle"
+            [[ -f "./gradlew" ]] && gradlew="./gradlew"
+            output=$($gradlew compileDebugKotlin -q 2>&1) || true
+            filtered=$(echo "$output" | grep -E "^e:|^w:" | head -20)
+            if [[ -n "$filtered" ]]; then
+                echo "--- Stack Verification (gradle compileDebugKotlin) ---"
+                echo "$filtered"
+                echo "---"
+            fi
+        fi
+        ;;
 esac
 
 # Always exit 0 — verification is advisory, not blocking

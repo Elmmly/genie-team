@@ -19,6 +19,8 @@ Apply these standards when writing or editing code.
 | Rust | `let port = 8080;` | `let port = config.port;` |
 | C# | `var connStr = "Server=localhost";` | `var connStr = configuration["ConnectionString"];` |
 | Java | `int timeout = 5000;` | `int timeout = appConfig.getTimeout();` |
+| Swift | `let apiUrl = "https://api.example.com"` | `let apiUrl = Configuration.apiURL` |
+| Kotlin | `val timeout = 5000` | `val timeout = BuildConfig.TIMEOUT` |
 
 ### Proper Error Handling
 
@@ -31,6 +33,8 @@ Errors must be logged with context and propagated meaningfully. Never swallow er
 | Rust | `operation().context("what failed")?` or `operation().map_err(\|e\| AppError::new(e))?` |
 | C# | `catch (Exception ex) { logger.LogError(ex, "context"); throw new AppException("message", ex); }` |
 | Java | `catch (Exception e) { log.error("context", e); throw new AppException("message", e); }` |
+| Swift | `do { try operation() } catch { logger.error("context: \(error)"); throw AppError.operationFailed(cause: error) }` |
+| Kotlin | `runCatching { operation() }.onFailure { e -> logger.error("context", e); throw AppException("message", e) }` |
 
 ### Type Safety
 - Type hints on public methods
@@ -86,6 +90,26 @@ Errors must be logged with context and propagated meaningfully. Never swallow er
 | Raw `@Autowired` field injection | Use constructor injection |
 | Catching `Exception` broadly | Catch specific exception types |
 
+### Swift
+| Anti-Pattern | Fix |
+|--------------|-----|
+| `ObservableObject` / `@Published` on iOS 17+ | Use `@Observable` macro |
+| `NavigationView` | Use `NavigationStack` / `NavigationSplitView` |
+| `foregroundColor()` | Use `foregroundStyle()` |
+| `DispatchQueue.main.async` | Use `@MainActor` |
+| Force unwrap (`!`) outside tests | Use `guard let` or `if let` |
+| Modifying `.pbxproj` directly | Create files, add to Xcode manually |
+
+### Kotlin (Android)
+| Anti-Pattern | Fix |
+|--------------|-----|
+| `GlobalScope` for coroutines | Use `viewModelScope` or `lifecycleScope` |
+| `LiveData` in Compose code | Use `StateFlow` + `collectAsStateWithLifecycle()` |
+| `kapt` for annotation processing | Migrate to KSP |
+| Blocking calls on Main dispatcher | Use `withContext(Dispatchers.IO)` |
+| Allocations inside composable functions | Use `remember {}` |
+| `MaterialTheme.colors` (Material2) | Use `MaterialTheme.colorScheme` (Material3) |
+
 ## Error Handling Checklist
 
 - [ ] External calls wrapped in error handling
@@ -113,6 +137,8 @@ Add observability with structured logging at boundaries:
 | Rust | `tracing::info!(operation = "create_user", user_id = %id, duration = ?elapsed, "operation completed")` |
 | C# | `logger.LogInformation("Operation {Op} completed for {UserId} in {Duration}ms", op, userId, duration)` |
 | Java | `log.info("Operation {} completed for userId={} in {}ms", op, userId, duration)` |
+| Swift | `Logger().info("Operation \(op) completed for userId=\(userId) in \(duration)ms")` |
+| Kotlin | `Timber.i("Operation %s completed for userId=%s in %dms", op, userId, duration)` |
 
 **Logging levels:**
 - DEBUG: Detailed flow

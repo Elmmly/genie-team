@@ -83,6 +83,34 @@ assertThat(result.isAllowed()).isTrue();
 assertThat(result.getRole()).isEqualTo("admin");
 ```
 
+**Swift (XCTest):**
+```swift
+// Arrange
+let user = createTestUser(role: .admin)
+let request = mockRequest(userId: user.id)
+
+// Act
+let result = try await authService.validateAccess(request)
+
+// Assert
+XCTAssertTrue(result.allowed)
+XCTAssertEqual(result.role, .admin)
+```
+
+**Kotlin (JUnit 5):**
+```kotlin
+// Arrange
+val user = createTestUser(role = "admin")
+val request = mockRequest(userId = user.id)
+
+// Act
+val result = authService.validateAccess(request)
+
+// Assert
+assertThat(result.allowed).isTrue()
+assertThat(result.role).isEqualTo("admin")
+```
+
 ## Constraints
 
 - **NEVER** write implementation code without failing tests first

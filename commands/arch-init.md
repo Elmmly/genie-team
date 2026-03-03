@@ -321,7 +321,9 @@ For CLI tools or prompt-based systems, specify the execution model:
    | `go.mod` | Go | `go` directive in go.mod |
    | `Cargo.toml` | Rust | `edition` field |
    | `*.csproj` / `*.sln` | C# / .NET | `TargetFramework` element |
-   | `pom.xml` / `build.gradle` | Java | `maven.compiler.source` / `jvmToolchain` |
+   | `pom.xml` / `build.gradle` (Java) | Java | `maven.compiler.source` / `jvmToolchain` |
+   | `Package.swift` / `*.xcodeproj` | Swift / iOS | `swift-tools-version` / `SWIFT_VERSION` |
+   | `build.gradle.kts` with `kotlin` | Kotlin / Android | `libs.versions.toml` kotlin version |
 
    **For each detected stack:**
 

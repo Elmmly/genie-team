@@ -24,6 +24,12 @@
       "Bash(gradle test*)",
       "Bash(make test*)",
       "Bash(make check*)",
+      "Bash(swift build*)",
+      "Bash(swift test*)",
+      "Bash(xcodebuild *)",
+      "Bash(xcrun *)",
+      "Bash(./gradlew *)",
+      "Bash(adb *)",
       "Bash(ls *)",
       "Bash(tree *)"
     ],

@@ -1,7 +1,7 @@
 ---
 name: tdd-discipline
 description: Enforces test-driven development with Red-Green-Refactor cycle. Use when writing new code, implementing features, fixing bugs, or when tests are mentioned. Ensures tests are written before implementation.
-allowed-tools: Read, Write, Edit, Bash(npm test*), Bash(npm run test*), Bash(npx vitest*), Bash(pytest*), Bash(jest*), Bash(cargo test*), Bash(cargo check*), Bash(cargo clippy*), Bash(go test*), Bash(go vet*), Bash(go build*), Bash(dotnet test*), Bash(dotnet build*), Bash(mvn test*), Bash(mvn compile*), Bash(gradle test*), Bash(gradle build*), Bash(make test*), Bash(make check*)
+allowed-tools: Read, Write, Edit, Bash(npm test*), Bash(npm run test*), Bash(npx vitest*), Bash(pytest*), Bash(jest*), Bash(cargo test*), Bash(cargo check*), Bash(cargo clippy*), Bash(go test*), Bash(go vet*), Bash(go build*), Bash(dotnet test*), Bash(dotnet build*), Bash(mvn test*), Bash(mvn compile*), Bash(gradle test*), Bash(gradle build*), Bash(./gradlew *), Bash(swift build*), Bash(swift test*), Bash(xcodebuild *), Bash(make test*), Bash(make check*)
 ---
 
 # TDD Discipline
@@ -90,6 +90,32 @@ var result = authService.validateAccess(request);
 
 // Assert
 assertThat(result.isAllowed()).isTrue();
+```
+
+**Swift (XCTest):**
+```swift
+// Arrange
+let user = createTestUser(role: .admin)
+let request = mockRequest(userId: user.id)
+
+// Act
+let result = try await authService.validateAccess(request)
+
+// Assert
+XCTAssertTrue(result.allowed)
+```
+
+**Kotlin (JUnit 5):**
+```kotlin
+// Arrange
+val user = createTestUser(role = "admin")
+val request = mockRequest(userId = user.id)
+
+// Act
+val result = authService.validateAccess(request)
+
+// Assert
+assertThat(result.allowed).isTrue()
 ```
 
 **AAA Rules:**
