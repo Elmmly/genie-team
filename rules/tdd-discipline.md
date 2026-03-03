@@ -10,9 +10,10 @@ This project uses **Test-Driven Development** for all code changes.
 
 ## Test Structure (AAA Pattern)
 
-All tests MUST follow Arrange-Act-Assert with blank line separators:
+All tests MUST follow Arrange-Act-Assert with blank line separators.
 
-```javascript
+**TypeScript (Jest/Vitest):**
+```typescript
 // Arrange - Set up test data and prerequisites
 const user = createTestUser({ role: 'admin' });
 const request = mockRequest({ userId: user.id });
@@ -23,6 +24,63 @@ const result = await authService.validateAccess(request);
 // Assert - Verify expected outcome
 expect(result.allowed).toBe(true);
 expect(result.role).toBe('admin');
+```
+
+**Go:**
+```go
+// Arrange
+user := createTestUser(t, "admin")
+req := mockRequest(user.ID)
+
+// Act
+result, err := authService.ValidateAccess(req)
+
+// Assert
+require.NoError(t, err)
+assert.True(t, result.Allowed)
+assert.Equal(t, "admin", result.Role)
+```
+
+**Rust:**
+```rust
+// Arrange
+let user = create_test_user(Role::Admin);
+let request = mock_request(user.id);
+
+// Act
+let result = auth_service.validate_access(&request).unwrap();
+
+// Assert
+assert!(result.allowed);
+assert_eq!(result.role, Role::Admin);
+```
+
+**C# (xUnit):**
+```csharp
+// Arrange
+var user = CreateTestUser(role: "admin");
+var request = MockRequest(userId: user.Id);
+
+// Act
+var result = await _authService.ValidateAccess(request);
+
+// Assert
+Assert.True(result.Allowed);
+Assert.Equal("admin", result.Role);
+```
+
+**Java (JUnit 5):**
+```java
+// Arrange
+var user = createTestUser("admin");
+var request = mockRequest(user.getId());
+
+// Act
+var result = authService.validateAccess(request);
+
+// Assert
+assertThat(result.isAllowed()).isTrue();
+assertThat(result.getRole()).isEqualTo("admin");
 ```
 
 ## Constraints

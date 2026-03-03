@@ -35,6 +35,7 @@ Options:
   --agents            Install agents only
   --genies            Install genie specs only (project only)
   --schemas           Install schemas only
+  --stacks            Install stack profile templates only
   --scripts           Install scripts only (genies)
   --hooks             Install hooks only (context re-injection)
   --mcp               Install MCP server only (imagegen for Designer genie)
@@ -402,6 +403,13 @@ install_schemas() {
     copy_dir "$SCRIPT_DIR/schemas" "$dest" "$force" "schemas"
 }
 
+# Install stack profile templates
+install_stacks() {
+    local dest="$1"
+    local force="$2"
+    copy_dir "$SCRIPT_DIR/stacks" "$dest" "$force" "stacks"
+}
+
 # Install consolidated genie specs (all .md files per genie)
 install_genies() {
     local dest="$1"
@@ -522,6 +530,15 @@ merge_hook_config() {
             "command": "bash ${cmd_prefix}/track-artifacts.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${cmd_prefix}/verify-stack.sh"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -606,6 +623,7 @@ cmd_global() {
     local install_rules="false"
     local install_agents="false"
     local install_schemas="false"
+    local install_stacks_flag="false"
     local install_scripts_flag="false"
     local install_hooks_flag="false"
     local install_mcp="false"
@@ -622,6 +640,7 @@ cmd_global() {
             --rules) install_rules="true"; install_all="false" ;;
             --agents) install_agents="true"; install_all="false" ;;
             --schemas) install_schemas="true"; install_all="false" ;;
+            --stacks) install_stacks_flag="true"; install_all="false" ;;
             --scripts) install_scripts_flag="true"; install_all="false" ;;
             --hooks) install_hooks_flag="true"; install_all="false" ;;
             --mcp) install_mcp="true"; install_all="false" ;;
@@ -646,6 +665,8 @@ cmd_global() {
             log_info "[DRY RUN] Would install agents"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas"
+        [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
+            log_info "[DRY RUN] Would install stack profiles"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install scripts"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
@@ -673,6 +694,8 @@ cmd_global() {
             clean_genie_files "$SCRIPT_DIR/agents" "$GLOBAL_CLAUDE_DIR/agents" "agents" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_genie_files "$SCRIPT_DIR/schemas" "$GLOBAL_CLAUDE_DIR/schemas" "schemas" "$dry_run"
+        [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
+            clean_genie_files "$SCRIPT_DIR/stacks" "$GLOBAL_CLAUDE_DIR/stacks" "stacks" "$dry_run"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             clean_genie_files "$SCRIPT_DIR/scripts" "$GLOBAL_CLAUDE_DIR/scripts" "scripts" "$dry_run"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
@@ -693,6 +716,9 @@ cmd_global() {
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$GLOBAL_CLAUDE_DIR/schemas" "$force"
+
+    [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
+        install_stacks "$GLOBAL_CLAUDE_DIR/stacks" "$force"
 
     # Scripts installation (genies)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
@@ -731,6 +757,7 @@ cmd_global() {
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
+    echo "  Stacks:     typescript, go, rust, csharp, java (language-specific quality profiles)"
     echo "  Scripts:    genies (autonomous runner + batch + session + quality)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
@@ -753,6 +780,7 @@ cmd_project() {
     local install_agents="false"
     local install_genies="false"
     local install_schemas="false"
+    local install_stacks_flag="false"
     local install_scripts_flag="false"
     local install_hooks_flag="false"
     local install_mcp="false"
@@ -770,6 +798,7 @@ cmd_project() {
             --agents) install_agents="true"; install_all="false" ;;
             --genies) install_genies="true"; install_all="false"; log_warn "DEPRECATED: --genies flag is deprecated. Genies are now consolidated into agents/. Use --agents instead." ;;
             --schemas) install_schemas="true"; install_all="false" ;;
+            --stacks) install_stacks_flag="true"; install_all="false" ;;
             --scripts) install_scripts_flag="true"; install_all="false" ;;
             --hooks) install_hooks_flag="true"; install_all="false" ;;
             --mcp) install_mcp="true"; install_all="false" ;;
@@ -817,6 +846,8 @@ cmd_project() {
             log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/ (DEPRECATED)"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas to $claude_dir/schemas/"
+        [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
+            log_info "[DRY RUN] Would install stack profiles to $claude_dir/stacks/"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install scripts to $claude_dir/scripts/"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
@@ -844,6 +875,8 @@ cmd_project() {
             clean_genie_files "$SCRIPT_DIR/genies" "$claude_dir/genies" "genies" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_genie_files "$SCRIPT_DIR/schemas" "$claude_dir/schemas" "schemas" "$dry_run"
+        [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
+            clean_genie_files "$SCRIPT_DIR/stacks" "$claude_dir/stacks" "stacks" "$dry_run"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             clean_genie_files "$SCRIPT_DIR/scripts" "$claude_dir/scripts" "scripts" "$dry_run"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
@@ -867,6 +900,9 @@ cmd_project() {
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$claude_dir/schemas" "$force"
+
+    [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
+        install_stacks "$claude_dir/stacks" "$force"
 
     # Scripts installation (genies)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
@@ -930,10 +966,11 @@ cmd_project() {
     echo "  Help:       /genie:help, /genie:status"
     echo "  Skills:     tdd-discipline, code-quality, conventional-commits, problem-first,"
     echo "              pattern-enforcement, spec-awareness, architecture-awareness,"
-    echo "              brand-awareness"
+    echo "              brand-awareness, stack-awareness"
     echo "  Agents:     scout, shaper, architect, crafter, critic, tidier, designer"
     echo "  Schemas:    shaped-work-contract, design-document, execution-report, review-document,"
     echo "              adr, architecture-diagram, brand-spec"
+    echo "  Stacks:     typescript, go, rust, csharp, java (language-specific quality profiles)"
     echo "  Scripts:    genies (autonomous runner + batch + session + quality)"
     echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
@@ -946,7 +983,7 @@ cmd_status() {
     echo ""
 
     echo "Global (~/.claude/):"
-    for dir in commands skills rules agents schemas scripts hooks; do
+    for dir in commands skills rules agents schemas stacks scripts hooks; do
         if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
             local count=$(find "$GLOBAL_CLAUDE_DIR/$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"
@@ -961,7 +998,7 @@ cmd_status() {
 
     echo ""
     echo "Project (./.claude/):"
-    for dir in commands skills rules agents hooks schemas scripts; do
+    for dir in commands skills rules agents schemas stacks hooks scripts; do
         if [[ -d "./.claude/$dir" ]]; then
             local count=$(find "./.claude/$dir" -type f 2>/dev/null | wc -l | tr -d ' ')
             echo "  $dir: $count files"

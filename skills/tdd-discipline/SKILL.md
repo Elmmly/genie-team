@@ -1,7 +1,7 @@
 ---
 name: tdd-discipline
 description: Enforces test-driven development with Red-Green-Refactor cycle. Use when writing new code, implementing features, fixing bugs, or when tests are mentioned. Ensures tests are written before implementation.
-allowed-tools: Read, Write, Edit, Bash(npm test*), Bash(npm run test*), Bash(pytest*), Bash(jest*), Bash(cargo test*)
+allowed-tools: Read, Write, Edit, Bash(npm test*), Bash(npm run test*), Bash(npx vitest*), Bash(pytest*), Bash(jest*), Bash(cargo test*), Bash(cargo check*), Bash(cargo clippy*), Bash(go test*), Bash(go vet*), Bash(go build*), Bash(dotnet test*), Bash(dotnet build*), Bash(mvn test*), Bash(mvn compile*), Bash(gradle test*), Bash(gradle build*), Bash(make test*), Bash(make check*)
 ---
 
 # TDD Discipline
@@ -24,17 +24,72 @@ Write ALL tests BEFORE any implementation code.
 - Run tests and CONFIRM they fail
 - Do NOT write implementation during this phase
 
-**AAA Pattern:**
-```javascript
-// Arrange - Set up test data
+**AAA Pattern by Language:**
+
+**TypeScript (Jest/Vitest):**
+```typescript
+// Arrange
 const user = createTestUser({ role: 'admin' });
 const request = mockRequest({ userId: user.id });
 
-// Act - Execute single method
+// Act
 const result = await authService.validateAccess(request);
 
-// Assert - Verify outcome
+// Assert
 expect(result.allowed).toBe(true);
+```
+
+**Go:**
+```go
+// Arrange
+user := createTestUser(t, "admin")
+req := mockRequest(user.ID)
+
+// Act
+result, err := authService.ValidateAccess(req)
+
+// Assert
+require.NoError(t, err)
+assert.True(t, result.Allowed)
+```
+
+**Rust:**
+```rust
+// Arrange
+let user = create_test_user(Role::Admin);
+let request = mock_request(user.id);
+
+// Act
+let result = auth_service.validate_access(&request).unwrap();
+
+// Assert
+assert!(result.allowed);
+```
+
+**C# (xUnit):**
+```csharp
+// Arrange
+var user = CreateTestUser(role: "admin");
+var request = MockRequest(userId: user.Id);
+
+// Act
+var result = await _authService.ValidateAccess(request);
+
+// Assert
+Assert.True(result.Allowed);
+```
+
+**Java (JUnit 5):**
+```java
+// Arrange
+var user = createTestUser("admin");
+var request = mockRequest(user.getId());
+
+// Act
+var result = authService.validateAccess(request);
+
+// Assert
+assertThat(result.isAllowed()).isTrue();
 ```
 
 **AAA Rules:**

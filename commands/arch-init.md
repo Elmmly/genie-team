@@ -31,6 +31,8 @@ Activate Architect genie to bootstrap architecture artifacts (ADR-000 and C4 dia
 - docs/specs/{domain}/ directories (for domain structure — does NOT read spec content for capability discovery)
 - docs/decisions/ADR-*.md (to check for existing ADRs)
 - docs/architecture/**/*.md (to check for existing diagrams)
+- Stack indicator files: `tsconfig.json`, `go.mod`, `Cargo.toml`, `*.csproj`, `pom.xml`, `build.gradle` (for tech stack detection)
+- Stack profile templates: `stacks/*.md` (from genie-team install, for generating stack configuration)
 
 **DOES NOT READ:**
 - Test files for capability identification (that is /spec:init's job)
@@ -44,6 +46,9 @@ Activate Architect genie to bootstrap architecture artifacts (ADR-000 and C4 dia
 - docs/decisions/ADR-000-use-adrs-for-architecture-decisions.md (if missing)
 - docs/architecture/system-context.md (Level 1 — if missing)
 - docs/architecture/containers.md (Level 2 — if missing)
+- .claude/rules/stack-{language}.md (per detected stack — if missing)
+- CLAUDE.md `## Tech Stack` section (append — if stack detected)
+- .claude/settings.json (merge permissions — if stack detected)
 
 **CREATE (if needed):**
 - docs/decisions/ directory
@@ -304,7 +309,53 @@ For CLI tools or prompt-based systems, specify the execution model:
    - Report: "Created docs/architecture/components/ — per-domain component diagrams are created by /design"
    - If exists: Report "docs/architecture/components/ already exists — skipped"
 
-7. **Summary:**
+7. **Detect tech stack and generate stack configuration:**
+
+   Scan the project for language/framework indicators. For each detected stack, generate project-specific configuration using the templates in the `stacks/` directory.
+
+   **Detection table:**
+
+   | Indicator File | Stack | Version Source |
+   |---------------|-------|----------------|
+   | `tsconfig.json` | TypeScript | `package.json` typescript version |
+   | `go.mod` | Go | `go` directive in go.mod |
+   | `Cargo.toml` | Rust | `edition` field |
+   | `*.csproj` / `*.sln` | C# / .NET | `TargetFramework` element |
+   | `pom.xml` / `build.gradle` | Java | `maven.compiler.source` / `jvmToolchain` |
+
+   **For each detected stack:**
+
+   a. Read the corresponding stack profile from `stacks/{language}.md` (installed via genie-team). If the stack profile is not available (not installed), skip with a note.
+
+   b. **Generate `.claude/rules/stack-{language}.md`** — Copy the "Rules Content" section from the profile template, substituting the detected version. This file is loaded automatically by Claude Code as session context.
+      - If the file already exists: report "Stack rules for {language} already exist — skipped" (unless `--force`)
+
+   c. **Append to CLAUDE.md `## Tech Stack` section** — Add the compact stack summary from the profile's "CLAUDE.md Section". Create the `## Tech Stack` heading if it doesn't exist.
+      - If CLAUDE.md already has a section for this language: skip
+
+   d. **Merge settings permissions** — Add the profile's "Settings Permissions" entries to `.claude/settings.json` `permissions.allow` array. Deduplicate entries.
+
+   e. **Present detected stacks to user:**
+
+      ```
+      ## Tech Stack Detected
+
+      | Stack | Version | Rules | CLAUDE.md | Settings |
+      |-------|---------|-------|-----------|----------|
+      | Go | 1.22 | Created | Appended | Updated |
+      | TypeScript | 5.4 | Created | Appended | Updated |
+
+      Stack configuration enables:
+      - Language-specific quality rules (loaded every session)
+      - Build & verification commands (auto-permitted)
+      - Anti-pattern enforcement (always in context)
+
+      Proceed with stack configuration? [Y/n]
+      ```
+
+   f. If no stack indicators found: silently skip (no message — matches brand-awareness opt-in pattern)
+
+8. **Summary:**
 
    ```
    ## /arch:init Complete
@@ -313,6 +364,7 @@ For CLI tools or prompt-based systems, specify the execution model:
    **Level 1 — System Context:** {Created | Already exists | Skipped by user}
    **Level 2 — Containers:** {Created | Already exists | Skipped by user}
    **Level 3 — Components directory:** {Created | Already exists}
+   **Tech Stack:** {Go 1.22, TypeScript 5.4 — configured | No stack detected | Skipped by user}
 
    ### Recommended Next Steps
    1. Review generated diagrams in docs/architecture/

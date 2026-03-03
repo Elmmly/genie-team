@@ -24,9 +24,16 @@ Initialize session with project context. Run at the start of every session.
    - `docs/architecture/**/*.md` — Check `updated` date in frontmatter against 90-day staleness threshold. List diagrams found and staleness status. If `docs/architecture/` does not exist: if `docs/specs/` exists, report "No C4 diagrams — run /arch:init to bootstrap architecture diagrams"; if `docs/specs/` also does not exist, report "No C4 diagrams — run /spec:init to bootstrap specs and diagrams"
    - Report architecture health: ADR count, diagram coverage, staleness warnings
 
-4. Summarize current state briefly
+4. Scan for tech stack profiles:
+   - `.claude/rules/stack-*.md` — List detected stack profiles with language and version
+   - For each profile, extract the version from the `## Version:` line
+   - Check if verification tools are available (e.g., `go vet`, `tsc`, `cargo check`)
+   - If stack profiles found: report active stacks with verification status
+   - If no stack profiles found: silently continue (stack is opt-in, like brand)
 
-5. Suggest next action based on state
+5. Summarize current state briefly
+
+6. Suggest next action based on state
 
 ---
 
@@ -47,6 +54,7 @@ Initialize session with project context. Run at the start of every session.
   - ADRs: [N accepted, M proposed, K deprecated/superseded] or "No ADRs"
   - C4 Diagrams: [L1: present/missing, L2: present/missing, L3: N domain diagrams] or "No diagrams"
   - Staleness: [N diagrams stale (>90 days)] or "All current"
+**Stack:** [Go 1.22, TypeScript 5.4 — verification active] or [No stack profiles — run /arch:init to configure]
 **Ready for:** [Suggested next command]
 ```
 
@@ -66,6 +74,7 @@ If spec coverage shows unspecified test suites, recommend:
 - docs/backlog/*.md (scan for active work items)
 - docs/decisions/ADR-*.md (scan for architecture decisions)
 - docs/architecture/**/*.md (scan for C4 diagrams and staleness)
+- .claude/rules/stack-*.md (scan for active tech stack profiles)
 - Test config files (package.json, pytest.ini, jest.config.*, vitest.config.*, etc.)
 
 **WRITE:**
