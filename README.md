@@ -33,11 +33,11 @@ Genie Team is a playground for discovering new ways of working. It's not a finis
 
 **Genies, not agents.** AI coding assistants work best when you think of them as genies, powerful entities that grant wishes but interpret those wishes on their own terms. Without structure, they drift: expanding scope, losing context mid-session, and confidently building the wrong thing. Genie Team adds the constraints that make wishes reliable: specialized roles, scoped tools, structured prompts, and persistent context that survives the conversation window.
 
-**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization. Each genie has platform-enforced tool restrictions, its own model selection, and persistent memory that improves over time.
+**Team of specialists.** Instead of one general purpose assistant, Genie Team provides a cast of specialized genies, each optimized for a specific phase of product development. Specialization beats generalization. Each genie has platform-enforced tool restrictions, scoped prompts, and persistent memory that improves over time.
 
 **Context accumulates.** Structured outputs (Opportunity Snapshots, Design Documents, Implementation Reports) create a document trail that builds project knowledge over time. Genie memory complements this with meta-learning: patterns noticed across sessions, calibrations, and shortcuts that help each genie work more effectively on *your* project.
 
-**Efficiency matters.** AI tokens cost money and time. Structured prompts with clear scope reduce wasted iterations, hallucinated features, and context drift. Per-genie model selection routes research tasks (Scout, Tidier) to cheaper models while keeping judgment-heavy work (Critic, Architect) on more capable ones.
+**Efficiency matters.** AI tokens cost money and time. Structured prompts with clear scope reduce wasted iterations, hallucinated features, and context drift.
 
 **Tinkering as practice.** This is exploratory work. Forking, adapting, and sharing configurations is part of our craft. The goal isn't to prescribe a workflow but to provide a starting point for your own experiments in augmented development.
 
@@ -111,7 +111,7 @@ This scans for existing specs, ADRs, diagrams, and backlog items, then recommend
 | Component | Purpose |
 |-----------|---------|
 | **Commands** | Slash commands (`/discover`, `/deliver`, etc.) |
-| **Genies** | Specialist definitions with per-genie model, tools, and memory |
+| **Genies** | Specialist definitions with scoped tools and persistent memory |
 | **Skills** | Automatic behaviors (TDD, code quality, brand awareness) |
 | **Hooks** | Context re-injection on compaction |
 | **MCP** | Image generation server (Designer genie via Gemini) |
@@ -364,7 +364,7 @@ genies session finish P2-search --leave-branch
 genies session cleanup
 ```
 
-Enable in your project's `CLAUDE.md` by uncommenting `<!-- worktree-enabled -->`.
+Enable by adding `worktree-enabled` to your project's `CLAUDE.md`.
 
 ### Git Workflow
 
@@ -397,7 +397,7 @@ These decisions live in `docs/decisions/ADR-{NNN}-{slug}.md`. Then use the norma
 > /deliver docs/backlog/P2-local-dev-setup.md
 ```
 
-The Crafter reads ADRs and C4 diagrams during implementation. The Critic checks ADR compliance during review. No special infrastructure command needed — the same workflow that builds features also builds infrastructure.
+No special infrastructure command needed — the same workflow that builds features also builds infrastructure.
 
 `/arch:init` documents the system in C4 diagrams showing containers, external systems, and deployment boundaries.
 
@@ -447,19 +447,17 @@ genies --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
 
 ## The Genies
 
-Each genie is a native Claude Code agent (`.claude/agents/{name}.md`) with platform-enforced tool restrictions, per-genie model selection, and persistent memory.
+Each genie is a native Claude Code agent (`.claude/agents/{name}.md`) with platform-enforced tool restrictions, scoped prompts, and persistent memory.
 
-| Genie | Command | Model | Purpose |
-|-------|---------|-------|---------|
-| **Scout** | `/discover` | haiku | Discovery, research, opportunity mapping |
-| **Shaper** | `/define` | sonnet | Problem framing, appetite, constraints |
-| **Architect** | `/design`, `/diagnose` | sonnet | Technical design, patterns, health |
-| **Crafter** | `/deliver` | sonnet | TDD implementation, code quality |
-| **Critic** | `/discern` | sonnet | Review, acceptance criteria, risks |
-| **Tidier** | `/tidy` | haiku | Refactoring, cleanup, tech debt |
-| **Designer** | `/brand` | sonnet | Brand identity, visual assets, design tokens |
-
-**Cost optimization:** Scout and Tidier run on haiku (10-20x cheaper) for research/analysis. Crafter, Critic, Architect, Shaper, and Designer run on sonnet where judgment quality matters.
+| Genie | Command | Purpose |
+|-------|---------|---------|
+| **Scout** | `/discover` | Discovery, research, opportunity mapping |
+| **Shaper** | `/define` | Problem framing, appetite, constraints |
+| **Architect** | `/design`, `/diagnose` | Technical design, patterns, health |
+| **Crafter** | `/deliver` | TDD implementation, code quality |
+| **Critic** | `/discern` | Review, acceptance criteria, risks |
+| **Tidier** | `/tidy` | Refactoring, cleanup, tech debt |
+| **Designer** | `/brand` | Brand identity, visual assets, design tokens |
 
 ## Commands & Skills
 
@@ -566,7 +564,7 @@ Two complementary persistence systems:
 | System | Purpose | Location | Lifecycle |
 |--------|---------|----------|-----------|
 | **Document trail** | Project knowledge — findings, designs, reviews, decisions | `docs/` (git-tracked) | Created → appended → archived |
-| **Genie memory** | Genie meta-learning — patterns, calibrations, shortcuts | `.claude/agent-memory/` (gitignored) | Curated continuously, 200-line cap |
+| **Genie memory** | Genie meta-learning — patterns, calibrations, shortcuts | `.claude/agent-memory/` (gitignored) | Curated continuously, 150-line cap |
 
 **Document trail** stores what the project knows. **Genie memory** stores what each genie has learned about working on this project. Genies get better at *your specific project* over time.
 
