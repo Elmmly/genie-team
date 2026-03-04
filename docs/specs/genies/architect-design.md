@@ -29,7 +29,18 @@ acceptance_criteria:
   - id: AC-4
     description: >-
       /arch:init bootstraps ADR-000 and initial C4 diagrams (Level 1 System Context, Level 2
-      Container) for existing projects, creating docs/architecture/ directory structure
+      Container) for existing projects, creating docs/architecture/ directory structure. For
+      existing projects, auto-detects tech stack from indicator files. For greenfield projects
+      (no indicators), prompts user to select a stack or skip.
+    status: met
+  - id: AC-5
+    description: >-
+      /arch --workshop provides an interactive 5-phase architecture workshop (Approach
+      Comparison, Technical Decisions, Interface Preview, Risk Prioritization, Consolidation).
+      Works in two modes: with a shaped contract (feature mode — produces Design Document
+      appended to the backlog item) or without (foundation mode — produces ADRs + workshop
+      summary for greenfield bootstrapping). Phase 2 surfaces tech stack selection for
+      greenfield projects.
     status: met
 ---
 
@@ -37,7 +48,7 @@ acceptance_criteria:
 
 The Architect genie creates technical designs within shaped boundaries using Domain-Driven Design (bounded contexts, aggregates), Clean Architecture (dependency inversion, layers), SOLID principles, and pragmatic engineering judgment. It defines interfaces, contracts, and component boundaries; identifies technical risks with likelihood/impact/mitigation analysis; creates ADRs for significant decisions; updates C4 diagrams when boundaries change; and provides implementation guidance for the Crafter.
 
-The Architect also supports: `/diagnose` for codebase health scanning, `/arch:init` for bootstrapping architecture artifacts, and an interactive `--workshop` mode with phases for Approach Comparison, Technical Decisions, Interface Preview, and Risk Prioritization.
+The Architect also supports: `/diagnose` for codebase health scanning, `/arch:init` for bootstrapping architecture artifacts, and an interactive `/arch --workshop` mode with phases for Approach Comparison, Technical Decisions, Interface Preview, and Risk Prioritization.
 
 ## Acceptance Criteria
 
@@ -51,7 +62,10 @@ The `/design` command produces a Design Document appended to the backlog item. F
 The `/diagnose` command activates the Architect to scan codebase health. It checks: coupling violations (code imports not documented in C4 diagrams), cohesion drift (cross-domain imports), ADR health (proposed ADRs with no recent design activity, contradictory accepted ADRs), diagram staleness (>90 days since last update), and dead code or pattern violations.
 
 ### AC-4: Architecture bootstrapping
-The `/arch:init` command bootstraps architecture artifacts for existing projects: creates ADR-000 (bootstrapping record), generates Level 1 System Context diagram and Level 2 Container diagram with user confirmation, creates `docs/architecture/components/` directory for Level 3 diagrams (populated later by `/design`), and reads project structure and existing specs for domain awareness.
+The `/arch:init` command bootstraps architecture artifacts for existing projects: creates ADR-000 (bootstrapping record), generates Level 1 System Context diagram and Level 2 Container diagram with user confirmation, creates `docs/architecture/components/` directory for Level 3 diagrams (populated later by `/design`), and reads project structure and existing specs for domain awareness. For existing projects, auto-detects tech stack from indicator files. For greenfield projects (no indicators found), prompts the user to select a stack or skip.
+
+### AC-5: Interactive architecture workshop
+The `/arch --workshop` command provides a 5-phase interactive architecture workshop: Approach Comparison (HTML side-by-side panels), Technical Decisions (interactive walk-through with greenfield stack selection), Interface Preview (code-styled HTML), Risk Prioritization (multiSelect mitigation choices), and Consolidation. Works with or without a shaped contract: feature mode (with contract) produces a Design Document appended to the backlog item; foundation mode (without contract) produces ADRs + workshop summary for greenfield bootstrapping. Phase 2 surfaces "Which tech stack?" for greenfield projects and routes to `/arch:init --stack {language}` after the workshop.
 
 ## Evidence
 
@@ -60,7 +74,8 @@ The `/arch:init` command bootstraps architecture artifacts for existing projects
 - `genies/architect/ARCHITECT_SPEC.md`: Detailed specification
 - `genies/architect/ARCHITECT_SYSTEM_PROMPT.md`: System prompt
 - `genies/architect/DESIGN_DOCUMENT_TEMPLATE.md`: Structured output template
-- `commands/design.md`: Design slash command
+- `commands/arch.md`: Architecture workshop command
+- `commands/design.md`: Design slash command (batch)
 - `commands/diagnose.md`: Diagnose slash command
 - `commands/arch-init.md`: Architecture bootstrapping command
 - `schemas/design-document.schema.md`: Design document schema

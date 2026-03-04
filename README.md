@@ -147,35 +147,39 @@ This scans for existing specs, ADRs, diagrams, and backlog items, then recommend
 
 ## 2. Bootstrap a New Project
 
-Starting from scratch? Genie Team provides interactive workshops that walk you through establishing the key decisions and artifacts to guide ongoing development.
+Starting from scratch? Three steps set up your project — architecture, brand, then your first feature. The foundation workshops don't require any backlog items, so you can run them on day 1.
 
-### Product Workshop
+### Step 1: Architecture Workshop
 
-Start by exploring the problem space, then run an interactive workshop to shape the first work items:
-
-```
-> /discover "the problem we're solving"
-```
-
-The Scout genie performs opportunity mapping using Teresa Torres' Continuous Discovery and Jobs-to-be-Done frameworks. It surfaces assumptions, documents unknowns, and produces an Opportunity Snapshot.
-
-Then shape the work with an interactive workshop:
+Establish the technical foundation — no shaped feature needed:
 
 ```
-> /define --workshop "the opportunity to pursue"
+> /arch --workshop
 ```
 
-The Shaper genie leads a 4-phase interactive session:
-1. **Problem Framing** — Choose from 2-3 solution-free reframings of the problem
-2. **Appetite Explorer** — Visual HTML comparison of Small/Medium/Big scope tiers
-3. **Option Exploration** — Side-by-side solution directions with tradeoff ratings
-4. **Scope Negotiation** — In/out boundaries, no-gos, rabbit holes
+The Architect genie leads a 5-phase interactive session:
+1. **Approach Comparison** — "What are we building?" then side-by-side HTML panels evaluating 2-3 system-level architectural alternatives
+2. **Technical Decisions** — Walk through each significant choice interactively (tech stack, database, deployment target, CI provider). Opens with "Which tech stack?" — selecting from available profiles (TypeScript, Go, Elixir, Rust, etc.)
+3. **Interface Preview** — System-level API boundaries between containers in code-styled HTML preview
+4. **Risk Prioritization** — Select which mitigations are worth the investment
+5. **Consolidation** — Workshop summary + ADRs for all decisions captured
 
-Output: A Shaped Work Contract (`docs/backlog/P{N}-{topic}.md`) with appetite boundaries and acceptance criteria. A capability spec (`docs/specs/{domain}/{capability}.md`) tracking what the system does.
+Then initialize the project with the decisions from the workshop:
 
-> **Planned:** `/discover --workshop` — A structured multi-phase product discovery workshop with iteration loops, similar to the brand workshop. Today, `/discover` is a single-pass command.
+```
+> /arch:init --stack elixir    # Stack chosen in Phase 2
+```
 
-### Brand Workshop
+This generates the architecture artifacts and stack configuration in one step:
+- **C4 diagrams** (`docs/architecture/`) — System context and container diagrams
+- **ADR-000** bootstrapping record + any ADRs from workshop decisions (`docs/decisions/`)
+- **Stack rules** (`.claude/rules/stack-{language}.md`) — Language-specific quality rules loaded every session
+- **Build permissions** (`.claude/settings.json`) — Verification commands auto-permitted
+- **Tech stack section** in CLAUDE.md — Compact reference for the project
+
+**Result:** Your project's technical foundation is set — stack, architecture diagrams, and decision records all in place.
+
+### Step 2: Brand Workshop
 
 Establish visual identity and design language:
 
@@ -191,37 +195,45 @@ The Designer genie leads a 6-phase interactive workshop:
 5. **Target Examples** — Brand north star images generated with Gemini
 6. **Consolidation** — Brand guide with W3C Design Tokens
 
-Output: Brand Specification (`docs/brand/{name}-brand.md`), design tokens (`docs/brand/tokens.json`), and generated visual examples.
+**Result:** Your project's visual identity is set — brand guide (`docs/brand/{name}-brand.md`), design tokens (`docs/brand/tokens.json`), and generated visual examples ready for implementation.
 
-### Architecture Workshop
+### Step 3: Shape Your First Feature
 
-Establish key technical decisions:
-
-```
-> /design --workshop docs/backlog/P1-first-feature.md
-```
-
-The Architect genie leads a structured technical workshop:
-1. **Approach Comparison** — Side-by-side HTML panels evaluating 2-3 architectural alternatives
-2. **Technical Decisions** — Walk through each significant choice interactively (framework, database, CI provider, deployment target)
-3. **Interface Preview** — Component boundaries and API contracts in code-styled HTML preview
-4. **Risk Prioritization** — Select which mitigations are worth the investment
-
-Output: Architecture Decision Records (`docs/decisions/ADR-{NNN}-{slug}.md`), design document appended to the backlog item, and C4 diagram updates.
-
-### Generate Bootstrap Artifacts
-
-After workshops, generate the persistent knowledge foundation:
+Now that the foundation is set, shape concrete work:
 
 ```
-> /arch:init          # Infers system boundaries → generates C4 diagrams
-> /spec:init          # Scans source code + tests → generates capability specs
+> /discover "the problem we're solving"
+> /define --workshop "the opportunity to pursue"
 ```
 
-These create:
-- **C4 diagrams** (`docs/architecture/`) — System context, containers, components
-- **Capability specs** (`docs/specs/{domain}/{capability}.md`) — What the system does, acceptance criteria
-- **ADR-000** bootstrapping record (`docs/decisions/`)
+The Scout explores the problem space (opportunity mapping, assumptions, unknowns). Then the Shaper leads a 4-phase interactive session — problem framing, appetite sizing, option exploration, scope negotiation — producing a Shaped Work Contract (`docs/backlog/P{N}-{topic}.md`) and a capability spec (`docs/specs/{domain}/{capability}.md`).
+
+> **Planned:** `/discover --workshop` — A structured multi-phase product discovery workshop with iteration loops, similar to the brand workshop. Today, `/discover` is a single-pass command.
+
+### What You Have Now
+
+After the foundation workshops and first shaped feature, your project has:
+
+```
+docs/
+├── analysis/           # Architecture workshop summary
+├── architecture/       # C4 diagrams (system context, containers)
+├── backlog/            # First feature shaped, ready for design
+├── brand/              # Brand guide + design tokens
+├── decisions/          # ADR-000 + workshop decisions
+└── specs/              # Capability specs
+.claude/
+├── rules/stack-*.md    # Language-specific quality rules
+└── settings.json       # Build/verification permissions
+CLAUDE.md               # Tech stack section
+```
+
+Ready to design and build:
+
+```
+> /arch --workshop docs/backlog/P1-first-feature.md    # Design against the foundation
+> /deliver docs/backlog/P1-first-feature.md
+```
 
 ---
 
@@ -243,6 +255,8 @@ The Scout genie performs a deep scan of source code, tests, config files, and do
 
 The Architect genie infers containers from directory structure, `package.json` workspaces, Dockerfiles, and config files. It detects external systems from database configs, API URLs, and service integrations. Output: C4 diagrams and an ADR-000 bootstrapping record.
 
+For existing projects, `/arch:init` auto-detects the tech stack from indicator files (`tsconfig.json`, `go.mod`, `Cargo.toml`, `mix.exs`, etc.) and generates stack-specific quality rules and build permissions. No `--stack` flag needed — it reads what's already there.
+
 ### Health Check
 
 ```
@@ -262,7 +276,7 @@ Use the interactive workshops from Section 2 to address gaps that scanning alone
 
 ```
 > /define --workshop "area that needs product clarity"
-> /design --workshop docs/backlog/P2-area-needing-architecture.md
+> /arch --workshop docs/backlog/P2-area-needing-architecture.md
 ```
 
 ---
@@ -384,7 +398,7 @@ Genie Team's workshops capture infrastructure decisions, and the existing lifecy
 
 ### How It Works
 
-The architecture workshop (`/design --workshop`) captures infrastructure decisions as ADRs:
+The architecture workshop (`/arch --workshop`) captures infrastructure decisions as ADRs:
 - Which container runtime (Docker, Podman, native)
 - Which CI provider (GitHub Actions, CircleCI, GitLab CI)
 - Which deployment target (AWS, Vercel, Fly.io, K8s)
@@ -451,7 +465,7 @@ genies --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
 |-------|---------|---------|
 | **Scout** | `/discover` | Discovery, research, opportunity mapping |
 | **Shaper** | `/define` | Problem framing, appetite, constraints |
-| **Architect** | `/design`, `/diagnose` | Technical design, patterns, health |
+| **Architect** | `/arch`, `/design`, `/diagnose` | Technical design, patterns, health |
 | **Crafter** | `/deliver` | TDD implementation, code quality |
 | **Critic** | `/discern` | Review, acceptance criteria, risks |
 | **Tidier** | `/tidy` | Refactoring, cleanup, tech debt |
@@ -473,7 +487,8 @@ Both are the recommended Claude Code extension patterns. Commands are for workfl
 ### Lifecycle
 - `/discover [topic]` — Explore a problem space
 - `/define [input]` — Frame work with appetite and constraints (`--workshop` for interactive)
-- `/design [contract]` — Create technical design (`--workshop` for interactive)
+- `/arch [contract] --workshop` — Interactive architecture workshop
+- `/design [contract]` — Create technical design (batch)
 - `/deliver [design]` — Implement with TDD
 - `/discern [impl]` — Review and validate
 - `/commit [item]` — Create conventional commit
