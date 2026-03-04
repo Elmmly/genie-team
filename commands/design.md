@@ -245,6 +245,7 @@ After design:
 - If ready for implementation: `/handoff design deliver`
 - If significant decision: Create ADR, get Navigator approval
 - If complexity exceeds appetite: Escalate to Shaper
+- If stack was chosen in workshop (greenfield): Run `/arch:init --stack {language}` before `/deliver`
 
 ---
 
@@ -306,15 +307,25 @@ When `$ARGUMENTS` does NOT contain `--workshop`, ignore this entire section and 
 
 Walk through each significant technical decision interactively.
 
-1. **Identify** all technical decisions that meet the multi-option threshold:
+1. **Greenfield stack check:** Before identifying technical decisions, check whether a tech stack is configured:
+   a. Scan `.claude/rules/stack-*.md` for existing stack profiles
+   b. Scan for stack indicator files (`tsconfig.json`, `go.mod`, `Cargo.toml`, `*.csproj`, `pom.xml`, `build.gradle`, `mix.exs`, `Package.swift`, `build.gradle.kts`)
+   c. If NEITHER profiles NOR indicators exist (greenfield): **Prepend "Which tech stack?"** to the qualifying decisions:
+      - Present as: "Which primary tech stack should this project use?"
+      - Options: Available profiles from `stacks/*.md` plus "Other / no stack profile needed"
+      - Include Architect's recommendation based on project requirements, team signals, and problem domain
+      - If user selects a supported stack: Record the decision for Phase 5 routing
+      - If user selects "Other": Note it; no stack config will be generated
+   d. If profiles or indicators already exist: Skip silently (stack is determined)
+2. **Identify** all technical decisions that meet the multi-option threshold:
    - Multiple viable alternatives exist
    - Hard to reverse OR affects multiple components
-2. **For each qualifying decision**, use AskUserQuestion:
+3. **For each qualifying decision**, use AskUserQuestion:
    - Present the decision as a clear question (e.g., "How should we store session state?")
    - Options are the viable alternatives, each with a 1-sentence tradeoff description
    - Include the Architect's recommendation as the first option with "(Recommended)" suffix
-3. **Decisions that don't meet the threshold** (single viable approach, easily reversible, internal to one component) are made autonomously — mention them briefly but don't ask
-4. **Capture** each decision with the user's choice and rationale
+4. **Decisions that don't meet the threshold** (single viable approach, easily reversible, internal to one component) are made autonomously — mention them briefly but don't ask
+5. **Capture** each decision with the user's choice and rationale
 
 **Output:** Completed Technical Decisions table for the design document.
 
@@ -385,6 +396,12 @@ Write the standard Design Document using all decisions captured in Phases 1-4.
 4. Follow all standard ADR Behavior, C4 Diagram Updates, and Spec Updates from the batch flow
 5. **Update** backlog frontmatter: `status: shaped` → `status: designed`
 6. **Report completion** as in batch mode
+7. **Stack configuration routing:** If a tech stack was chosen in Phase 2 (greenfield) AND no stack configuration exists yet:
+   - Include in completion report:
+     > **Stack Decision:** {Language} selected in workshop
+     > **Next:** Run `/arch:init --stack {language}` to generate stack rules, CLAUDE.md section, and settings permissions
+   - Capture the stack choice as an ADR (meets threshold: multiple alternatives, hard to reverse, affects all components)
+   - Do NOT generate stack config directly — that is `/arch:init`'s responsibility
 
 **Output:** Standard Design Document — identical format to batch mode.
 

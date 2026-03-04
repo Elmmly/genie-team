@@ -21,6 +21,7 @@ Apply these standards when writing or editing code.
 | Java | `int timeout = 5000;` | `int timeout = appConfig.getTimeout();` |
 | Swift | `let apiUrl = "https://api.example.com"` | `let apiUrl = Configuration.apiURL` |
 | Kotlin | `val timeout = 5000` | `val timeout = BuildConfig.TIMEOUT` |
+| Elixir | `@timeout 5000` | `@timeout Application.compile_env(:app, :timeout)` |
 
 ### Proper Error Handling
 
@@ -35,6 +36,7 @@ Errors must be logged with context and propagated meaningfully. Never swallow er
 | Java | `catch (Exception e) { log.error("context", e); throw new AppException("message", e); }` |
 | Swift | `do { try operation() } catch { logger.error("context: \(error)"); throw AppError.operationFailed(cause: error) }` |
 | Kotlin | `runCatching { operation() }.onFailure { e -> logger.error("context", e); throw AppException("message", e) }` |
+| Elixir | `case operation() do {:error, reason} -> Logger.error("context", reason: reason); {:error, {:wrapped, reason}} end` |
 
 ### Type Safety
 - Type hints on public methods
@@ -43,7 +45,7 @@ Errors must be logged with context and propagated meaningfully. Never swallow er
 
 ### Naming Conventions
 - Descriptive, intention-revealing names
-- Follow language idiom: camelCase (TS/Java), snake_case (Rust), MixedCaps (Go), PascalCase (C#)
+- Follow language idiom: camelCase (TS/Java), snake_case (Rust/Elixir), MixedCaps (Go), PascalCase (C#)
 - No abbreviations unless universal (URL, ID, etc.)
 
 ## Language-Specific Anti-Patterns
@@ -110,6 +112,16 @@ Errors must be logged with context and propagated meaningfully. Never swallow er
 | Allocations inside composable functions | Use `remember {}` |
 | `MaterialTheme.colors` (Material2) | Use `MaterialTheme.colorScheme` (Material3) |
 
+### Elixir
+| Anti-Pattern | Fix |
+|--------------|-----|
+| `try/catch` for flow control | Use tagged tuples `{:ok, _}` / `{:error, _}` and `with` chains |
+| `String.to_atom/1` with user input | Use `String.to_existing_atom/1` — atoms are not garbage collected |
+| Blocking `handle_call` with long operations | Offload to `Task.Supervisor`, handle result in `handle_info/2` |
+| Missing `handle_info/2` catch-all | Add `def handle_info(_msg, state), do: {:noreply, state}` |
+| Hardcoded config values | Use `Application.compile_env(:app, :key)` |
+| Writing macros when functions suffice | Use regular functions — macros are hard to debug and AI-generated macros are frequently incorrect |
+
 ## Error Handling Checklist
 
 - [ ] External calls wrapped in error handling
@@ -139,6 +151,7 @@ Add observability with structured logging at boundaries:
 | Java | `log.info("Operation {} completed for userId={} in {}ms", op, userId, duration)` |
 | Swift | `Logger().info("Operation \(op) completed for userId=\(userId) in \(duration)ms")` |
 | Kotlin | `Timber.i("Operation %s completed for userId=%s in %dms", op, userId, duration)` |
+| Elixir | `Logger.info("operation completed", operation: :create_user, user_id: id, duration_ms: elapsed)` |
 
 **Logging levels:**
 - DEBUG: Detailed flow

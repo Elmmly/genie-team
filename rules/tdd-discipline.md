@@ -111,6 +111,19 @@ assertThat(result.allowed).isTrue()
 assertThat(result.role).isEqualTo("admin")
 ```
 
+**Elixir (ExUnit):**
+```elixir
+# Arrange
+user = create_test_user(role: :admin)
+request = mock_request(user_id: user.id)
+
+# Act
+result = AuthService.validate_access(request)
+
+# Assert
+assert {:ok, %{allowed: true, role: :admin}} = result
+```
+
 ## Constraints
 
 - **NEVER** write implementation code without failing tests first

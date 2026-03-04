@@ -34,6 +34,7 @@ Before implementing, identify project patterns:
 | Rust | `lazy_static! { static ref REGISTRY: Mutex<HashMap<String, Box<dyn Handler>>> = ...; }` |
 | C# | `services.AddSingleton<IRegistry, Registry>();` via DI container |
 | Java | `@Component` with `Map<String, Handler>` injected via Spring |
+| Elixir | `Registry` module or ETS-backed lookup |
 
 **Factory Pattern:**
 
@@ -46,6 +47,7 @@ Before implementing, identify project patterns:
 | Java | `public static User create(UserInput data) { ... }` |
 | Swift | `static func create(from data: UserInput) -> User { ... }` |
 | Kotlin | `fun createUser(data: UserInput): User { ... }` (top-level or companion object) |
+| Elixir | `def new(attrs)` returning `{:ok, struct}` / `{:error, changeset}` |
 
 ### Data Patterns
 
@@ -58,6 +60,7 @@ Before implementing, identify project patterns:
 | Rust | `trait UserRepository { async fn find_by_id(&self, id: &str) -> Result<Option<User>>; }` |
 | C# | `interface IUserRepository { Task<User?> FindByIdAsync(string id); }` |
 | Java | `public interface UserRepository extends JpaRepository<User, String> { }` |
+| Elixir | `@behaviour` with `{:ok, t()} \| {:error, :not_found}` return types |
 
 **Error Propagation (cross-cutting):**
 
@@ -70,6 +73,7 @@ Before implementing, identify project patterns:
 | Java | `throw new AppException("context", e)` — cause chaining |
 | Swift | `throw AppError.operationFailed(context: "what failed", cause: error)` |
 | Kotlin | `throw AppException("context", cause = e)` — cause chaining |
+| Elixir | `{:error, reason}` tuples, `with` chains for multi-step operations |
 
 ### Integration Patterns
 

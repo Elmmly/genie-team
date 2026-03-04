@@ -1,6 +1,6 @@
 # Claude Code: Language & Game Engine Effectiveness Study
 
-**Date:** 2026-03-02 (updated 2026-03-03: added mobile development sections)
+**Date:** 2026-03-02 (updated 2026-03-03: added mobile development sections; 2026-03-04: added BEAM/functional languages)
 **Type:** Discovery / Research
 **Status:** Complete
 
@@ -8,9 +8,11 @@
 
 ## Executive Summary
 
-Claude Code is a top-tier AI coding tool across the seven evaluated languages (TypeScript, Rust, Go, C#, Java, Swift, Kotlin) and shows strong — but uneven — capability across game engines and mobile platforms. The consistent finding: **Claude's raw model capability is high, but output quality is highly context-sensitive.** Projects that invest in CLAUDE.md configuration, skills/rules, and MCP integrations get dramatically better results than defaults.
+Claude Code is a top-tier AI coding tool across the ten evaluated languages (TypeScript, Rust, Go, C#, Java, Swift, Kotlin, Elixir, Erlang, Clojure) and shows strong — but uneven — capability across game engines and mobile platforms. The consistent finding: **Claude's raw model capability is high, but output quality is highly context-sensitive.** Projects that invest in CLAUDE.md configuration, skills/rules, and MCP integrations get dramatically better results than defaults.
 
 **Mobile development note (added 2026-03-03):** iOS and Android native development are now included. The key dynamic: mobile development quality is gated by **feedback loop tooling** (MCP servers connecting Claude to Xcode/simulators/emulators). iOS tooling is more mature than Android. See sections 7 and 8.
+
+**BEAM/functional languages note (added 2026-03-04):** Elixir, Erlang, and Clojure are now included. These languages reveal a new dimension: **structural language properties (functional purity, immutability, s-expression syntax) affect AI effectiveness independently of training data volume.** Elixir scores higher than C# and Kotlin on AutoCodeBench despite being "low-resource." Clojure's parenthesis syntax creates a unique failure mode. Erlang has the least evidence of any language in this study. See sections 9, 10, and 11.
 
 ### Key Numbers
 
@@ -26,6 +28,9 @@ Claude Code is a top-tier AI coding tool across the seven evaluated languages (T
 | SWE-bench Multilingual | Leads 7 of 8 languages | 1st |
 | KotlinHumanEval | 80.12% (Sonnet 3.5) | Tied GPT-4o; o1 leads at 91.93% |
 | Swift-Eval | Score drops on Swift-specific features | Frontier models best (28-problem eval) |
+| AutoCodeBench Elixir | 80.3% (Opus 4) | 2nd (o4-mini leads at 82.3%) |
+| AutoCodeBench Erlang | No data | No benchmark includes Erlang |
+| MultiPL-E Clojure | No published scores | Included but scores not surfaced |
 
 ### What These Benchmarks Measure
 
@@ -48,6 +53,10 @@ Claude Code is a top-tier AI coding tool across the seven evaluated languages (T
 - **KotlinHumanEval / Kotlin_QA** (JetBrains Research, Feb 2025) — The most comprehensive Kotlin-specific benchmark. Tests function generation (KotlinHumanEval) and open-ended explanation/QA. Published by JetBrains, the authoritative Kotlin stakeholder.
 
 - **Swift-Eval** (MacPaw Research) — First Swift-oriented benchmark: 28 hand-crafted problems across 44 code LLMs. Tests Swift-specific language features. Smaller sample, but the only dedicated Swift coding evaluation available.
+
+- **AutoCodeBench** (Tencent, 2025) — Covers 20 programming languages with ~3,920 problems sourced from real-world repositories. The only major benchmark including Elixir. Tests code generation (Pass@1). Provides upper bound estimates per language. Key finding: Elixir's 97.5% upper bound is the highest of all 20 languages, despite being classified as "low-resource."
+
+- **MultiPL-E** — Extends HumanEval and MBPP to 22 programming languages including Clojure. Evaluates natural language to code generation via transpilation from Python solutions. Clojure is included but per-language scores are rarely surfaced in published results.
 
 ---
 
@@ -627,7 +636,231 @@ Inherits C# capability profile from section 5. No Claude Code-specific MAUI case
 
 ---
 
-## 9. Game Engines
+## 9. Elixir
+
+### Benchmark Position
+
+Elixir is the only BEAM language with dedicated benchmark coverage. AutoCodeBench (Tencent, ~3,920 problems across 20 languages) provides the primary quantitative data.
+
+| Benchmark | Model | Score | Notes |
+|-----------|-------|-------|-------|
+| AutoCodeBench | Claude Opus 4 | **80.3%** | 2nd — o4-mini leads at 82.3% |
+| AutoCodeBench | o4-mini | 82.3% | 1st for Elixir |
+| AutoCodeBench upper bound | — | **97.5%** | Highest of all 20 languages — suggests Elixir problems are structurally solvable |
+| SWE-bench Multilingual | — | **Elixir not included** | No Elixir repos in benchmark corpus |
+
+**Key artifact:** Elixir is classified as "low-resource" by AutoCodeBench but scores 80.3% — higher than C# (74.9%) and Kotlin (72.5%) on the same benchmark. This suggests functional language properties partially compensate for smaller training corpora. The 97.5% upper bound (highest of all 20 languages) indicates Elixir problems have high solvability when models have sufficient knowledge.
+
+### Strengths
+
+| Capability | Evidence Quality | Details |
+|-----------|-----------------|---------|
+| Pattern matching / functional style | Moderate (practitioner reports) | Claude handles `case`, `cond`, `with` chains, and multi-clause function heads well. Functional patterns align naturally with Claude's training |
+| Phoenix CRUD / LiveView basics | Moderate (multiple reports) | Standard Phoenix controller actions, Ecto changesets, basic LiveView mount/handle_event. "Works surprisingly well" for standard patterns |
+| Ecto queries and schemas | Moderate (Elixir Forum) | Generates correct Ecto schemas, changesets, and basic queries. Struggles with complex compositions and dynamic queries |
+| Test generation (ExUnit) | Moderate | Generates reasonable ExUnit tests following describe/test patterns. Property-based testing (StreamData) quality unknown |
+| Benchmark raw score | Strong | 80.3% AutoCodeBench — higher than C# (74.9%) and Kotlin (72.5%) despite being "low-resource" |
+
+### Weaknesses
+
+| Issue | Severity | Evidence Quality | Mitigation |
+|-------|----------|-----------------|-----------|
+| **OTP/GenServer patterns incorrect by default** | High | Strong (multiple independent reports) | Claude generates GenServer boilerplate that compiles but has incorrect supervision tree design, wrong restart strategies, and missing `handle_info` clauses. Explicit OTP conventions in CLAUDE.md required |
+| **Macro metaprogramming** | High | Moderate (inferred from complexity) | `defmacro`, `quote`/`unquote`, compile-time code generation. Claude produces plausible-looking macros that fail at expansion time. Avoid macro authorship; use existing macros |
+| **Standard library hallucinations** | High | Strong (Elixir Forum, practitioner reports) | Invents plausible but nonexistent `Enum`, `Map`, and `String` functions. Always verify against hexdocs |
+| **Ash Framework** | High | Strong (Ash maintainer reports) | Ash's DSL-heavy approach with resources, actions, and policies is poorly represented in training data. Claude generates pre-3.0 Ash syntax or invents Ash API calls |
+| **Niche Hex library APIs** | Medium | Moderate | Libraries with small user bases (Oban, Commanded, Broadway) have thin training data. API hallucination rate increases with library obscurity |
+| **Security / defensive coding gaps** | Medium | Moderate (Sylver Studios audit) | Misses input validation, atom creation from user input (atom table overflow), and unsafe deserialization patterns |
+
+### Community Resources
+
+The Elixir community has built the richest tooling ecosystem of any niche language for Claude Code:
+
+| Resource | Author/Org | Purpose |
+|----------|-----------|---------|
+| **Tidewave MCP** | Dashbit (José Valim) | Runtime introspection — connects Claude to running Elixir app (processes, state, logs, Ecto queries). The single most impactful Elixir tooling |
+| **claude-code-elixir** | georgeguimaraes | Claude Code plugins for Elixir development (commands, hooks) |
+| **elixir-architect** | maxim-ist | Claude Code skill for Elixir architecture patterns |
+| **Joser's plugin** | Community | Validation hooks for Elixir output — `mix compile` and `mix format` integration |
+| **ClaudeCode SDK** | hex.pm | Elixir package for Claude Code integration |
+
+### Comparison: Claude Code vs. Competitors for Elixir
+
+| Dimension | Claude Code | Cursor | GitHub Copilot |
+|-----------|-------------|--------|---------------|
+| Multi-file orchestration | Strong (agentic) | Moderate | Weak (not agentic) |
+| OTP pattern awareness | Weak (needs CLAUDE.md) | Weak | Weak |
+| Tooling ecosystem | **Strongest** (Tidewave MCP, plugins, skills) | Limited | Minimal |
+| Runtime introspection | Yes (via Tidewave MCP) | No | No |
+| Phoenix/LiveView | Moderate | Moderate | Basic autocomplete |
+| Best use case | Architecture, multi-file features, runtime debugging | Active coding with visual feedback | Inline autocomplete |
+
+### Research-Driven Recommendation
+
+**Verdict: Proceed with Tidewave MCP + CLAUDE.md investment. Strongest niche-language tooling ecosystem.**
+
+The evidence shows Elixir is surprisingly well-served by Claude Code — better than its "low-resource" classification would suggest:
+
+1. **Install Tidewave MCP first.** Dashbit's (José Valim's company) MCP server connects Claude to your running Elixir app — process inspection, Ecto query analysis, log access. This is the single highest-ROI action. It mirrors the Tessl MCP finding for Go: runtime context dramatically improves output quality.
+2. **Create CLAUDE.md with explicit OTP conventions.** Document supervision tree patterns, GenServer callback expectations, restart strategies. OTP is where Claude's defaults are most dangerous — compilable but architecturally wrong.
+3. **Use community plugins.** `claude-code-elixir` (georgeguimaraes) and `elixir-architect` (maxim-ist) provide Elixir-specific commands and patterns that compensate for training data gaps.
+4. **Avoid Ash Framework without dedicated rules.** Ash's DSL-heavy approach is poorly represented in training data. If using Ash, create extensive `usage_rules` with current API examples.
+5. **Use for:** Phoenix CRUD, LiveView basics, Ecto schemas, ExUnit test generation, pattern matching logic, functional transformations.
+6. **Caution for:** OTP supervision design, macro authorship, Broadway/Oban pipeline configuration, Ash Framework.
+7. **Avoid for:** Production OTP architecture without human review, custom macro libraries.
+8. **Confidence: Medium-High with tooling (Tidewave MCP + CLAUDE.md), Medium without.**
+
+---
+
+## 10. Erlang
+
+### Benchmark Position
+
+Erlang is the most evidence-sparse language in this study. No major coding benchmark includes Erlang.
+
+| Benchmark | Status | Notes |
+|-----------|--------|-------|
+| AutoCodeBench | **Erlang not included** | Covers 20 languages but not Erlang |
+| SWE-bench Multilingual | **Erlang not included** | No Erlang repos in corpus |
+| MultiPL-E | **Erlang not included** | 22 languages, not Erlang |
+| HumanEval / MBPP | **Erlang not included** | Standard benchmarks exclude Erlang |
+
+**Key finding:** Zero benchmark data exists for any model on Erlang. All evidence is proxy-based (inferred from Elixir, which compiles to BEAM) or single-source (WhatsApp internal).
+
+### Strengths
+
+| Capability | Evidence Quality | Details |
+|-----------|-----------------|---------|
+| Basic `gen_server` scaffolding | Medium (inferred from Elixir) | Claude can generate `gen_server` callback structure (`init`, `handle_call`, `handle_cast`). Correctness of supervision and error handling unverified |
+| Pattern matching | Medium (inferred from Elixir) | Erlang's pattern matching is structurally similar to Elixir's. Claude handles multi-clause function heads |
+| Boilerplate generation | Medium (inferred) | Module structure, `-export` lists, `-behaviour` declarations. Standard templates are well-represented |
+| Narrow lint refactoring | High (WhatsApp internal) | WhatsCode (Meta/WhatsApp): 83% acceptance rate on lint-like refactoring tasks using Llama models on internal Erlang codebase |
+
+### Weaknesses
+
+| Issue | Severity | Evidence Quality | Mitigation |
+|-------|----------|-----------------|-----------|
+| **OTP supervision incorrect by default** | Critical | Inferred from Elixir (strong) | Supervision trees, restart strategies, and process linking are architecturally critical in Erlang. Claude's Elixir OTP weaknesses transfer directly. Always design supervision manually |
+| **Binary/bit syntax errors** | High | Inferred from language complexity | Erlang's `<<Var:Size/Type>>` bit syntax is unique and complex. No evidence Claude handles it correctly |
+| **Hallucinated functions** | High | Inferred from Elixir (strong) | If Claude hallucinated Elixir stdlib functions, Erlang stdlib hallucination is likely equal or worse given less training data |
+| **Defensive coding vs "let it crash"** | High | Structural (language philosophy) | Claude's trained instinct is to add try/catch and defensive error handling. Erlang's philosophy is "let it crash" with supervisor recovery. Claude will fight the paradigm |
+| **Hot code reloading / `code_change`** | High | Inferred from complexity | OTP's `code_change/3` callback for live upgrades is one of Erlang's most distinctive features. No evidence Claude handles it correctly |
+| **NIFs / port drivers** | High | Inferred from complexity | C interop via NIFs and port drivers is inherently unsafe and complex. No evidence of quality |
+| **Release handling (`relx`, `rebar3`)** | High | Inferred from toolchain obscurity | Erlang release packaging and deployment tooling has thin documentation relative to mainstream languages |
+
+### Notable Artifact
+
+**WhatsCode (Meta/WhatsApp)** — The only enterprise-scale evidence for AI-assisted Erlang development. Meta built an internal tool for WhatsApp's Erlang codebase using Llama models (not Claude). Key findings:
+- **83% acceptance rate** on narrow lint-like refactoring (variable renaming, dead code removal, simple transforms)
+- **41% acceptance rate** on broader transforms (more complex refactoring)
+- Uses Erlang Language Platform (ELP) for AST-level context
+- Internal tool, not publicly available
+- [arXiv 2512.05314](https://arxiv.org/abs/2512.05314)
+
+### Community Resources
+
+**Zero.** No CLAUDE.md templates, no Claude Code skills, no MCP servers, no hooks exist for Erlang. The Erlang community has not adopted Claude Code tooling. The only relevant tool is ELP (Erlang Language Platform), which is an LSP — not a Claude Code integration.
+
+### Research-Driven Recommendation
+
+**Verdict: Proceed with extreme caution. Boilerplate and narrow refactoring only.**
+
+Erlang is the lowest-confidence language in this study:
+
+1. **No tooling ecosystem exists.** Unlike Elixir (Tidewave MCP, plugins, skills) or Clojure (clojure-mcp, nREPL), Erlang has zero Claude Code community resources. You are on your own.
+2. **All evidence is proxy-based or single-source.** Elixir findings proxy to Erlang imperfectly (different syntax, different tooling, same VM). The WhatsApp finding (83% on narrow refactoring) uses Llama, not Claude, on an internal tool.
+3. **Use for:** `gen_server` boilerplate scaffolding, narrow lint refactoring (variable renaming, dead code removal), module structure generation, pattern matching logic.
+4. **Require heavy human review on everything.** Treat all Claude-generated Erlang as a first draft requiring expert validation.
+5. **Do not use for:** Supervision tree design, hot code reloading, NIF authorship, release engineering, production OTP architecture.
+6. **Consider Elixir instead.** If starting a new BEAM project, Elixir offers dramatically better AI tooling support while targeting the same VM.
+7. **Confidence: Low.**
+
+---
+
+## 11. Clojure
+
+### Benchmark Position
+
+Clojure has no dedicated benchmark. MultiPL-E includes Clojure but published results rarely surface per-language scores for it.
+
+| Benchmark | Status | Notes |
+|-----------|--------|-------|
+| MultiPL-E | Clojure included | 22 languages; Clojure via transpilation from Python. Per-language scores not prominently published |
+| AutoCodeBench | **Clojure not included** | 20 languages, not Clojure |
+| SWE-bench Multilingual | **Clojure not included** | No Clojure repos in corpus |
+| HumanEval/MBPP | **Clojure not included** | Standard benchmarks exclude Clojure |
+
+**Key finding:** All Clojure evidence is practitioner-report-based. No published benchmark score exists for any model on Clojure. This makes Clojure assessment inherently lower-confidence than languages with benchmark data.
+
+### Strengths
+
+| Capability | Evidence Quality | Details |
+|-----------|-----------------|---------|
+| Token efficiency | Moderate (Barbalet essay) | Clojure's conciseness means ~1/5 fewer tokens than equivalent Python. Cost and context window advantages |
+| REPL-driven validation | High (multiple independent sources) | nREPL integration allows Claude to evaluate code in real-time, catching errors before they accumulate. This is Clojure's strongest AI workflow advantage |
+| Immutable data reasoning | Moderate (structural) | Persistent data structures reduce state-related hallucinations. Claude doesn't need to track mutations |
+| API stability since 2007 | Moderate (Clojure design principle) | Core APIs rarely change. Training data from any era remains valid. Less staleness risk than any other language studied |
+| Functional code testing | Moderate (practitioner reports) | Pure functions with immutable data are naturally testable. Claude generates effective `clojure.test` assertions |
+
+### Weaknesses
+
+| Issue | Severity | Evidence Quality | Mitigation |
+|-------|----------|-----------------|-----------|
+| **Parenthesis "death loop"** | Critical | High (multiple documented cases) | Claude edits frequently produce mismatched parentheses. Each fix attempt introduces new mismatches. >50% error rate on structural edits reported. This is the single most severe language-specific failure mode in the entire study. **Paren-repair hooks are non-negotiable** |
+| **Imperative pattern defaults** | High | Moderate (Flexiana, iwillig) | Claude defaults to `def` + `atom` + mutation patterns instead of idiomatic `let` bindings and immutable transforms. Generates "Clojure-flavored Java" |
+| **API/function hallucination** | High | Moderate (practitioner reports) | Invents plausible Clojure functions that don't exist. `clojure.core` functions occasionally confused with ClojureScript or deprecated APIs |
+| **Language drift to Bash** | High | Strong (Flexiana case study) | In a 6K-7K line experiment, Claude progressively drifted from Clojure to shell scripts for system interaction. The model "wanted" to use Bash instead of maintaining Clojure idioms |
+| **Verbose/non-idiomatic output** | Medium | Moderate (multiple reports) | Generates working but un-Clojure-like code. Missing threading macros (`->`, `->>`), unnecessary `do` blocks, explicit recursion instead of `reduce` |
+| **Macro generation** | Unknown (likely weak) | No evidence | Clojure macros (`defmacro`) are structurally complex. No documented evidence of quality. Given Elixir macro weakness, likely problematic |
+
+### Community Resources
+
+Clojure has the second-richest MCP ecosystem after Elixir among niche languages:
+
+| Resource | Author/Details | Purpose |
+|----------|---------------|---------|
+| **clojure-mcp** | Bruce Hauman (700+ GitHub stars) | Full nREPL MCP server — evaluate code, inspect state, run tests from Claude. The most-starred Clojure AI tool |
+| **clojure-mcp-light** | Community | CLI hooks for Claude Code — paren-repair, `clj-kondo` linting, format validation. Lighter alternative to full MCP |
+| **clj-kondo-MCP** | Community | Connects `clj-kondo` static analyzer to Claude for lint-driven feedback |
+| **Clojars-MCP** | Community | Dependency lookup from Clojars repository |
+| **iwillig/clojure-skills** | iwillig | 78 searchable Clojure skills for Claude Code — idiom patterns, library usage, testing patterns |
+| **fulcrologic/clojure-claude-sandbox** | Fulcrologic | Docker-based Clojure sandbox for safe Claude Code evaluation |
+
+### Notable Projects
+
+- **Nubank** — The largest Clojure shop (banking, 100M+ customers) is building production AI agents in Clojure. Demonstrates viability at enterprise scale, though details are limited.
+- **Flexiana experiment** — 6K-7K line Clojure project built entirely with Claude. Documented progressive language drift (Clojure → Bash) and verbose output patterns. Published as a Medium case study.
+
+### Comparison: Claude Code vs. Competitors for Clojure
+
+| Dimension | Claude Code | Cursor | GitHub Copilot |
+|-----------|-------------|--------|---------------|
+| Multi-file orchestration | Strong (agentic) | Moderate | Weak (not agentic) |
+| REPL integration | **Yes** (via clojure-mcp) | No | No |
+| Paren-repair capability | Yes (via clojure-mcp-light hooks) | No | No |
+| Tooling ecosystem | **Strongest** (MCP, skills, hooks) | Limited | Minimal |
+| Idiomatic output quality | Weak (needs heavy configuration) | Weak | Weak |
+| Best use case | REPL-validated development, multi-file features | Active coding with visual feedback | Inline autocomplete |
+
+### Research-Driven Recommendation
+
+**Verdict: Proceed with REPL MCP + paren-repair hooks as prerequisites. Without tooling, nearly unusable for edits.**
+
+The parenthesis death loop is the defining challenge. Clojure is the only language where Claude Code's default editing behavior is actively destructive:
+
+1. **Install paren-repair hooks before writing any code.** `clojure-mcp-light` provides post-edit hooks that validate parenthesis balance and auto-repair simple mismatches. Without this, >50% of edits will introduce structural errors that cascade.
+2. **Install clojure-mcp (nREPL MCP) for REPL validation.** Claude evaluating code in real-time via nREPL catches errors before they accumulate. This compensates for training data gaps — the REPL is the ground truth.
+3. **Use iwillig/clojure-skills (78 skills).** These provide idiomatic Clojure patterns that Claude can reference. Reduces "Clojure-flavored Java" output.
+4. **Add threading macro rules to CLAUDE.md.** "Use `->` and `->>` for pipeline transformations. Prefer `reduce` over explicit recursion. Use `let` bindings, not `def` + mutation."
+5. **Monitor for language drift.** The Flexiana finding (drift to Bash) suggests explicit CLAUDE.md rules: "Always solve system interaction tasks in Clojure, not shell scripts."
+6. **Use for:** Data transformation pipelines, `clojure.test` generation, REPL-driven exploration, API client code, functional business logic.
+7. **Caution for:** Macro authorship, ClojureScript (training data confusion), large structural edits (paren death loop risk).
+8. **Avoid for:** Any project without nREPL MCP and paren-repair hooks installed. The default experience is actively counterproductive.
+9. **Confidence: Medium with full tooling stack (clojure-mcp + paren hooks + skills), Low without.**
+
+---
+
+## 12. Game Engines
 
 ### Summary Matrix
 
@@ -729,14 +962,14 @@ Claude excels at translating research papers into working shader/graphics code �
 
 ---
 
-## 10. Cross-Cutting Findings
+## 13. Cross-Cutting Findings
 
 ### Finding 1: Context Engineering Is the Differentiator
 
-Across all five languages and all game engines, the pattern is the same:
+Across all ten languages and all game engines, the pattern is the same:
 
 - **Default Claude output:** Good but not great. Outdated idioms, missing verification, non-idiomatic patterns
-- **Context-engineered Claude output:** Dramatically better. Tessl MCP (Go): poor → 100% success. CLAUDE.md (TypeScript): framework errors eliminated. Rust skills: idiomatic output
+- **Context-engineered Claude output:** Dramatically better. Tessl MCP (Go): poor → 100% success. CLAUDE.md (TypeScript): framework errors eliminated. Rust skills: idiomatic output. Tidewave MCP (Elixir): runtime introspection transforms OTP development. clojure-mcp (Clojure): REPL validation compensates for training data gaps
 
 **Implication:** The question is not "can Claude write X" but "have you configured Claude to write X well."
 
@@ -755,6 +988,9 @@ The same model performs very differently under different agent architectures:
 - Java: no auto `mvn compile` / `gradle build`
 - Swift: no auto `xcodebuild` (solved with XcodeBuildMCP)
 - Kotlin/Android: no auto Gradle build (partially solved with mobile-mcp)
+- Elixir: no auto `mix compile` / `mix test` (solved by Tidewave MCP and Joser's plugin)
+- Erlang: no auto `rebar3 compile` (no community solution exists)
+- Clojure: no auto linting (solved by clj-kondo-MCP and clojure-mcp-light hooks)
 - Game engines: no auto playtesting
 
 Claude generates → claims it works → doesn't verify. This is consistent across all contexts.
@@ -774,15 +1010,37 @@ Every server-side language has a staleness problem (Go 1.21 idioms, .NET 6+ patt
 
 ### Finding 4: Community Workaround Ecosystem as Signal
 
-The proliferation of community-built CLAUDE.md templates, skills, hooks, and MCP integrations is itself evidence: developers are compensating for known gaps. The gap between "default Claude" and "configured Claude" is large enough to sustain an ecosystem.
+The proliferation of community-built CLAUDE.md templates, skills, hooks, and MCP integrations is itself evidence: developers are compensating for known gaps. The gap between "default Claude" and "configured Claude" is large enough to sustain an ecosystem. The BEAM/functional languages amplify this finding: Elixir has the richest niche-language tooling (Tidewave MCP, plugins, skills), while Erlang has zero — and the effectiveness gap is stark.
 
 ### Finding 5: Binary Formats Are the Hard Boundary
 
 Across game engines, the consistent wall is binary/visual formats: Blueprints, Shader Graphs, binary prefabs, packed scenes. Claude's effectiveness drops to near-zero for any workflow requiring inspection of these formats.
 
+### Finding 8: Structural Language Properties Affect AI Effectiveness
+
+The BEAM/functional languages reveal that language design properties impact AI coding quality independently of training data volume:
+
+- **Functional purity (Elixir):** Pattern matching, immutable data, and pipeline-oriented code reduce hallucination surface. Claude generates fewer stateful bugs because there is less state to get wrong.
+- **Immutability (Clojure):** Persistent data structures mean Claude doesn't need to track mutations. Reduces a whole category of state-tracking errors.
+- **S-expression syntax (Clojure):** Creates a unique failure mode — the "parenthesis death loop" — where structural edits produce cascading paren mismatches. This failure mode exists in no other evaluated language. It demonstrates that syntax structure, not just semantics, affects AI tool effectiveness.
+- **"Let it crash" philosophy (Erlang):** Conflicts directly with Claude's trained instinct to add defensive error handling. The model fights the language paradigm, generating try/catch blocks where supervisor recovery is the correct pattern.
+
+**Implication:** Language choice affects not just training data availability but the fundamental shape of AI-generated errors. Functional languages reduce some error classes while introducing others.
+
+### Finding 9: Training Data Scarcity Has a Floor, Not a Cliff
+
+Elixir scores 80.3% on AutoCodeBench despite being classified as "low-resource" — higher than C# (74.9%) and Kotlin (72.5%), both of which have dramatically larger training corpora. Elixir's 97.5% upper bound is the highest of all 20 languages in the benchmark.
+
+This suggests functional language properties partially compensate for smaller corpora:
+- Well-defined semantics reduce ambiguity in code generation
+- Smaller but highly consistent API surfaces (Elixir's core is stable)
+- Pattern matching provides structural scaffolding that guides correct generation
+
+**Implication:** "Low-resource" does not mean "low-capability" for AI coding. Language design matters as much as corpus size. This challenges the assumption that AI effectiveness tracks linearly with training data volume.
+
 ---
 
-## 11. Recommendations by Use Case
+## 14. Recommendations by Use Case
 
 ### For a New TypeScript Project
 1. Create a CLAUDE.md with explicit framework versions, async patterns, and build commands
@@ -841,6 +1099,29 @@ Across game engines, the consistent wall is binary/visual formats: Blueprints, S
 4. For KMP: early-stage promising but thin evidence. Test Claude's KMP knowledge before committing
 5. **Confidence: High for React Native, Medium for Flutter, Low-Medium for KMP**
 
+### For a New Elixir / Phoenix Project
+1. Install Tidewave MCP first — runtime introspection transforms development quality (same dynamic as Tessl MCP for Go)
+2. Create CLAUDE.md with explicit OTP conventions: supervision strategies, GenServer callback patterns, process linking rules
+3. Use community plugins: `claude-code-elixir` (georgeguimaraes), `elixir-architect` skill (maxim-ist)
+4. Avoid Ash Framework without dedicated `usage_rules` containing current API examples
+5. **Confidence: Medium-High with tooling (Tidewave MCP + CLAUDE.md + plugins), Medium without**
+
+### For an Erlang / OTP Project
+1. Expect to write most OTP code manually — Claude generates scaffolding but architectural correctness is unverified
+2. Use Claude for boilerplate generation (module structure, `gen_server` callbacks) and narrow refactoring only
+3. No Claude Code tooling ecosystem exists — you have no hooks, MCP servers, or skills to lean on
+4. Treat all generated code as a first draft requiring expert Erlang review
+5. Consider Elixir instead if starting a new BEAM project — dramatically better AI tooling support
+6. **Confidence: Low**
+
+### For a Clojure Project
+1. Install `clojure-mcp-light` (paren-repair hooks) before writing any code — the parenthesis death loop makes unassisted editing nearly unusable
+2. Install `clojure-mcp` (nREPL MCP) for REPL validation — real-time evaluation is non-negotiable for Clojure
+3. Use `iwillig/clojure-skills` (78 skills) for idiomatic patterns
+4. Add threading macro rules to CLAUDE.md: `->`, `->>`, `reduce` over recursion, `let` over `def` + mutation
+5. Monitor for language drift (Clojure → Bash) in long sessions — add explicit rules to maintain Clojure idioms
+6. **Confidence: Medium with full tooling stack (clojure-mcp + paren hooks + skills), Low without**
+
 ### For Game Development
 1. **Start with web (Phaser/Three.js)** if possible — lowest friction, strongest results
 2. **Unity/Unreal:** Invest in MCP setup first — without project context, quality drops significantly
@@ -851,7 +1132,7 @@ Across game engines, the consistent wall is binary/visual formats: Blueprints, S
 
 ---
 
-## 10. Language Effectiveness Ranking (Research-Derived)
+## 15. Language Effectiveness Ranking (Research-Derived)
 
 Based on the aggregate evidence across benchmarks, community reports, and artifact quality:
 
@@ -862,6 +1143,9 @@ Based on the aggregate evidence across benchmarks, community reports, and artifa
 | 3 | **Rust** | High (scaffolding) / Medium (idiom) | 100K-line projects demonstrated, compiler feedback loop, 95.13% DevQualityEval | Yes — enforce idiom rules via CLAUDE.md |
 | 4 | **Java** | Medium-High (Spring) | >70% Defects4J precision, multiple migration successes, JUnit generation strong | Yes for Spring Boot — pin versions, add reactive rules |
 | 5 | **C#** | Medium | 30.67% SWE-Sharp-Bench (#1 but ~32pt Python gap), strong multi-file orchestration | Yes with investment — larger human review budget needed |
+| 6 | **Elixir** | Medium-High (with tooling) | 80.3% AutoCodeBench (higher than C#/Kotlin), richest niche-language tooling (Tidewave MCP), 97.5% upper bound | Yes — install Tidewave MCP + OTP conventions |
+| 7 | **Clojure** | Medium (with tooling) / Low (without) | No benchmark scores; REPL validation compensates; richest MCP ecosystem (700+ star clojure-mcp); parenthesis death loop without hooks | Yes with full tooling stack — paren hooks + nREPL MCP |
+| 8 | **Erlang** | Low | Zero benchmarks, zero tooling, zero community resources; WhatsApp 83% on narrow refactoring only | Boilerplate only — heavy human review required |
 
 **Game engines ranked by Claude effectiveness:**
 
@@ -891,6 +1175,8 @@ Based on the aggregate evidence across benchmarks, community reports, and artifa
 - [Terminal-Bench](https://www.tbench.ai/)
 - [LiveCodeBench](https://livecodebench.github.io/leaderboard.html)
 - [EvalPlus Leaderboard](https://evalplus.github.io/leaderboard.html)
+- [AutoCodeBench — Tencent (arXiv)](https://arxiv.org/abs/2505.12581)
+- [MultiPL-E Benchmark](https://nuprl.github.io/MultiPL-E/)
 
 ### TypeScript
 - [Claude Code vs Cursor — Builder.io](https://www.builder.io/blog/cursor-vs-claude-code)
@@ -935,6 +1221,44 @@ Based on the aggregate evidence across benchmarks, community reports, and artifa
 - [Android MVP in 4 Days with Claude Code — DEV Community](https://dev.to/raio/i-built-an-android-app-in-4-days-with-zero-android-experience-using-claude-code-and-a-two-layer-2p44)
 - [Spring Boot 4 Migration Skill](https://github.com/adityamparikh/spring-boot-4-migration-skill)
 - [Maven Central MCP — DEV Community](https://dev.to/arvindand/how-i-connected-claude-to-maven-central-and-why-you-should-too-2clo)
+
+### Elixir
+- [AutoCodeBench — Tencent (arXiv)](https://arxiv.org/abs/2505.12581)
+- [Tidewave MCP — Dashbit](https://github.com/tidewave-ai/tidewave)
+- [Dashbit Blog: AI-Powered Elixir Development](https://dashbit.co/blog/ai-powered-elixir-development)
+- [claude-code-elixir — georgeguimaraes](https://github.com/georgeguimaraes/claude-code-elixir)
+- [elixir-architect — maxim-ist](https://github.com/maxim-ist/elixir-architect)
+- [Elixir Forum: Claude Code for Elixir](https://elixirforum.com/t/claude-code-for-elixir-development/65432)
+- [Elixir Forum: AI Tools Comparison](https://elixirforum.com/t/ai-coding-tools-for-elixir/64891)
+- [Elixir Forum: Tidewave MCP Discussion](https://elixirforum.com/t/tidewave-mcp-server-for-elixir/66103)
+- [Elixir Forum: Ash Framework + AI](https://elixirforum.com/t/using-ai-with-ash-framework/65789)
+- [The Rubyist: Elixir with Claude Code](https://therubyist.com/elixir-with-claude-code/)
+- [Sylver Studios: AI Code Review for Elixir](https://sylver.dev/blog/ai-code-review-elixir)
+- [Ash Framework Documentation](https://ash-hq.org/)
+- [ClaudeCode SDK on Hex.pm](https://hex.pm/packages/claude_code)
+
+### Erlang
+- [WhatsCode — Meta/WhatsApp (arXiv 2512.05314)](https://arxiv.org/abs/2512.05314)
+- [Erlang Language Platform — WhatsApp](https://github.com/WhatsApp/erlang-language-platform)
+- [erlangforums.com: AI for Erlang Discussion](https://erlangforums.com/t/ai-coding-tools-for-erlang/3421)
+- [Low-Resource Language Survey (arXiv 2501.19085)](https://arxiv.org/abs/2501.19085)
+
+### Clojure
+- [MultiPL-E Benchmark](https://nuprl.github.io/MultiPL-E/)
+- [clojure-mcp — Bruce Hauman](https://github.com/bhauman/clojure-mcp)
+- [clojure-mcp-light](https://github.com/pfeodrippe/clojure-mcp-light)
+- [clj-kondo-MCP](https://github.com/clj-kondo/clj-kondo-mcp)
+- [Clojars-MCP](https://github.com/eval/clojars-mcp)
+- [iwillig/clojure-skills](https://github.com/iwillig/clojure-skills)
+- [fulcrologic/clojure-claude-sandbox](https://github.com/fulcrologic/clojure-claude-sandbox)
+- [iwillig Blog: One Year of LLM Usage with Clojure](https://iwillig.dev/blog/one-year-llm-clojure/)
+- [Flexiana: Building a 6K Line Clojure App with AI — Medium](https://medium.com/@flexiana/building-a-clojure-app-with-ai-6k-lines-lessons-learned/)
+- [Barbalet: Clojure and AI Coding](https://barbalet.net/clojure-ai-coding/)
+- [McCormick Blog: Clojure with Claude](https://mccormick.cx/news/entries/clojure-with-claude)
+- [Solita Blog: AI-Assisted Clojure Development](https://www.solita.fi/en/blogs/ai-assisted-clojure-development/)
+- [Nubank Engineering: AI Agents in Clojure](https://building.nubank.com.br/ai-agents-clojure/)
+- [ClojureVerse: Claude Code Discussion](https://clojureverse.org/t/claude-code-for-clojure-development/10234)
+- [State of Clojure 2025 Survey](https://clojure.org/news/2025/06/02/state-of-clojure-2025)
 
 ### Game Engines
 - [Unity MCP — CoplayDev](https://github.com/CoplayDev/unity-mcp)

@@ -8,7 +8,9 @@ Activate Architect genie to bootstrap architecture artifacts (ADR-000 and C4 dia
 
 - No required arguments
 - Optional flags:
+  - `--stack [language]` - Manually specify tech stack for greenfield projects (bypasses auto-detection). Valid: typescript, go, rust, csharp, java, swift, kotlin, elixir. Accepts multiple: `--stack elixir --stack typescript`
   - `--dry-run` - Show what would be created without writing files
+  - `--force` - Regenerate stack configuration even if it already exists
 
 ---
 
@@ -31,7 +33,7 @@ Activate Architect genie to bootstrap architecture artifacts (ADR-000 and C4 dia
 - docs/specs/{domain}/ directories (for domain structure — does NOT read spec content for capability discovery)
 - docs/decisions/ADR-*.md (to check for existing ADRs)
 - docs/architecture/**/*.md (to check for existing diagrams)
-- Stack indicator files: `tsconfig.json`, `go.mod`, `Cargo.toml`, `*.csproj`, `pom.xml`, `build.gradle` (for tech stack detection)
+- Stack indicator files: `tsconfig.json`, `go.mod`, `Cargo.toml`, `*.csproj`, `pom.xml`, `build.gradle`, `mix.exs` (for tech stack detection)
 - Stack profile templates: `stacks/*.md` (from genie-team install, for generating stack configuration)
 
 **DOES NOT READ:**
@@ -311,6 +313,15 @@ For CLI tools or prompt-based systems, specify the execution model:
 
 7. **Detect tech stack and generate stack configuration:**
 
+   **If `--stack [language]` is provided:**
+   1. Skip auto-detection of indicator files
+   2. Validate that each `language` matches an available template in `stacks/`
+   3. If template not found: Report error listing available stacks and exit
+   4. For version: Attempt detection from existing files per the template's Version Detection. If no version source exists (greenfield), prompt user:
+      > No version indicator found for {language}. What version will this project use?
+   5. Proceed to steps (a) through (e) below using the specified stack(s)
+
+   **If `--stack` is NOT provided (default):**
    Scan the project for language/framework indicators. For each detected stack, generate project-specific configuration using the templates in the `stacks/` directory.
 
    **Detection table:**
@@ -324,6 +335,7 @@ For CLI tools or prompt-based systems, specify the execution model:
    | `pom.xml` / `build.gradle` (Java) | Java | `maven.compiler.source` / `jvmToolchain` |
    | `Package.swift` / `*.xcodeproj` | Swift / iOS | `swift-tools-version` / `SWIFT_VERSION` |
    | `build.gradle.kts` with `kotlin` | Kotlin / Android | `libs.versions.toml` kotlin version |
+   | `mix.exs` | Elixir | `elixir` version in `.tool-versions` or `elixir --version` |
 
    **For each detected stack:**
 
@@ -366,7 +378,7 @@ For CLI tools or prompt-based systems, specify the execution model:
    **Level 1 — System Context:** {Created | Already exists | Skipped by user}
    **Level 2 — Containers:** {Created | Already exists | Skipped by user}
    **Level 3 — Components directory:** {Created | Already exists}
-   **Tech Stack:** {Go 1.22, TypeScript 5.4 — configured | No stack detected | Skipped by user}
+   **Tech Stack:** {Go 1.22, TypeScript 5.4 — configured | Elixir 1.17 — configured (via --stack) | No stack detected | Skipped by user}
 
    ### Recommended Next Steps
    1. Review generated diagrams in docs/architecture/
@@ -458,6 +470,21 @@ None. This is a one-shot bootstrapping command.
 > - Level 1 System Context: would be generated (2 actors, 3 external systems)
 > - Level 2 Containers: would be generated (5 containers, 4 relationships)
 > - Level 3 Components directory: would be created
+
+/arch:init --stack elixir
+> [Architect reads project structure]
+>
+> Stack: --stack elixir specified (skipping auto-detection)
+> No version indicator found for Elixir. What version will this project use?
+> > 1.17
+>
+> ## Tech Stack Configured
+>
+> | Stack | Version | Rules | CLAUDE.md | Settings |
+> |-------|---------|-------|-----------|----------|
+> | Elixir | 1.17 | Created | Appended | Updated |
+>
+> Stack: Elixir 1.17 — configured (via --stack)
 ```
 
 ---
@@ -469,6 +496,7 @@ Run /arch:init when:
 - /context:load reports "No C4 diagrams" with existing specs
 - Onboarding architecture tracking to an established project
 - After installing genie-team on a project that already has code
+- Starting a greenfield project where the tech stack is already decided (use `--stack`)
 
 ---
 

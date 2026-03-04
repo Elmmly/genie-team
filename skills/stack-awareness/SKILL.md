@@ -41,6 +41,7 @@ stacks/                              # Shipped with genie-team
   rust.md                            # Rust profile template
   csharp.md                          # C# / .NET profile template
   java.md                            # Java profile template
+  elixir.md                          # Elixir profile template
 ```
 
 ## When Active
@@ -68,22 +69,28 @@ All commands that reference stack profiles follow this pattern:
 
 **Key principle:** Stack is opt-in, like brand-awareness. Not every project needs language-specific rules (e.g., genie-team itself is a prompt engineering project with no application code).
 
+**Greenfield projects:** When no code exists yet, stack configuration can be set two ways:
+1. Directly: `/arch:init --stack elixir` (team knows the stack)
+2. Via workshop: `/design --workshop` Phase 2 surfaces "Which tech stack?" when no indicators or profiles exist, then routes to `/arch:init --stack {lang}`
+
 ### During /arch:init (Primary — generation)
 
 Detects tech stack and generates configuration after C4 diagrams:
 
-1. Scan project root for stack indicator files:
+1. If `--stack [language]` flag is provided: Use the specified stack(s) — skip indicator scanning. Validate against available templates in `stacks/`. If no version source exists (greenfield), prompt user for version.
+2. If no `--stack` flag: Scan project root for stack indicator files:
    - `tsconfig.json` → TypeScript
    - `go.mod` → Go
    - `Cargo.toml` → Rust
    - `*.csproj` / `*.sln` → C# / .NET
    - `pom.xml` / `build.gradle` → Java
-2. For each detected stack, read the corresponding template from `stacks/{language}.md`
-3. Generate `.claude/rules/stack-{language}.md` with version substituted
-4. Append compact summary to CLAUDE.md `## Tech Stack` section
-5. Merge verification permissions into `.claude/settings.json`
-6. Present detection summary to user for confirmation
-7. If no stack indicators found: silently skip
+   - `mix.exs` → Elixir
+3. For each detected/specified stack, read the corresponding template from `stacks/{language}.md`
+4. Generate `.claude/rules/stack-{language}.md` with version substituted
+5. Append compact summary to CLAUDE.md `## Tech Stack` section
+6. Merge verification permissions into `.claude/settings.json`
+7. Present detection summary to user for confirmation
+8. If no `--stack` flag AND no stack indicators found: silently skip
 
 **Reads:** Stack indicator files, `stacks/*.md` templates
 **Writes:** `.claude/rules/stack-{language}.md`, CLAUDE.md, `.claude/settings.json`

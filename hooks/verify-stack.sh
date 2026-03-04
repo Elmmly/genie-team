@@ -122,6 +122,17 @@ case "$ext" in
             fi
         fi
         ;;
+    ex|exs)
+        if [[ -f "mix.exs" ]] && command -v mix &>/dev/null; then
+            output=$(mix compile --warnings-as-errors 2>&1) || true
+            filtered=$(echo "$output" | grep -E "^warning:|^\*\* \(|^== Compilation error" | head -20)
+            if [[ -n "$filtered" ]]; then
+                echo "--- Stack Verification (mix compile) ---"
+                echo "$filtered"
+                echo "---"
+            fi
+        fi
+        ;;
 esac
 
 # Always exit 0 — verification is advisory, not blocking
