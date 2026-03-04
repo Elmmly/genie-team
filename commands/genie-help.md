@@ -37,7 +37,8 @@ When invoked, display the following reference:
 │                                                                 │
 │  ARCHITECTURE                                                   │
 │  ────────────                                                   │
-│  /arch:init            Bootstrap ADRs and C4 diagrams           │
+│  /arch --workshop      Interactive architecture workshop        │
+│  /arch:init            Bootstrap ADRs, C4 diagrams, stack       │
 │                                                                 │
 │  CONTEXT                                                        │
 │  ───────                                                        │

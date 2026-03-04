@@ -71,7 +71,7 @@ All commands that reference stack profiles follow this pattern:
 
 **Greenfield projects:** When no code exists yet, stack configuration can be set two ways:
 1. Directly: `/arch:init --stack elixir` (team knows the stack)
-2. Via workshop: `/design --workshop` Phase 2 surfaces "Which tech stack?" when no indicators or profiles exist, then routes to `/arch:init --stack {lang}`
+2. Via workshop: `/arch --workshop` Phase 2 surfaces "Which tech stack?" when no indicators or profiles exist, then routes to `/arch:init --stack {lang}`
 
 ### During /arch:init (Primary — generation)
 
@@ -90,7 +90,7 @@ Detects tech stack and generates configuration after C4 diagrams:
 5. Append compact summary to CLAUDE.md `## Tech Stack` section
 6. Merge verification permissions into `.claude/settings.json`
 7. Present detection summary to user for confirmation
-8. If no `--stack` flag AND no stack indicators found: silently skip
+8. If no `--stack` flag AND no stack indicators found: prompt user with available stacks from `stacks/*.md` via AskUserQuestion (skip option available)
 
 **Reads:** Stack indicator files, `stacks/*.md` templates
 **Writes:** `.claude/rules/stack-{language}.md`, CLAUDE.md, `.claude/settings.json`

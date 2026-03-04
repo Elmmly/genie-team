@@ -367,7 +367,13 @@ For CLI tools or prompt-based systems, specify the execution model:
       Proceed with stack configuration? [Y/n]
       ```
 
-   f. If no stack indicators found: silently skip (no message — matches brand-awareness opt-in pattern)
+   f. If no stack indicators found: Prompt user with available stacks:
+      1. List available templates from `stacks/*.md`
+      2. Present via AskUserQuestion: "No tech stack detected. Would you like to configure one?"
+         - Options: Each available stack template (e.g., "TypeScript", "Go", "Elixir", etc.)
+         - Plus: "Skip — no stack configuration needed"
+      3. If user selects a stack: Proceed as if `--stack {language}` was provided (version prompt, then steps a-e)
+      4. If user selects "Skip": Silently continue (no stack config generated)
 
 8. **Summary:**
 
@@ -378,7 +384,7 @@ For CLI tools or prompt-based systems, specify the execution model:
    **Level 1 — System Context:** {Created | Already exists | Skipped by user}
    **Level 2 — Containers:** {Created | Already exists | Skipped by user}
    **Level 3 — Components directory:** {Created | Already exists}
-   **Tech Stack:** {Go 1.22, TypeScript 5.4 — configured | Elixir 1.17 — configured (via --stack) | No stack detected | Skipped by user}
+   **Tech Stack:** {Go 1.22, TypeScript 5.4 — configured | Elixir 1.17 — configured (via --stack) | Elixir 1.17 — configured (user-selected) | No stack detected — skipped by user}
 
    ### Recommended Next Steps
    1. Review generated diagrams in docs/architecture/
@@ -485,6 +491,35 @@ None. This is a one-shot bootstrapping command.
 > | Elixir | 1.17 | Created | Appended | Updated |
 >
 > Stack: Elixir 1.17 — configured (via --stack)
+
+/arch:init
+> [Architect reads project structure — no code exists yet]
+>
+> Pre-check:
+> - ADR-000: missing (will create)
+> - Level 1 System Context: missing (will generate)
+> - Level 2 Containers: missing (will generate)
+> - Level 3 Components directory: missing (will create)
+>
+> ...diagrams created...
+>
+> No tech stack detected. Would you like to configure one?
+> - TypeScript
+> - Go
+> - Elixir
+> - ...
+> - Skip — no stack configuration needed
+> > Elixir
+>
+> No version indicator found for Elixir. What version will this project use?
+> > 1.17
+>
+> ## /arch:init Complete
+> ADR-000: Created
+> Level 1: Created
+> Level 2: Created
+> Level 3 directory: Created
+> Tech Stack: Elixir 1.17 — configured (user-selected)
 ```
 
 ---
@@ -496,7 +531,7 @@ Run /arch:init when:
 - /context:load reports "No C4 diagrams" with existing specs
 - Onboarding architecture tracking to an established project
 - After installing genie-team on a project that already has code
-- Starting a greenfield project where the tech stack is already decided (use `--stack`)
+- Starting a greenfield project (prompts for stack selection, or use `--stack` if already decided)
 
 ---
 
