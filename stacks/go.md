@@ -60,6 +60,40 @@ Generate as `.claude/rules/stack-go.md`:
 - Use `sync.Once` for lazy initialization
 - Prefer channels for communication, mutexes for state
 
+## gRPC Services
+- Define services in `.proto` files first — implementation follows the contract
+- Use interceptors (`UnaryInterceptor`, `StreamInterceptor`) for cross-cutting concerns (logging, auth, metrics, recovery) — not inline in handlers
+- Always propagate `context.Context` through the full call chain — gRPC cancellation and deadlines depend on it
+- Set deadlines on ALL client calls: `ctx, cancel := context.WithTimeout(ctx, 5*time.Second)`
+- Use `metadata.FromIncomingContext(ctx)` for request metadata — not custom headers
+- Streaming patterns:
+  - **Unary:** Single request → single response (default, most common)
+  - **Server streaming:** Single request → response stream (feeds, large result sets)
+  - **Client streaming:** Request stream → single response (uploads, batch operations)
+  - **Bidirectional:** Stream ↔ stream (real-time, chat-style interactions)
+- Check `ctx.Done()` in streaming loops to prevent goroutine leaks on client disconnect
+
+## gRPC Error Handling
+- Use `status.Errorf(codes.X, "msg")` in gRPC handlers — NOT `fmt.Errorf` (gRPC clients need status codes, not wrapped errors)
+- Map domain errors to gRPC status codes:
+  - `codes.NotFound` — resource doesn't exist
+  - `codes.InvalidArgument` — bad request data
+  - `codes.PermissionDenied` — authorization failure
+  - `codes.Internal` — unexpected server error
+  - `codes.Unavailable` — transient failure (retry-safe)
+  - `codes.DeadlineExceeded` — timeout
+- Use `status.WithDetails()` for rich error information (field violations, debug info)
+- In interceptors: catch panics and convert to `codes.Internal`
+
+## Protobuf Conventions
+- Messages: PascalCase (`UserProfile`, not `user_profile`)
+- Fields: snake_case (`first_name`, not `firstName`)
+- Enums: SCREAMING_SNAKE_CASE with type prefix (`USER_STATUS_ACTIVE`)
+- Package: dot-separated with version (`service.v1`)
+- NEVER reuse field numbers — use `reserved` for removed fields
+- NEVER change field types — add new fields instead
+- Version proto packages (`v1`, `v2`) for breaking changes
+
 ## Naming
 - MixedCaps, not snake_case (Go convention)
 - Exported = PascalCase, unexported = camelCase
@@ -80,6 +114,10 @@ Generate as `.claude/rules/stack-go.md`:
 - No `init()` functions — use explicit initialization
 - No global mutable state — pass dependencies explicitly
 - No `panic()` for expected errors — return error values
+- No `fmt.Errorf` in gRPC handlers — use `status.Errorf` with proper codes
+- No missing deadlines on gRPC client calls — always `context.WithTimeout`
+- No blocking in streaming handlers without `ctx.Done()` checks
+- No panics escaping gRPC handlers — use recovery interceptor
 
 ## Verification
 After editing Go files, run: `go build ./... && go vet ./...`
@@ -93,6 +131,7 @@ After editing Go files, run: `go build ./... && go vet ./...`
 **Modern idioms:** Use `max/min` builtins, `slices.Contains`, `cmp.Or` (Go 1.21+)
 **Error wrapping:** Always `fmt.Errorf("context: %w", err)`, never bare `return err`
 **Concurrency:** `context.Context` first param, `errgroup.Group` for bounded goroutines
+**gRPC:** `status.Errorf` for errors (not `fmt.Errorf`), deadlines on all client calls, interceptors for cross-cutting
 ```
 
 ## Settings Permissions
@@ -118,6 +157,7 @@ Go uses the standard `testing` package. Additional tools:
 | `github.com/onsi/gomega` | Gomega | Matchers |
 | `github.com/golang/mock` | gomock | Interface mocking |
 | `go.uber.org/mock` | uber/mock | Interface mocking (maintained fork) |
+| `google.golang.org/grpc/test/bufconn` | bufconn | In-process gRPC testing |
 
 ## Known Pitfalls
 
@@ -126,3 +166,6 @@ Go uses the standard `testing` package. Additional tools:
 3. **Unbounded goroutines**: Claude spawns goroutines without `errgroup` or proper lifecycle management.
 4. **`interface{}` vs `any`**: Claude uses the old syntax. Rule enforcement switches to `any`.
 5. **Package naming**: Claude creates deeply nested packages. Go idiom is flat packages.
+6. **gRPC error wrapping confusion**: Claude uses `fmt.Errorf` wrapping in gRPC handlers instead of `status.Errorf`. The Go error wrapping rules conflict with gRPC's error model — gRPC handlers must return `status.Error` types. Wrapping a `status.Error` with `fmt.Errorf` loses the status code; the client receives `codes.Unknown` instead of the intended code.
+7. **Missing gRPC deadlines**: Claude omits `context.WithTimeout` on gRPC client calls, creating calls that hang indefinitely when downstream services are unresponsive.
+8. **Streaming lifecycle leaks**: Claude forgets to check `ctx.Done()` in streaming loops. When a client disconnects mid-stream, the server goroutine continues processing and sending to a dead stream until it errors out.

@@ -246,6 +246,8 @@ install_mcp_server() {
     [[ -n "${GOOGLE_API_KEY:-}" ]] && env_flags+=(-e "GOOGLE_API_KEY=${GOOGLE_API_KEY}")
     [[ -n "${OPENAI_API_KEY:-}" ]] && env_flags+=(-e "OPENAI_API_KEY=${OPENAI_API_KEY}")
     [[ -n "${REPLICATE_API_TOKEN:-}" ]] && env_flags+=(-e "REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN}")
+    # Pin Gemini image model to stable production version
+    env_flags+=(-e "GOOGLE_IMAGE_MODEL=${GOOGLE_IMAGE_MODEL:-gemini-2.5-flash-image}")
 
     # Install the MCP server
     log_info "Installing MCP server '$MCP_SERVER_NAME' (scope: $scope)..."
