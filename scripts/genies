@@ -1248,6 +1248,13 @@ resolve_batch_items() {
                     log_info "Skipping $input (no frontmatter)"
                     continue
                 }
+                # Topic files are always discover targets — don't route through status_to_phase
+                local file_type
+                file_type=$(get_frontmatter_field "$input" "type")
+                if [[ "$file_type" == "topic" ]]; then
+                    BATCH_ITEMS+=("discover:$input")
+                    continue
+                fi
                 local status item_phase
                 status=$(get_frontmatter_field "$input" "status")
                 item_phase=$(status_to_phase "$status")
@@ -2378,6 +2385,29 @@ main() {
                 analysis_path=$(parse_artifact_path "$OUTPUT" "analysis" 2>/dev/null) || \
                     analysis_path=$(parse_artifact_fallback "analysis" 2>/dev/null) || true
                 log_debug "analysis_path=$analysis_path"
+
+                # Topic lifecycle closure fallback (AC-18)
+                if [[ -f "$phase_input" ]]; then
+                    local input_type input_status
+                    input_type=$(get_frontmatter_field "$phase_input" "type")
+                    input_status=$(get_frontmatter_field "$phase_input" "status")
+                    if [[ "$input_type" == "topic" && "$input_status" != "done" ]]; then
+                        log_info "Topic file not closed by Scout — applying fallback"
+                        set_frontmatter_field "$phase_input" "status" "done"
+                        if [[ -n "$analysis_path" ]]; then
+                            local tmpfile
+                            tmpfile="$(mktemp)"
+                            awk -v ref="$analysis_path" -v today="$(date +%Y-%m-%d)" '
+                                /^status:/ && !added {
+                                    print; print "result_ref: " ref; print "completed: " today; added=1; next
+                                }
+                                {print}
+                            ' "$phase_input" > "$tmpfile"
+                            mv "$tmpfile" "$phase_input"
+                        fi
+                        log_info "Topic closed: $(basename "$phase_input") → ${analysis_path:-<no ref>}"
+                    fi
+                fi
                 ;;
             define)
                 item_path=$(parse_artifact_path "$OUTPUT" "backlog" 2>/dev/null) || \

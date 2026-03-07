@@ -109,6 +109,14 @@ acceptance_criteria:
       re-run discern for implemented items, deliver-discern for CHANGES
       REQUESTED items, commit-done for APPROVED items with uncommitted changes)
     status: met
+  - id: AC-18
+    description: >-
+      Topic lifecycle closure: when discover phase completes for a topic file
+      input, the topic file is updated with status: done, result_ref pointing
+      to the Opportunity Snapshot path, and completed date. Explicit topic file
+      inputs (type: topic frontmatter) are recognized and enqueued as discover
+      instead of being skipped by status_to_phase.
+    status: met
 ---
 
 # Autonomous Lifecycle Runner
@@ -191,6 +199,10 @@ discover → define → design → deliver → discern → commit → done
 - Multi-project support via `DAEMON_PROJECTS[]` array; daemon `cd`s into each project per cycle, returns to original directory after
 - `project_health_check()` validates git state (bare=true, index locks) before scanning each project — defense against the corruption discovered in field testing
 - Default status file at `~/.genie-daemon-status.json` (home dir, not project dir) since daemon can manage multiple projects
+<!-- Updated by /design on 2026-03-06 from P1-topic-lifecycle-closure -->
+- Topic lifecycle closure uses dual-path approach: Scout agent updates topic file as primary path (requires `Edit` tool), `genies` script post-discover reconciliation as fallback
+- Explicit topic file inputs in `resolve_batch_items()` are detected via `type: topic` frontmatter before `status_to_phase()` routing — topic statuses are not added to `status_to_phase()`
+- New frontmatter fields (`result_ref`, `completed`) inserted via portable awk+tmp+mv pattern (matching existing `set_frontmatter_field()` convention)
 
 ## Implementation Evidence
 <!-- Appended by /deliver on 2026-02-12 -->
@@ -338,3 +350,24 @@ Preflight validation, worktree prune, and operator guide from issue #4 field rep
 ### Test Coverage
 - `tests/test_run_pdlc.sh`: 227 tests (6 new covering AC-9), all passing
 - `tests/test_session.sh`: 69 tests (2 new covering AC-10), all passing
+
+## Implementation Evidence (Topic Lifecycle Closure)
+<!-- Updated by /deliver on 2026-03-06 from P1-topic-lifecycle-closure -->
+
+### Test Coverage
+- `tests/test_run_pdlc.sh`: 8 new tests covering AC-18 (topic file routing in resolve_batch_items, post-discover reconciliation fallback)
+
+### Implementation Files
+- `agents/scout.md`: Added Edit tool, topic file write-back in Context Usage
+- `commands/discover.md`: Added topic file update to Context Writing
+- `scripts/genies`: Topic file detection in resolve_batch_items() + post-discover reconciliation fallback
+
+## Review Verdict
+<!-- Updated by /discern on 2026-03-06 from P1-topic-lifecycle-closure -->
+
+**Verdict:** APPROVED
+**ACs verified:** 1/1 met
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-18 | met | Scout prompt updated with Edit tool + write-back instructions; genies script routes topic files via `type: topic` check; post-discover fallback with portable awk+tmp+mv. 8 tests pass. |

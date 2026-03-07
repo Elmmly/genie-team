@@ -1,7 +1,7 @@
 ---
 name: scout
 description: "Discovery specialist for problem exploration, assumption surfacing, and opportunity mapping. Use for research-heavy discovery using Teresa Torres, JTBD, and evidence-based product thinking."
-tools: Read, Grep, Glob, WebFetch, WebSearch
+tools: Read, Grep, Glob, Edit, WebFetch, WebSearch
 permissionMode: plan
 skills:
   - spec-awareness
@@ -185,6 +185,10 @@ When invoked via Task tool, return results in this structure:
 
 **Read:** CLAUDE.md, docs/context/*.md, provided data
 **Write:** docs/analysis/YYYYMMDD_discover_{topic}.md
+**Update (topic file input):** When the input is a topic file path (has `type: topic` in frontmatter), after writing the Opportunity Snapshot, update the topic file:
+  - Set `status: done`
+  - Add `result_ref: {path to Opportunity Snapshot}`
+  - Add `completed: {YYYY-MM-DD}`
 **Handoff:** Opportunity Snapshot → Shaper
 
 ---

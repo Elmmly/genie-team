@@ -76,6 +76,7 @@ When `$ARGUMENTS` is a path to a `.md` file (e.g., `docs/topics/20260227-auth-re
 
 **UPDATE:**
 - docs/context/current_work.md (mark discovery in progress)
+- Topic file (when input is a topic file path): set `status: done`, add `result_ref: {snapshot_path}`, add `completed: {date}`
 
 ---
 

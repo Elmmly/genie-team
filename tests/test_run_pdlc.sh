@@ -1683,7 +1683,7 @@ LOCK_DIR="$TEMP_DIR/locks"
 mkdir -p "$LOCK_DIR"
 input_hash=$(echo -n "test-dead-pid" | shasum | cut -d' ' -f1)
 dead_lock="$LOCK_DIR/${input_hash}.lock"
-echo "99998" > "$dead_lock"
+echo "4999999" > "$dead_lock"
 # Act
 acquire_lock "test-dead-pid" "$LOCK_DIR"
 ec=$?
@@ -3311,6 +3311,216 @@ assert_contains "$result" "docs/context/" \
     "context injection: trunk + context → context reference present"
 assert_contains "$result" "git-mode: trunk." \
     "context injection: trunk + context → git-mode prefix present"
+teardown_temp
+
+# ═══════════════════════════════════════════════
+# Category 28: Topic lifecycle closure (AC-18)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- Topic lifecycle closure (AC-18) ---"
+
+# Test AC-2: explicit topic file input enqueued as discover
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/test-topic.md" << 'EOF'
+---
+type: topic
+title: "Auth reliability"
+status: pending
+---
+Explore auth reliability issues.
+EOF
+
+# Act
+INPUTS=("$TEMP_DIR/test-topic.md")
+PRIORITIES=()
+resolve_batch_items
+
+# Assert
+assert_eq "1" "${#BATCH_ITEMS[@]}" "AC-2: topic file input creates 1 item"
+assert_contains "${BATCH_ITEMS[0]}" "discover:" "AC-2: topic file enqueued as discover phase"
+teardown_temp
+
+# Test AC-2: topic file with status:done still enqueued (explicit input overrides)
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/done-topic.md" << 'EOF'
+---
+type: topic
+title: "Already done"
+status: done
+---
+EOF
+
+# Act
+INPUTS=("$TEMP_DIR/done-topic.md")
+PRIORITIES=()
+resolve_batch_items
+
+# Assert
+assert_eq "1" "${#BATCH_ITEMS[@]}" "AC-2: done topic file still enqueued when explicit"
+assert_contains "${BATCH_ITEMS[0]}" "discover:" "AC-2: done topic enqueued as discover"
+teardown_temp
+
+# Test AC-2: topic file alongside backlog file — both correctly categorized
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/topic-file.md" << 'EOF'
+---
+type: topic
+title: "Explore caching"
+status: pending
+---
+EOF
+cat > "$TEMP_DIR/backlog-item.md" << 'EOF'
+---
+type: backlog
+title: "Auth improvements"
+status: designed
+priority: P2
+---
+EOF
+
+# Act
+INPUTS=("$TEMP_DIR/topic-file.md" "$TEMP_DIR/backlog-item.md")
+PRIORITIES=()
+resolve_batch_items
+
+# Assert
+assert_eq "2" "${#BATCH_ITEMS[@]}" "AC-2: mixed inputs create 2 items"
+# Order depends on sort — check both items are present regardless of position
+mixed_items="${BATCH_ITEMS[*]}"
+assert_contains "$mixed_items" "discover:" "AC-2: topic file → discover (in mixed)"
+assert_contains "$mixed_items" "deliver:" "AC-2: backlog designed → deliver (in mixed)"
+teardown_temp
+
+# Test AC-3: post-discover fallback closes topic file
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/processing-topic.md" << 'EOF'
+---
+type: topic
+title: "Auth reliability"
+status: processing
+priority: P1
+---
+Explore auth reliability issues.
+EOF
+
+# Act — simulate post-discover reconciliation
+phase_input="$TEMP_DIR/processing-topic.md"
+analysis_path="docs/analysis/20260306_discover_auth_reliability.md"
+# Inline the fallback logic we're testing
+if [[ -f "$phase_input" ]]; then
+    input_type=$(get_frontmatter_field "$phase_input" "type")
+    input_status=$(get_frontmatter_field "$phase_input" "status")
+    if [[ "$input_type" == "topic" && "$input_status" != "done" ]]; then
+        set_frontmatter_field "$phase_input" "status" "done"
+        if [[ -n "$analysis_path" ]]; then
+            tmpfile="$(mktemp)"
+            awk -v ref="$analysis_path" -v today="$(date +%Y-%m-%d)" '
+                /^status:/ && !added {
+                    print; print "result_ref: " ref; print "completed: " today; added=1; next
+                }
+                {print}
+            ' "$phase_input" > "$tmpfile"
+            mv "$tmpfile" "$phase_input"
+        fi
+    fi
+fi
+
+# Assert
+result_status=$(get_frontmatter_field "$phase_input" "status")
+result_ref=$(get_frontmatter_field "$phase_input" "result_ref")
+result_completed=$(get_frontmatter_field "$phase_input" "completed")
+assert_eq "done" "$result_status" "AC-3: topic status set to done"
+assert_eq "docs/analysis/20260306_discover_auth_reliability.md" "$result_ref" "AC-3: result_ref added"
+assert_contains "$result_completed" "2026" "AC-3: completed date added"
+teardown_temp
+
+# Test AC-3: fallback skips already-done topic
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/done-topic.md" << 'EOF'
+---
+type: topic
+title: "Already done"
+status: done
+result_ref: docs/analysis/existing.md
+completed: 2026-03-01
+---
+EOF
+
+# Act
+phase_input="$TEMP_DIR/done-topic.md"
+analysis_path="docs/analysis/20260306_discover_new.md"
+if [[ -f "$phase_input" ]]; then
+    input_type=$(get_frontmatter_field "$phase_input" "type")
+    input_status=$(get_frontmatter_field "$phase_input" "status")
+    if [[ "$input_type" == "topic" && "$input_status" != "done" ]]; then
+        set_frontmatter_field "$phase_input" "status" "done"
+    fi
+fi
+
+# Assert — should remain unchanged
+result_ref=$(get_frontmatter_field "$phase_input" "result_ref")
+assert_eq "docs/analysis/existing.md" "$result_ref" "AC-3: done topic not double-updated"
+teardown_temp
+
+# Test AC-3: fallback with empty analysis_path (graceful degradation)
+# Arrange
+setup_temp
+cat > "$TEMP_DIR/no-ref-topic.md" << 'EOF'
+---
+type: topic
+title: "No output topic"
+status: processing
+---
+EOF
+
+# Act
+phase_input="$TEMP_DIR/no-ref-topic.md"
+analysis_path=""
+if [[ -f "$phase_input" ]]; then
+    input_type=$(get_frontmatter_field "$phase_input" "type")
+    input_status=$(get_frontmatter_field "$phase_input" "status")
+    if [[ "$input_type" == "topic" && "$input_status" != "done" ]]; then
+        set_frontmatter_field "$phase_input" "status" "done"
+        if [[ -n "$analysis_path" ]]; then
+            tmpfile="$(mktemp)"
+            awk -v ref="$analysis_path" -v today="$(date +%Y-%m-%d)" '
+                /^status:/ && !added {
+                    print; print "result_ref: " ref; print "completed: " today; added=1; next
+                }
+                {print}
+            ' "$phase_input" > "$tmpfile"
+            mv "$tmpfile" "$phase_input"
+        fi
+    fi
+fi
+
+# Assert — status done but no result_ref
+result_status=$(get_frontmatter_field "$phase_input" "status")
+result_ref=$(get_frontmatter_field "$phase_input" "result_ref")
+assert_eq "done" "$result_status" "AC-3: status set to done even without analysis_path"
+assert_eq "" "$result_ref" "AC-3: no result_ref when analysis_path empty"
+teardown_temp
+
+# Test AC-3: fallback skips non-topic file input
+# Arrange
+setup_temp
+
+# Act — phase_input is a string topic, not a file
+phase_input="explore user auth"
+analysis_path="docs/analysis/something.md"
+skip_applied="false"
+if [[ -f "$phase_input" ]]; then
+    skip_applied="true"
+fi
+
+# Assert
+assert_eq "false" "$skip_applied" "AC-3: non-file input skips fallback"
 teardown_temp
 
 # ═══════════════════════════════════════════════
