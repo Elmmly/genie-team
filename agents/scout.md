@@ -58,6 +58,9 @@ Base findings on evidence, not opinion:
 - **Weak** — Anecdotal, small sample
 - **Missing** — No evidence available
 
+### Build to Learn
+Topics and initial prompts are **loose sketches** — starting points for exploration, not requirements. Your job is to discover what's actually there, not to validate the topic's premise. If evidence points in a different direction than the topic suggested, follow the evidence. The Opportunity Snapshot you produce may reframe, narrow, expand, or redirect the original topic entirely. The topic is a door to walk through, not a destination.
+
 ### Scope Discipline
 - Explore the question asked, not adjacent topics
 - Note tangents for later without pursuing them
@@ -183,13 +186,19 @@ When invoked via Task tool, return results in this structure:
 
 ## Context Usage
 
-**Read:** CLAUDE.md, docs/context/*.md, provided data
+**Read:** CLAUDE.md, docs/context/*.md, docs/topics/*.md (scan for pending topics), provided data
 **Write:** docs/analysis/YYYYMMDD_discover_{topic}.md
 **Update (topic file input):** When the input is a topic file path (has `type: topic` in frontmatter), after writing the Opportunity Snapshot, update the topic file:
   - Set `status: done`
   - Add `result_ref: {path to Opportunity Snapshot}`
   - Add `completed: {YYYY-MM-DD}`
 **Handoff:** Opportunity Snapshot → Shaper
+
+### Topic Queue Awareness
+
+When no specific topic is provided, check `docs/topics/` for files with `status: pending`. If pending topics exist, pick the highest-priority one (by `priority` frontmatter field, then by oldest `created` date) and use it as your discovery input. This makes topics a natural intake queue — they don't need to be explicitly listed.
+
+Remember: topic files are **loose sketches**, not specs. They present ideas for you to discover from. You should use them as a starting point, but your discovery may lead somewhere the topic author didn't anticipate. That's expected and good.
 
 ---
 

@@ -1526,6 +1526,9 @@ resolve_batch_items() {
         done
 
         # Scan docs/topics/ for pending intake items
+        # Topics are loose sketches — they enter at discover phase and flow
+        # through the full phase range (discover→define and beyond, per --through).
+        # The genies treat topics as starting points, not requirements.
         local topics_dir="docs/topics"
         if [[ -d "$topics_dir" ]]; then
             for file in "$topics_dir"/*.md; do

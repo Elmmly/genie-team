@@ -6,7 +6,7 @@ Activate Scout genie to explore opportunities and surface assumptions.
 
 ## Arguments
 
-- `topic` - What to discover (required)
+- `topic` - What to discover (optional — pulls from topic queue if omitted)
 - Optional flags:
   - `--assumptions` - Focus on assumption mapping only
   - `--evidence` - Focus on evidence gathering only
@@ -17,6 +17,9 @@ Activate Scout genie to explore opportunities and surface assumptions.
 ---
 
 ## Input Modes
+
+### No arguments (topic queue)
+When `$ARGUMENTS` is empty, scan `docs/topics/` for files with `status: pending` in frontmatter. If found, pick the highest-priority one (by `priority` field, then oldest `created` date) and process it as a topic file (see below). If no pending topics exist, report: "No pending topics found. Provide a topic: /discover [topic]"
 
 ### String topic (default)
 When `$ARGUMENTS` is a plain-text topic string, use it directly as the discovery topic.
@@ -31,6 +34,9 @@ When `$ARGUMENTS` is a path to a `.md` file (e.g., `docs/topics/20260227-auth-re
    - Set `status: done`
    - Add `result_ref: docs/analysis/YYYYMMDD_discover_{topic}.md`
 3. Proceed with standard flow using the extracted title
+
+### Topic framing
+Topic files are **loose sketches** — ideas for genie team to discover from, not specs. The discovery may lead somewhere the topic author didn't anticipate. Scout should follow the evidence, not the topic's premise. The Opportunity Snapshot is the authoritative output; the topic file is just the door that opened the exploration.
 
 ---
 

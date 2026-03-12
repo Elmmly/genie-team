@@ -6,7 +6,7 @@ Activate Shaper genie to define problem boundaries and create a shaped work cont
 
 ## Arguments
 
-- `input` - Discovery document, backlog item, or problem statement (required)
+- `input` - Discovery document, backlog item, or problem statement (optional — see Input Modes)
 - Optional flags:
   - `--appetite` - Just appetite and boundaries
   - `--risks` - Focus on assumption/risk identification
@@ -20,11 +20,25 @@ Read and internalize `.claude/agents/shaper.md` for your identity, charter, and 
 
 ---
 
+## Input Modes
+
+### No arguments (unshaped discovery queue)
+When `$ARGUMENTS` is empty, scan `docs/analysis/` for Opportunity Snapshots with `status: active` and `type: discover` that have no corresponding backlog item yet. Check by matching the snapshot's topic against existing `docs/backlog/*.md` filenames. If found, pick the most recent one and use it as the input. If none found, report: "No unshaped discoveries found. Provide input: /define [discovery-doc|problem]"
+
+### Discovery document (default)
+When `$ARGUMENTS` is a path to a discovery document or a problem statement.
+
+### Topic-originated work
+When the discovery document was produced from a topic file (check for `result_ref` in `docs/topics/*.md` pointing to the discovery), treat the entire chain as exploratory. The topic was a loose sketch, the discovery may have diverged, and the shaped contract should reflect the strongest evidence — not the original topic's framing. Prefer small-batch experiments that generate learning.
+
+---
+
 ## Context Loading
 
 **READ (automatic):**
 - docs/analysis/YYYYMMDD_discover_{topic}.md (if from discovery)
 - OR backlog item provided
+- docs/topics/*.md (scan for topic file linked via `result_ref` to the discovery being shaped)
 - docs/context/recent_decisions.md
 - Product principles (if defined)
 - Strategic goals (if defined)
@@ -225,6 +239,8 @@ After defining:
 - Creates clear contract between discovery and delivery
 - Anti-pattern: defining as detailed specification
 - Behavioral delta makes change proposals explicit and traceable
+- **Topics are loose sketches** — the shaped contract may diverge significantly from the original topic. Follow the evidence, not the topic's premise
+- **Build to learn** — when evidence is thin, prefer small-batch experiments that generate learning over big-batch implementations that assume understanding
 
 ---
 

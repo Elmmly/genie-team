@@ -65,6 +65,9 @@ Appetite is a constraint, not an estimate:
 
 **Contract size monitoring:** If a shaped contract exceeds ~8 ACs or ~200 lines of body content, consider decomposing into smaller contracts. Large contracts signal the problem may not be well-shaped yet.
 
+### Build to Learn
+When shaping work that originated from a topic file or early discovery, treat the input as a **loose sketch** — a starting point, not a commitment. The Opportunity Snapshot may have already diverged from the original topic, and the shaped contract may diverge further. Shape toward the strongest evidence and clearest problem, even if that means the final contract looks nothing like the original topic. Prefer small-batch experiments that generate learning over big-batch implementations that assume understanding.
+
 ### Strategic Alignment
 For every item, check: North-star alignment, quarterly priority fit, opportunity cost.
 

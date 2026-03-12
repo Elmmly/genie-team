@@ -28,6 +28,7 @@ Optional flags:
 - Target artifact(s) frontmatter
 - `docs/analysis/*_discover_*.md` (to find related discovery)
 - `docs/backlog/*.md` (to find related backlog item)
+- `docs/topics/*.md` (to find originating topic file via `result_ref` match)
 - Backlog frontmatter field `spec_ref` → load the linked spec (for preservation check)
 
 ---
@@ -37,10 +38,12 @@ Optional flags:
 **UPDATE:**
 - Discovery frontmatter: `status: active` → `status: completed`
 - Backlog frontmatter: `status: reviewed` → `status: done`
+- Topic frontmatter: `status: done` → `status: archived`
 
 **MOVE:**
 - Discovery from `docs/analysis/` → `docs/archive/{concept}/YYYY-MM-DD_{enhancement}/`
 - Backlog item from `docs/backlog/` → `docs/archive/{concept}/YYYY-MM-DD_{enhancement}/`
+- Topic file from `docs/topics/` → `docs/archive/{concept}/YYYY-MM-DD_{enhancement}/` (when `result_ref` matches the discovery file being archived)
 
 **SPEC PRESERVATION (when spec_ref exists in backlog):**
 1. **Never archive the spec.** Specs are persistent — only backlog items get archived.
@@ -74,10 +77,11 @@ created: YYYY-MM-DD
 **Enhancement:** {enhancement}
 
 ### Archived Artifacts
+- docs/topics/20251203_agents.md → docs/archive/agents/2025-12-05_complement-commands/
 - docs/analysis/20251205_discover_agents.md → docs/archive/agents/2025-12-05_complement-commands/
 - docs/backlog/P2-agents-complement-commands.md → docs/archive/agents/2025-12-05_complement-commands/
 
-**Status:** 2 artifacts marked completed and archived.
+**Status:** 3 artifacts marked completed and archived.
 **Archive location:** docs/archive/agents/2025-12-05_complement-commands/
 ```
 
@@ -89,7 +93,8 @@ created: YYYY-MM-DD
 docs/archive/
 ├── {concept}/
 │   └── YYYY-MM-DD_{enhancement}/
-│       ├── YYYYMMDD_discover_{topic}.md      # Discovery (from docs/analysis/)
+│       ├── YYYYMMDD_{topic}.md                # Topic file (from docs/topics/, if present)
+│       ├── YYYYMMDD_discover_{topic}.md       # Discovery (from docs/analysis/)
 │       └── {priority}-{topic}.md              # Backlog item (from docs/backlog/)
 ```
 
@@ -97,7 +102,7 @@ This structure:
 - Groups by concept (feature/capability category)
 - Sorts chronologically within concept
 - Shows how concepts evolve over time
-- **Only 2 files per completed feature** (discovery + backlog item with design/impl/review)
+- **2-3 files per completed feature** (optional topic + discovery + backlog item with design/impl/review)
 
 ---
 
@@ -151,15 +156,28 @@ After `/discern` returns **APPROVED**:
 
 ---
 
+## Topic File Tracing
+
+When archiving a discovery file, scan `docs/topics/*.md` for any topic file whose `result_ref` frontmatter field matches the discovery file path being archived. If found:
+
+1. Update topic frontmatter: `status: done` → `status: archived`
+2. Move to the same archive directory as the discovery file
+3. Include in the archive summary output
+
+This ensures topic files don't accumulate in `docs/topics/` after their work is complete. External systems can detect archival via `status: archived` or the file's absence from `docs/topics/`.
+
+---
+
 ## Notes
 
 - Only processes artifacts with valid frontmatter
-- Archives both discovery file AND backlog item together
+- Archives discovery file, backlog item, AND originating topic file together
 - Backlog item contains shaped contract + design + implementation + review (living document)
 - Creates archive directory structure if it doesn't exist
 - Preserves original filenames in archive
 - Fully reversible: move files back and update status
 - **Specs are never archived** — they persist as the source of truth for what the system does
+- **Topic files are archived** when their `result_ref` matches an archived discovery file
 
 ---
 
@@ -174,9 +192,9 @@ When `/done` runs within an autonomous `/run` lifecycle:
   parallel session work.
 - **NEVER force-push.** If the branch has already been pushed, create a new
   commit and push normally. If the push fails, report the error.
-- **Stage only archive-related changes** — status field updates in frontmatter,
-  file moves to `docs/archive/`, and `current_work.md` updates. Do not
-  re-stage delivery artifacts.
+- **Stage only archive-related changes** — status field updates in frontmatter
+  (discovery, backlog, topic files), file moves to `docs/archive/`, and
+  `current_work.md` updates. Do not re-stage delivery artifacts.
 
 ---
 
