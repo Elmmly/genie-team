@@ -1498,8 +1498,8 @@ resolve_batch_items() {
         # Auto-scan backlog for actionable items
         local backlog_dir="docs/backlog"
         if [[ ! -d "$backlog_dir" ]]; then
-            log_error "Backlog directory not found: $backlog_dir"
-            exit 3
+            mkdir -p "$backlog_dir"
+            log_info "Created backlog directory: $backlog_dir"
         fi
 
         for file in "$backlog_dir"/*.md; do
