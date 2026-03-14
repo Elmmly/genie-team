@@ -2124,67 +2124,66 @@ run_batch_parallel() {
         if [[ "$FINISH_MODE" == "--leave-branch" ]]; then
             log_info "Branches preserved (--finish-mode --leave-branch): ${succeeded_slugs[*]+"${succeeded_slugs[*]}"}"
         else
+            log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
 
-        log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
+            local integrate_idx=0
+            while [[ $integrate_idx -lt ${#succeeded_items[@]} ]]; do
+                local slug="${succeeded_slugs[$integrate_idx]}"
+                local input="${succeeded_items[$integrate_idx]}"
+                log_info "Integrating: $slug"
 
-        local integrate_idx=0
-        while [[ $integrate_idx -lt ${#succeeded_items[@]} ]]; do
-            local slug="${succeeded_slugs[$integrate_idx]}"
-            local input="${succeeded_items[$integrate_idx]}"
-            log_info "Integrating: $slug"
-
-            if [[ "$TRUNK_MODE" == "true" ]]; then
-                session_integrate_trunk "$slug"
-                local ec=$?
-                case $ec in
-                    0)
-                        log_info "Merged to trunk: $slug"
-                        ;;
-                    1)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "No branch found: $slug"
-                        ;;
-                    2)
-                        merge_conflicts=$((merge_conflicts + 1))
-                        conflict_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Rebase conflict: $slug"
-                        ;;
-                    3)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Checkout failed: $slug"
-                        ;;
-                    4)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Merge failed (not fast-forwardable): $slug"
-                        ;;
-                    *)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Integration failed (exit $ec): $slug"
-                        ;;
-                esac
-            else
-                if session_integrate_pr "$slug"; then
-                    log_info "PR created: $slug"
+                if [[ "$TRUNK_MODE" == "true" ]]; then
+                    session_integrate_trunk "$slug"
+                    local ec=$?
+                    case $ec in
+                        0)
+                            log_info "Merged to trunk: $slug"
+                            ;;
+                        1)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "No branch found: $slug"
+                            ;;
+                        2)
+                            merge_conflicts=$((merge_conflicts + 1))
+                            conflict_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Rebase conflict: $slug"
+                            ;;
+                        3)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Checkout failed: $slug"
+                            ;;
+                        4)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Merge failed (not fast-forwardable): $slug"
+                            ;;
+                        *)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Integration failed (exit $ec): $slug"
+                            ;;
+                    esac
                 else
-                    failed=$((failed + 1))
-                    failed_items+=("$input")
-                    log_error "PR creation failed: $slug"
-                    succeeded=$((succeeded - 1))
+                    if session_integrate_pr "$slug"; then
+                        log_info "PR created: $slug"
+                    else
+                        failed=$((failed + 1))
+                        failed_items+=("$input")
+                        log_error "PR creation failed: $slug"
+                        succeeded=$((succeeded - 1))
+                    fi
                 fi
-            fi
 
-            integrate_idx=$((integrate_idx + 1))
-        done
-        fi  # end: if [[ "$FINISH_MODE" != "--leave-branch" ]]
+                integrate_idx=$((integrate_idx + 1))
+            done
+        fi
     fi
 
     # Print summary
