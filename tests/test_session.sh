@@ -829,10 +829,11 @@ setup
 # Test: cleanup succeeds when worktree directory was manually deleted (stale reference)
 # Arrange — create worktree, then manually rm -rf the directory to simulate crash
 SAVED_DIR="$(pwd)"
-cd "$TEST_REPO" || exit
-git worktree add "../${REPO_NAME}--P0-stale-item" -b "genie/P0-stale-item-deliver" main -q 2>/dev/null
+_repo_name="$(basename "$MAIN_REPO")"
+cd "$MAIN_REPO" || exit
+git worktree add "../${_repo_name}--P0-stale-item" -b "genie/P0-stale-item-deliver" main -q 2>/dev/null
 # Simulate crash: remove the directory without git knowing
-rm -rf "../${REPO_NAME}--P0-stale-item"
+rm -rf "../${_repo_name}--P0-stale-item"
 # Verify the stale reference exists (git thinks worktree is still there)
 stale_count=$(git worktree list --porcelain 2>/dev/null | grep -c "worktree.*P0-stale-item" || true)
 assert_eq "1" "$stale_count" "session_cleanup_item: stale worktree reference exists before cleanup"
