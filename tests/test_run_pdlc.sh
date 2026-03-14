@@ -3532,6 +3532,94 @@ teardown_temp
 echo ""
 echo "--- batch integration: FINISH_MODE ---"
 
+# ── Dry run label tests ──
+
+_saved_FINISH_MODE_dr="${FINISH_MODE:-}"
+_saved_TRUNK_MODE_dr="${TRUNK_MODE:-}"
+_saved_PARALLEL_JOBS_dr="${PARALLEL_JOBS:-0}"
+_saved_BATCH_ITEMS_dr=("${BATCH_ITEMS[@]+"${BATCH_ITEMS[@]}"}")
+_orig_log_info=$(declare -f log_info)
+
+_log_capture=""
+log_info() { _log_capture="${_log_capture}$*"$'\n'; }
+BATCH_ITEMS=("deliver:fake-item.md")
+
+# Test: dry run shows branch-preserve for parallel --leave-branch
+FINISH_MODE="--leave-branch"; TRUNK_MODE="false"; PARALLEL_JOBS=2
+_log_capture=""
+print_batch_dry_run
+assert_contains "$_log_capture" "branch-preserve" \
+    "dry run: parallel --leave-branch shows branch-preserve"
+
+# Test: dry run shows PR-based for parallel --pr
+FINISH_MODE="--pr"; TRUNK_MODE="false"; PARALLEL_JOBS=2
+_log_capture=""
+print_batch_dry_run
+assert_contains "$_log_capture" "PR-based" \
+    "dry run: parallel --pr shows PR-based"
+
+# Test: dry run shows branch-preserve for sequential --leave-branch
+FINISH_MODE="--leave-branch"; TRUNK_MODE="false"; PARALLEL_JOBS=0
+_log_capture=""
+print_batch_dry_run
+assert_contains "$_log_capture" "branch-preserve" \
+    "dry run: sequential --leave-branch shows branch-preserve"
+
+# Test: dry run still shows trunk-based when --trunk regardless of --finish-mode
+FINISH_MODE="--leave-branch"; TRUNK_MODE="true"; PARALLEL_JOBS=0
+_log_capture=""
+print_batch_dry_run
+assert_contains "$_log_capture" "trunk-based" \
+    "dry run: --trunk takes precedence over --leave-branch label"
+
+# Restore
+FINISH_MODE="$_saved_FINISH_MODE_dr"
+TRUNK_MODE="$_saved_TRUNK_MODE_dr"
+PARALLEL_JOBS="$_saved_PARALLEL_JOBS_dr"
+BATCH_ITEMS=("${_saved_BATCH_ITEMS_dr[@]+"${_saved_BATCH_ITEMS_dr[@]}"}")
+eval "$_orig_log_info"
+
+# ── Summary label tests ──
+
+_saved_FINISH_MODE_sl="${FINISH_MODE:-}"
+_orig_log_info_sl=$(declare -f log_info)
+
+_log_capture=""
+log_info() { _log_capture="${_log_capture}$*"$'\n'; }
+_start=$(date +%s)
+
+# Test: print_batch_summary shows "Branches preserved" when --leave-branch
+FINISH_MODE="--leave-branch"
+_log_capture=""
+print_batch_summary 3 0 "$_start"
+assert_contains "$_log_capture" "Branches preserved" \
+    "print_batch_summary: --leave-branch shows Branches preserved label"
+
+# Test: print_batch_summary shows "Succeeded" when --pr
+FINISH_MODE="--pr"
+_log_capture=""
+print_batch_summary 3 0 "$_start"
+assert_contains "$_log_capture" "Succeeded" \
+    "print_batch_summary: --pr shows Succeeded label"
+
+# Test: print_batch_parallel_summary shows "Branches preserved" when --leave-branch
+FINISH_MODE="--leave-branch"
+_log_capture=""
+print_batch_parallel_summary 3 0 0 "$_start" "item-a.md" "---" "---"
+assert_contains "$_log_capture" "Branches preserved" \
+    "print_batch_parallel_summary: --leave-branch shows Branches preserved label"
+
+# Test: print_batch_parallel_summary shows "Succeeded" when --pr
+FINISH_MODE="--pr"
+_log_capture=""
+print_batch_parallel_summary 3 0 0 "$_start" "item-a.md" "---" "---"
+assert_contains "$_log_capture" "Succeeded" \
+    "print_batch_parallel_summary: --pr shows Succeeded label"
+
+# Restore
+FINISH_MODE="$_saved_FINISH_MODE_sl"
+eval "$_orig_log_info_sl"
+
 # ── Sequential batch behavioral tests ──
 
 setup_temp

@@ -1296,14 +1296,21 @@ print_batch_dry_run() {
         fi
     done
 
-    if [[ "$PARALLEL_JOBS" -gt 0 && "$TRUNK_MODE" == "true" ]]; then
-        log_info "Mode: parallel ($PARALLEL_JOBS workers, trunk-based, worktrees)"
-    elif [[ "$PARALLEL_JOBS" -gt 0 ]]; then
-        log_info "Mode: parallel ($PARALLEL_JOBS workers, PR-based, worktrees)"
-    elif [[ "$TRUNK_MODE" == "true" ]]; then
-        log_info "Mode: sequential (trunk-based, worktrees)"
+    local finish_label
+    if [[ "$TRUNK_MODE" == "true" ]]; then
+        finish_label="trunk-based"
+    elif [[ "$FINISH_MODE" == "--leave-branch" ]]; then
+        finish_label="branch-preserve"
+    elif [[ "$FINISH_MODE" == "--merge" ]]; then
+        finish_label="merge-based"
     else
-        log_info "Mode: sequential (worktrees)"
+        finish_label="PR-based"
+    fi
+
+    if [[ "$PARALLEL_JOBS" -gt 0 ]]; then
+        log_info "Mode: parallel ($PARALLEL_JOBS workers, ${finish_label}, worktrees)"
+    else
+        log_info "Mode: sequential (${finish_label}, worktrees)"
     fi
     log_info "(dry run — not executing)"
 }
@@ -1324,7 +1331,9 @@ print_batch_summary() {
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     log_info "BATCH SUMMARY"
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    log_info "Succeeded: $succeeded"
+    local succeeded_label="Succeeded"
+    [[ "${FINISH_MODE:-}" == "--leave-branch" ]] && succeeded_label="Branches preserved"
+    log_info "${succeeded_label}: $succeeded"
     log_info "Failed:    $failed"
     log_info "Duration:  ${duration_mins}m"
 
@@ -1374,7 +1383,9 @@ print_batch_parallel_summary() {
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     log_info "BATCH SUMMARY (parallel)"
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    log_info "Succeeded:       $succeeded"
+    local succeeded_label="Succeeded"
+    [[ "${FINISH_MODE:-}" == "--leave-branch" ]] && succeeded_label="Branches preserved"
+    log_info "${succeeded_label}:       $succeeded"
     log_info "Failed:          $failed"
     log_info "Merge conflicts: $conflicts"
     log_info "Duration:        ${duration_mins}m"
@@ -1382,7 +1393,7 @@ print_batch_parallel_summary() {
 
     if [[ ${#succeeded_items[@]} -gt 0 ]]; then
         log_info ""
-        log_info "Succeeded:"
+        log_info "${succeeded_label}:"
         for item in "${succeeded_items[@]}"; do
             log_info "  $(basename "$item" .md)"
         done
