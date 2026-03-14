@@ -1147,21 +1147,23 @@ worktree_run_setup() {
         return 0
     fi
 
-    local pm_cmd=""
+    local pm_cmd=()
     if [[ -f "$worktree_dir/pnpm-lock.yaml" ]]; then
-        pm_cmd="pnpm install --frozen-lockfile"
+        pm_cmd=(pnpm install --frozen-lockfile)
     elif [[ -f "$worktree_dir/package-lock.json" ]]; then
-        pm_cmd="npm ci"
+        pm_cmd=(npm ci)
     elif [[ -f "$worktree_dir/yarn.lock" ]]; then
-        pm_cmd="yarn install --frozen-lockfile"
-    elif [[ -f "$worktree_dir/bun.lockb" ]]; then
-        pm_cmd="bun install --frozen-lockfile"
+        pm_cmd=(yarn install --frozen-lockfile)
+    elif [[ -f "$worktree_dir/bun.lock" || -f "$worktree_dir/bun.lockb" ]]; then
+        pm_cmd=(bun install --frozen-lockfile)
     fi
 
-    if [[ -n "$pm_cmd" ]]; then
-        log_info "Installing dependencies in worktree: $pm_cmd"
-        if ! (cd "$worktree_dir" && $pm_cmd >/dev/null 2>&1); then
-            log_error "Dependency install failed in worktree: $pm_cmd"
+    if [[ ${#pm_cmd[@]} -gt 0 ]]; then
+        log_info "Installing dependencies in worktree: ${pm_cmd[*]}"
+        local install_err
+        if ! install_err=$(cd "$worktree_dir" && "${pm_cmd[@]}" 2>&1 >/dev/null); then
+            log_error "Dependency install failed in worktree: ${pm_cmd[*]}"
+            [[ -n "$install_err" ]] && log_error "$install_err"
             return 1
         fi
     fi
@@ -1178,7 +1180,10 @@ worktree_setup() {
         log_error "Failed to create worktree for $item_slug"
         return 1
     }
-    worktree_run_setup "$worktree_path" || return 1
+    worktree_run_setup "$worktree_path" || {
+        log_info "Worktree left at: $worktree_path — re-run to clean up or call session_cleanup_item"
+        return 1
+    }
     echo "$worktree_path"
     return 0
 }
