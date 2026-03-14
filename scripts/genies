@@ -1125,6 +1125,50 @@ if [[ -f "$GENIE_SESSION" ]]; then
     source "$GENIE_SESSION"
 fi
 
+# Run post-worktree-creation environment setup.
+# Option A: project-defined .genie/setup.sh (takes precedence, runs unconditionally)
+# Option B: detect package manager lockfile and install deps when node_modules absent
+worktree_run_setup() {
+    local worktree_dir="$1"
+
+    # Option A: project-defined setup script
+    local setup_script="$worktree_dir/.genie/setup.sh"
+    if [[ -f "$setup_script" && -x "$setup_script" ]]; then
+        log_info "Running worktree setup: .genie/setup.sh"
+        if ! (cd "$worktree_dir" && bash "$setup_script"); then
+            log_error "Worktree setup script failed: .genie/setup.sh"
+            return 1
+        fi
+        return 0
+    fi
+
+    # Option B: detect package manager lockfile, install if node_modules absent
+    if [[ -d "$worktree_dir/node_modules" ]]; then
+        return 0
+    fi
+
+    local pm_cmd=""
+    if [[ -f "$worktree_dir/pnpm-lock.yaml" ]]; then
+        pm_cmd="pnpm install --frozen-lockfile"
+    elif [[ -f "$worktree_dir/package-lock.json" ]]; then
+        pm_cmd="npm ci"
+    elif [[ -f "$worktree_dir/yarn.lock" ]]; then
+        pm_cmd="yarn install --frozen-lockfile"
+    elif [[ -f "$worktree_dir/bun.lockb" ]]; then
+        pm_cmd="bun install --frozen-lockfile"
+    fi
+
+    if [[ -n "$pm_cmd" ]]; then
+        log_info "Installing dependencies in worktree: $pm_cmd"
+        if ! (cd "$worktree_dir" && $pm_cmd >/dev/null 2>&1); then
+            log_error "Dependency install failed in worktree: $pm_cmd"
+            return 1
+        fi
+    fi
+
+    return 0
+}
+
 worktree_setup() {
     local item_slug="$1"
     # Clean up any prior failed attempt (worktree + branch) before creating new
@@ -1134,6 +1178,7 @@ worktree_setup() {
         log_error "Failed to create worktree for $item_slug"
         return 1
     }
+    worktree_run_setup "$worktree_path" || return 1
     echo "$worktree_path"
     return 0
 }
