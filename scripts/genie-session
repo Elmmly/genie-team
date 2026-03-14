@@ -508,19 +508,17 @@ session_integrate_pr() {
     # Create PR via gh or print manual instructions
     if command -v gh >/dev/null 2>&1; then
         local pr_url
-        pr_url=$(cd "$repo_root" && gh pr create \
+        if ! pr_url=$(cd "$repo_root" && gh pr create \
             --base "$default_branch" \
             --head "$branch" \
             --title "$(_gs_pr_title "$item")" \
-            --body "$(_gs_pr_body "$item")" 2>/dev/null) || true
+            --body "$(_gs_pr_body "$item")" 2>/dev/null); then
+            _gs_error "Failed to create PR for branch: $branch"
+            return 1
+        fi
 
         if [[ -n "${pr_url:-}" ]]; then
             echo "$pr_url"
-        else
-            local remote_url
-            remote_url=$(git -C "$repo_root" remote get-url origin 2>/dev/null)
-            _gs_log "PR creation failed. Branch pushed — create PR manually:"
-            _gs_log "  ${remote_url%.git}/compare/$branch"
         fi
     else
         local remote_url

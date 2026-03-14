@@ -3524,6 +3524,31 @@ assert_eq "false" "$skip_applied" "AC-3: non-file input skips fallback"
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# Category 44: batch integration respects FINISH_MODE (issue #8)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- batch integration: FINISH_MODE ---"
+
+# Test: parallel batch integration phase checks FINISH_MODE before integrating
+# Arrange — extract integration phase from run_batch_parallel
+par_integration=$(sed -n '/Integration phase: serialize/,/Print summary/p' "$RUN_PDLC")
+# Assert
+assert_contains "$par_integration" 'FINISH_MODE' \
+    "parallel batch: integration phase checks FINISH_MODE"
+assert_contains "$par_integration" 'leave-branch' \
+    "parallel batch: integration phase skips when --leave-branch"
+
+# Test: sequential batch integration respects FINISH_MODE
+# Arrange — extract run_batch_sequential function body
+seq_batch_code=$(sed -n '/^run_batch_sequential()/,/^}/p' "$RUN_PDLC")
+# Assert
+assert_contains "$seq_batch_code" 'FINISH_MODE' \
+    "sequential batch: integration respects FINISH_MODE"
+assert_contains "$seq_batch_code" 'leave-branch' \
+    "sequential batch: integration skips when --leave-branch"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 

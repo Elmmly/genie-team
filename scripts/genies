@@ -1510,7 +1510,9 @@ run_batch_sequential() {
         if [[ $ec -eq 0 ]]; then
             # Integrate the worktree branch
             local integrate_ec=0
-            if [[ "$TRUNK_MODE" == "true" ]]; then
+            if [[ "$FINISH_MODE" == "--leave-branch" ]]; then
+                log_info "Branch preserved: $slug (--finish-mode --leave-branch)"
+            elif [[ "$TRUNK_MODE" == "true" ]]; then
                 session_integrate_trunk "$slug" || integrate_ec=$?
             else
                 session_integrate_pr "$slug" || integrate_ec=$?
@@ -2119,6 +2121,10 @@ run_batch_parallel() {
 
     # ── Integration phase: serialize merges/PRs ──
     if [[ ${#succeeded_items[@]} -gt 0 ]]; then
+        if [[ "$FINISH_MODE" == "--leave-branch" ]]; then
+            log_info "Branches preserved (--finish-mode --leave-branch): ${succeeded_slugs[*]+"${succeeded_slugs[*]}"}"
+        else
+
         log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
 
         local integrate_idx=0
@@ -2178,6 +2184,7 @@ run_batch_parallel() {
 
             integrate_idx=$((integrate_idx + 1))
         done
+        fi  # end: if [[ "$FINISH_MODE" != "--leave-branch" ]]
     fi
 
     # Print summary
