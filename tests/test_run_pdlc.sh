@@ -3551,6 +3551,12 @@ _orig_print_batch_summary=$(declare -f print_batch_summary)
 _saved_SELF="$SELF"
 _saved_FINISH_MODE="${FINISH_MODE:-}"
 _saved_TRUNK_MODE="${TRUNK_MODE:-}"
+_saved_THROUGH_PHASE="${THROUGH_PHASE:-}"
+_saved_VERBOSE_LOGGING="${VERBOSE_LOGGING:-}"
+_saved_SKIP_PERMISSIONS="${SKIP_PERMISSIONS:-}"
+_saved_REVIEW_CYCLES="${REVIEW_CYCLES:-}"
+_saved_CONTINUE_ON_FAILURE="${CONTINUE_ON_FAILURE:-}"
+_saved_LOG_DIR="${LOG_DIR:-}"
 _saved_BATCH_ITEMS=("${BATCH_ITEMS[@]+"${BATCH_ITEMS[@]}"}")
 
 # Install spies
@@ -3592,6 +3598,12 @@ assert_eq "true" "$_seq_pr_called" \
 SELF="$_saved_SELF"
 FINISH_MODE="$_saved_FINISH_MODE"
 TRUNK_MODE="$_saved_TRUNK_MODE"
+THROUGH_PHASE="$_saved_THROUGH_PHASE"
+VERBOSE_LOGGING="$_saved_VERBOSE_LOGGING"
+SKIP_PERMISSIONS="$_saved_SKIP_PERMISSIONS"
+REVIEW_CYCLES="$_saved_REVIEW_CYCLES"
+CONTINUE_ON_FAILURE="$_saved_CONTINUE_ON_FAILURE"
+LOG_DIR="$_saved_LOG_DIR"
 BATCH_ITEMS=("${_saved_BATCH_ITEMS[@]+"${_saved_BATCH_ITEMS[@]}"}")
 eval "$_orig_integrate_pr"
 eval "$_orig_integrate_trunk"
@@ -3619,6 +3631,11 @@ _orig_reconcile_batch_state=$(declare -f reconcile_batch_state)
 _saved_SELF="$SELF"
 _saved_FINISH_MODE="${FINISH_MODE:-}"
 _saved_TRUNK_MODE="${TRUNK_MODE:-}"
+_saved_THROUGH_PHASE="${THROUGH_PHASE:-}"
+_saved_VERBOSE_LOGGING="${VERBOSE_LOGGING:-}"
+_saved_SKIP_PERMISSIONS="${SKIP_PERMISSIONS:-}"
+_saved_REVIEW_CYCLES="${REVIEW_CYCLES:-}"
+_saved_LOG_DIR="${LOG_DIR:-}"
 _saved_BATCH_ITEMS=("${BATCH_ITEMS[@]+"${BATCH_ITEMS[@]}"}")
 _saved_PARALLEL_JOBS="${PARALLEL_JOBS:-0}"
 
@@ -3663,6 +3680,11 @@ assert_eq "true" "$_par_pr_called" \
 SELF="$_saved_SELF"
 FINISH_MODE="$_saved_FINISH_MODE"
 TRUNK_MODE="$_saved_TRUNK_MODE"
+THROUGH_PHASE="$_saved_THROUGH_PHASE"
+VERBOSE_LOGGING="$_saved_VERBOSE_LOGGING"
+SKIP_PERMISSIONS="$_saved_SKIP_PERMISSIONS"
+REVIEW_CYCLES="$_saved_REVIEW_CYCLES"
+LOG_DIR="$_saved_LOG_DIR"
 BATCH_ITEMS=("${_saved_BATCH_ITEMS[@]+"${_saved_BATCH_ITEMS[@]}"}")
 PARALLEL_JOBS="$_saved_PARALLEL_JOBS"
 eval "$_orig_integrate_pr"
