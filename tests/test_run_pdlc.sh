@@ -3730,11 +3730,12 @@ _saved_PARALLEL_JOBS="${PARALLEL_JOBS:-0}"
 # Install spies
 _par_pr_called="false"
 _par_trunk_called="false"
-session_integrate_pr()   { _par_pr_called="true";    return 0; }
-session_integrate_trunk() { _par_trunk_called="true"; return 0; }
+_par_reconcile_called="false"
+session_integrate_pr()    { _par_pr_called="true";        return 0; }
+session_integrate_trunk()  { _par_trunk_called="true";     return 0; }
+reconcile_batch_state()    { _par_reconcile_called="true"; return 0; }
 print_batch_parallel_summary() { :; }
 write_batch_manifest() { :; }
-reconcile_batch_state() { :; }
 
 # Arrange
 SELF="$TEMP_DIR/mock-self"
@@ -3756,6 +3757,8 @@ assert_eq "false" "$_par_pr_called" \
     "parallel batch: --leave-branch does not call session_integrate_pr"
 assert_eq "false" "$_par_trunk_called" \
     "parallel batch: --leave-branch does not call session_integrate_trunk"
+assert_eq "false" "$_par_reconcile_called" \
+    "parallel batch: --leave-branch does not call reconcile_batch_state"
 
 # Verify it DOES call session_integrate_pr when FINISH_MODE=--pr
 FINISH_MODE="--pr"

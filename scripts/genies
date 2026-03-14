@@ -2215,7 +2215,11 @@ run_batch_parallel() {
             "${conflict_items[@]+"${conflict_items[@]}"}"
 
         # Reconcile shared state (backlog statuses, current_work.md)
-        reconcile_batch_state
+        # Skip when --leave-branch: branches haven't been integrated yet,
+        # so marking items done would corrupt state before human review.
+        if [[ "$FINISH_MODE" != "--leave-branch" ]]; then
+            reconcile_batch_state
+        fi
     fi
 
     if [[ $failed -gt 0 || $merge_conflicts -gt 0 ]]; then
