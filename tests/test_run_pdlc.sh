@@ -3524,7 +3524,7 @@ assert_eq "false" "$skip_applied" "AC-3: non-file input skips fallback"
 teardown_temp
 
 # ═══════════════════════════════════════════════
-# NOTE: Category 44 (batch FINISH_MODE tests) lives in PR #12 branch
+# Category 45: worktree_run_setup (issue #7)
 # ═══════════════════════════════════════════════
 
 echo ""
@@ -3653,6 +3653,71 @@ export PATH="$TEMP_DIR/bin:$PATH"
 worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1
 assert_file_not_exists "$TEMP_DIR/pnpm_called" "worktree_run_setup: setup.sh takes precedence over lockfile"
 export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: bun.lockb triggers bun install
+setup_temp
+touch "$TEMP_DIR/bun.lockb"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\necho "$@" > "%s/bun_args"\ntouch "%s/bun_called"\n' "$TEMP_DIR" "$TEMP_DIR" > "$TEMP_DIR/bin/bun"
+chmod +x "$TEMP_DIR/bin/bun"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1
+assert_file_exists "$TEMP_DIR/bun_called" "worktree_run_setup: runs bun install for bun.lockb"
+bun_args=$(cat "$TEMP_DIR/bun_args" 2>/dev/null || echo "")
+assert_contains "$bun_args" "frozen-lockfile" "worktree_run_setup: bun.lockb uses --frozen-lockfile"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: bun.lock (Bun 1.2+ TOML format) triggers bun install
+setup_temp
+touch "$TEMP_DIR/bun.lock"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\ntouch "%s/bun_called"\n' "$TEMP_DIR" > "$TEMP_DIR/bin/bun"
+chmod +x "$TEMP_DIR/bin/bun"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1
+assert_file_exists "$TEMP_DIR/bun_called" "worktree_run_setup: runs bun install for bun.lock"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: install failure surfaces stderr content in error log
+setup_temp
+touch "$TEMP_DIR/pnpm-lock.yaml"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\necho "peer conflict: react@18 vs react@17" >&2\nexit 1\n' > "$TEMP_DIR/bin/pnpm"
+chmod +x "$TEMP_DIR/bin/pnpm"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+_log_errors=""
+_orig_log_error_wrs=$(declare -f log_error)
+log_error() { _log_errors="${_log_errors}$*"$'\n'; }
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || true
+assert_contains "$_log_errors" "peer conflict" "worktree_run_setup: install failure surfaces stderr content"
+eval "$_orig_log_error_wrs"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: worktree_setup logs dangling path when setup fails
+setup_temp
+_log_info_msgs=""
+_orig_log_info_wrs=$(declare -f log_info)
+log_info() { _log_info_msgs="${_log_info_msgs}$*"$'\n'; }
+_orig_worktree_run_setup=$(declare -f worktree_run_setup)
+_fake_path="$TEMP_DIR/fake-worktree"
+worktree_run_setup() { return 1; }
+_orig_session_start_ws=$(declare -f session_start)
+session_start() { echo "$_fake_path"; }
+_orig_session_cleanup_item_ws=$(declare -f session_cleanup_item)
+session_cleanup_item() { return 0; }
+worktree_setup "test-item" >/dev/null 2>&1 || true
+assert_contains "$_log_info_msgs" "$_fake_path" "worktree_setup: logs dangling worktree path on setup failure"
+eval "$_orig_log_info_wrs"
+eval "$_orig_worktree_run_setup"
+eval "$_orig_session_start_ws"
+eval "$_orig_session_cleanup_item_ws"
 teardown_temp
 
 # ═══════════════════════════════════════════════
