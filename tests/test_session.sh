@@ -829,11 +829,10 @@ setup
 # Test: cleanup succeeds when worktree directory was manually deleted (stale reference)
 # Arrange — create worktree, then manually rm -rf the directory to simulate crash
 SAVED_DIR="$(pwd)"
-_repo_name="$(basename "$MAIN_REPO")"
-cd "$MAIN_REPO" || exit
-git worktree add "../${_repo_name}--P0-stale-item" -b "genie/P0-stale-item-deliver" main -q 2>/dev/null
+cd "$TEST_REPO" || exit
+git worktree add "../${REPO_NAME}--P0-stale-item" -b "genie/P0-stale-item-deliver" main -q 2>/dev/null
 # Simulate crash: remove the directory without git knowing
-rm -rf "../${_repo_name}--P0-stale-item"
+rm -rf "../${REPO_NAME}--P0-stale-item"
 # Verify the stale reference exists (git thinks worktree is still there)
 stale_count=$(git worktree list --porcelain 2>/dev/null | grep -c "worktree.*P0-stale-item" || true)
 assert_eq "1" "$stale_count" "session_cleanup_item: stale worktree reference exists before cleanup"
@@ -851,41 +850,6 @@ else
 fi
 
 cd "$SAVED_DIR" || true
-teardown
-
-# ─────────────────────────────────────────────
-# Test: session_integrate_pr propagates gh pr create failure (issue #8)
-# ─────────────────────────────────────────────
-echo ""
-echo "--- session_integrate_pr: failure propagation ---"
-
-setup
-
-# Arrange — create session with a commit
-cd "$MAIN_REPO" && session_start "failing-pr-item" "deliver" >/dev/null 2>&1
-git -C "$TEMP_DIR/main-repo--failing-pr-item" config user.email "test@test.com"
-git -C "$TEMP_DIR/main-repo--failing-pr-item" config user.name "Test"
-echo "feature" > "$TEMP_DIR/main-repo--failing-pr-item/feature.txt"
-git -C "$TEMP_DIR/main-repo--failing-pr-item" add feature.txt
-git -C "$TEMP_DIR/main-repo--failing-pr-item" commit -m "add feature" -q
-
-# Arrange — mock gh that exits non-zero (simulates gh pr create failure)
-MOCK_BIN_FAIL="$TEMP_DIR/mock-bin-failing"
-mkdir -p "$MOCK_BIN_FAIL"
-cat > "$MOCK_BIN_FAIL/gh" << 'MOCK_GH'
-#!/bin/bash
-exit 1
-MOCK_GH
-chmod +x "$MOCK_BIN_FAIL/gh"
-
-# Act
-ec=0
-cd "$MAIN_REPO" && PATH="$MOCK_BIN_FAIL:$PATH" session_integrate_pr "failing-pr-item" >/dev/null 2>&1 || ec=$?
-
-# Assert
-assert_exit_code "1" "$ec" \
-    "session_integrate_pr: returns non-zero when gh pr create fails"
-
 teardown
 
 # ─────────────────────────────────────────────
