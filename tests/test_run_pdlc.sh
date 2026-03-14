@@ -3524,6 +3524,138 @@ assert_eq "false" "$skip_applied" "AC-3: non-file input skips fallback"
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# NOTE: Category 44 (batch FINISH_MODE tests) lives in PR #12 branch
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- worktree_run_setup ---"
+
+# Test: returns 0 with no setup script and no lockfiles
+setup_temp
+ec=0
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || ec=$?
+assert_eq "0" "$ec" "worktree_run_setup: returns 0 when nothing to do"
+teardown_temp
+
+# Test: runs .genie/setup.sh when present and executable
+setup_temp
+mkdir -p "$TEMP_DIR/.genie"
+cat > "$TEMP_DIR/.genie/setup.sh" << 'SETUP'
+#!/bin/bash
+echo "setup ran" > "$WORKTREE_SETUP_MARKER"
+SETUP
+chmod +x "$TEMP_DIR/.genie/setup.sh"
+WORKTREE_SETUP_MARKER="$TEMP_DIR/setup.ran"
+export WORKTREE_SETUP_MARKER
+ec=0
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || ec=$?
+assert_eq "0" "$ec" "worktree_run_setup: returns 0 when setup.sh succeeds"
+assert_file_exists "$TEMP_DIR/setup.ran" "worktree_run_setup: executes .genie/setup.sh"
+unset WORKTREE_SETUP_MARKER
+teardown_temp
+
+# Test: returns 1 when .genie/setup.sh exits non-zero
+setup_temp
+mkdir -p "$TEMP_DIR/.genie"
+printf '#!/bin/bash\nexit 1\n' > "$TEMP_DIR/.genie/setup.sh"
+chmod +x "$TEMP_DIR/.genie/setup.sh"
+ec=0
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || ec=$?
+assert_eq "1" "$ec" "worktree_run_setup: returns 1 when setup.sh fails"
+teardown_temp
+
+# Test: skips .genie/setup.sh when not executable (falls through to lockfile detection)
+setup_temp
+mkdir -p "$TEMP_DIR/.genie"
+printf '#!/bin/bash\necho "should not run"\n' > "$TEMP_DIR/.genie/setup.sh"
+# Not chmod +x — not executable
+touch "$TEMP_DIR/pnpm-lock.yaml"
+mkdir -p "$TEMP_DIR/node_modules"  # already installed — skip install
+ec=0
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || ec=$?
+assert_eq "0" "$ec" "worktree_run_setup: non-executable setup.sh falls through to lockfile path"
+teardown_temp
+
+# Test: detects pnpm-lock.yaml and runs pnpm install when node_modules absent
+setup_temp
+touch "$TEMP_DIR/pnpm-lock.yaml"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\necho "pnpm $*" > "%s/pnpm_called"\n' "$TEMP_DIR" > "$TEMP_DIR/bin/pnpm"
+chmod +x "$TEMP_DIR/bin/pnpm"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+ec=0
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || ec=$?
+assert_eq "0" "$ec" "worktree_run_setup: returns 0 for pnpm-lock.yaml"
+assert_file_exists "$TEMP_DIR/pnpm_called" "worktree_run_setup: runs pnpm install for pnpm-lock.yaml"
+pnpm_args=$(cat "$TEMP_DIR/pnpm_called" 2>/dev/null)
+assert_contains "$pnpm_args" "frozen-lockfile" "worktree_run_setup: pnpm uses --frozen-lockfile"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: detects package-lock.json and runs npm ci when node_modules absent
+setup_temp
+touch "$TEMP_DIR/package-lock.json"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\necho "npm $*" > "%s/npm_called"\n' "$TEMP_DIR" > "$TEMP_DIR/bin/npm"
+chmod +x "$TEMP_DIR/bin/npm"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+ec=0
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || ec=$?
+assert_file_exists "$TEMP_DIR/npm_called" "worktree_run_setup: runs npm ci for package-lock.json"
+npm_args=$(cat "$TEMP_DIR/npm_called" 2>/dev/null)
+assert_contains "$npm_args" "ci" "worktree_run_setup: npm uses ci subcommand"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: detects yarn.lock and runs yarn install when node_modules absent
+setup_temp
+touch "$TEMP_DIR/yarn.lock"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\necho "yarn $*" > "%s/yarn_called"\n' "$TEMP_DIR" > "$TEMP_DIR/bin/yarn"
+chmod +x "$TEMP_DIR/bin/yarn"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+ec=0
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1 || ec=$?
+assert_file_exists "$TEMP_DIR/yarn_called" "worktree_run_setup: runs yarn install for yarn.lock"
+yarn_args=$(cat "$TEMP_DIR/yarn_called" 2>/dev/null)
+assert_contains "$yarn_args" "frozen-lockfile" "worktree_run_setup: yarn uses --frozen-lockfile"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: skips lockfile install when node_modules already present
+setup_temp
+touch "$TEMP_DIR/pnpm-lock.yaml"
+mkdir -p "$TEMP_DIR/node_modules"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\ntouch "%s/pnpm_called"\n' "$TEMP_DIR" > "$TEMP_DIR/bin/pnpm"
+chmod +x "$TEMP_DIR/bin/pnpm"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1
+assert_file_not_exists "$TEMP_DIR/pnpm_called" "worktree_run_setup: skips install when node_modules present"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# Test: .genie/setup.sh takes precedence over lockfile detection
+setup_temp
+mkdir -p "$TEMP_DIR/.genie"
+printf '#!/bin/bash\ntouch "%s/setup_ran"\n' "$TEMP_DIR" > "$TEMP_DIR/.genie/setup.sh"
+chmod +x "$TEMP_DIR/.genie/setup.sh"
+touch "$TEMP_DIR/pnpm-lock.yaml"
+mkdir -p "$TEMP_DIR/bin"
+printf '#!/bin/bash\ntouch "%s/pnpm_called"\n' "$TEMP_DIR" > "$TEMP_DIR/bin/pnpm"
+chmod +x "$TEMP_DIR/bin/pnpm"
+_saved_PATH="$PATH"
+export PATH="$TEMP_DIR/bin:$PATH"
+worktree_run_setup "$TEMP_DIR" >/dev/null 2>&1
+assert_file_not_exists "$TEMP_DIR/pnpm_called" "worktree_run_setup: setup.sh takes precedence over lockfile"
+export PATH="$_saved_PATH"
+teardown_temp
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 
