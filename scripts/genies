@@ -1214,45 +1214,43 @@ _status_parse_phase() {
 }
 
 # Get file mtime in epoch seconds (portable: macOS + Linux)
+# Validates that the result is numeric to avoid GNU stat -f returning mount paths.
 _status_file_mtime() {
     local file="$1"
-    stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null || echo 0
+    local mtime
+    # BSD/macOS: stat -f %m
+    mtime=$(stat -f %m "$file" 2>/dev/null)
+    [[ "$mtime" =~ ^[0-9]+$ ]] && { echo "$mtime"; return; }
+    # GNU/Linux: stat -c %Y
+    mtime=$(stat -c %Y "$file" 2>/dev/null)
+    [[ "$mtime" =~ ^[0-9]+$ ]] && { echo "$mtime"; return; }
+    echo 0
 }
 
-# Emit JSON for one item (no trailing comma — caller handles separators)
-_status_item_json() {
-    local slug="$1" phase="$2" status="$3" duration_secs="$4" log_file="$5"
-    printf '    {"slug": "%s", "phase": "%s", "status": "%s", "duration_secs": %s, "log": "%s"}' \
-        "$slug" "$phase" "$status" "$duration_secs" "$log_file"
-}
-
-# Print status table to stdout
+# Print status table; reads pipe-delimited item entries from stdin (slug|phase|status|dur|log)
 _status_print_table() {
-    local -n _items_ref="$1"
     printf "%-35s %-10s %-10s %s\n" "Item" "Phase" "Status" "Duration"
     printf "%s\n" "───────────────────────────────────────────────────────────────────"
-    for entry in "${_items_ref[@]+"${_items_ref[@]}"}"; do
-        IFS='|' read -r slug phase status duration_secs log_file <<< "$entry"
-        local dur
+    while IFS='|' read -r slug phase status duration_secs log_file; do
+        local dur flag=""
         dur=$(_status_fmt_duration "$duration_secs")
-        local flag=""
         [[ "$status" == "stuck" ]] && flag=" ← no output for >${STATUS_STUCK_MINS:-10}m"
         printf "%-35s %-10s %-10s %s%s\n" "$slug" "$phase" "$status" "$dur" "$flag"
     done
 }
 
-# Print JSON status report to stdout
+# Print JSON status report; reads pipe-delimited item entries from stdin
 _status_print_json() {
-    local -n _items_ref="$1"
     local total=0 done_count=0 running_count=0 stuck_count=0 failed_count=0
+    local entries=()
 
-    for entry in "${_items_ref[@]+"${_items_ref[@]}"}"; do
-        IFS='|' read -r slug phase status duration_secs log_file <<< "$entry"
+    while IFS='|' read -r slug phase status duration_secs log_file; do
+        entries+=("$slug|$phase|$status|$duration_secs|$log_file")
         total=$((total + 1))
         case "$status" in
-            done)     done_count=$((done_count + 1)) ;;
-            running)  running_count=$((running_count + 1)) ;;
-            stuck)    stuck_count=$((stuck_count + 1)) ;;
+            done)            done_count=$((done_count + 1)) ;;
+            running)         running_count=$((running_count + 1)) ;;
+            stuck)           stuck_count=$((stuck_count + 1)) ;;
             failed|conflict) failed_count=$((failed_count + 1)) ;;
         esac
     done
@@ -1260,12 +1258,13 @@ _status_print_json() {
     printf '{\n'
     printf '  "items": [\n'
     local first=true
-    for entry in "${_items_ref[@]+"${_items_ref[@]}"}"; do
+    for entry in "${entries[@]+"${entries[@]}"}"; do
         IFS='|' read -r slug phase status duration_secs log_file <<< "$entry"
         [[ "$first" == "true" ]] && first=false || printf ',\n'
-        _status_item_json "$slug" "$phase" "$status" "$duration_secs" "$log_file"
+        printf '    {"slug": "%s", "phase": "%s", "status": "%s", "duration_secs": %s, "log": "%s"}' \
+            "$slug" "$phase" "$status" "$duration_secs" "$log_file"
     done
-    [[ ${#_items_ref[@]} -gt 0 ]] && printf '\n'
+    [[ $total -gt 0 ]] && printf '\n'
     printf '  ],\n'
     printf '  "summary": {\n'
     printf '    "total": %s,\n' "$total"
@@ -1374,11 +1373,11 @@ genies_status() {
         items+=("$slug|$phase|$item_status|$duration_secs|$log_file")
     done
 
-    # Output
+    # Output — pipe items array to the appropriate printer
     if [[ "$json_mode" == "true" ]]; then
-        _status_print_json items
+        printf '%s\n' "${items[@]+"${items[@]}"}" | _status_print_json
     else
-        _status_print_table items
+        printf '%s\n' "${items[@]+"${items[@]}"}" | _status_print_table
     fi
 
     # Exit code
