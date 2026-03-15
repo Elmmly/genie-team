@@ -444,6 +444,12 @@ validate_args() {
             log_error "--min-phase ($MIN_PHASE) must precede --through ($THROUGH_PHASE)"
             exit 3
         fi
+        # --from and --min-phase are mutually exclusive: --from is a hard override,
+        # --min-phase is a floor — combining them produces undefined routing behavior
+        if [[ "$FROM_PHASE_EXPLICIT" == "true" ]]; then
+            log_error "--from and --min-phase are mutually exclusive; use one or the other"
+            exit 3
+        fi
     fi
 
     return 0
@@ -1572,7 +1578,8 @@ resolve_batch_items() {
                 }
                 BATCH_ITEMS+=("$(_batch_effective_phase "$item_phase"):$input")
             else
-                # Topic string — start from discover
+                # Topic strings always start at discover — they haven't been shaped yet,
+                # so --from and --min-phase overrides intentionally do not apply here.
                 BATCH_ITEMS+=("discover:$input")
             fi
         done

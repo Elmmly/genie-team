@@ -4136,6 +4136,19 @@ ec=$?
 assert_eq "3" "$ec" "validate_args: --min-phase after --through exits 3"
 MIN_PHASE=""
 
+# Test: validate_args rejects --from and --min-phase used together
+FROM_PHASE="deliver"
+FROM_PHASE_EXPLICIT="true"
+THROUGH_PHASE="done"
+MIN_PHASE="discern"
+INPUT="docs/backlog/P2-item.md"
+output=$(validate_args 2>&1)
+ec=$?
+assert_eq "3" "$ec" "validate_args: --from and --min-phase together exits 3"
+assert_contains "$output" "mutually exclusive" "validate_args: --from + --min-phase error mentions mutually exclusive"
+MIN_PHASE=""
+FROM_PHASE_EXPLICIT="false"
+
 # ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
