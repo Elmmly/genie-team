@@ -1183,6 +1183,7 @@ worktree_run_setup() {
 # Returns 0 if alive, 1 if not
 _genies_status_process_alive() {
     local slug="$1"
+    # Matches genies run-pdlc invocations spawned with --slug <slug>
     pgrep -f "genies.*--slug[[:space:]]$slug" >/dev/null 2>&1
 }
 
@@ -1304,16 +1305,20 @@ genies_status() {
     local manifest_succeeded=()
     local manifest_failed=()
     local manifest_conflicts=()
-    if [[ -f "$manifest" ]] && command -v jq &>/dev/null; then
-        while IFS= read -r item; do
-            [[ -n "$item" ]] && manifest_succeeded+=("$(basename "$item" .md)")
-        done < <(jq -r '.succeeded[]' "$manifest" 2>/dev/null)
-        while IFS= read -r item; do
-            [[ -n "$item" ]] && manifest_failed+=("$(basename "$item" .md)")
-        done < <(jq -r '.failed[]' "$manifest" 2>/dev/null)
-        while IFS= read -r item; do
-            [[ -n "$item" ]] && manifest_conflicts+=("$(basename "$item" .md)")
-        done < <(jq -r '.conflicts[]' "$manifest" 2>/dev/null)
+    if [[ -f "$manifest" ]]; then
+        if command -v jq &>/dev/null; then
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && manifest_succeeded+=("$(basename "$item" .md)")
+            done < <(jq -r '.succeeded[]' "$manifest" 2>/dev/null)
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && manifest_failed+=("$(basename "$item" .md)")
+            done < <(jq -r '.failed[]' "$manifest" 2>/dev/null)
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && manifest_conflicts+=("$(basename "$item" .md)")
+            done < <(jq -r '.conflicts[]' "$manifest" 2>/dev/null)
+        else
+            log_warn "jq not found — manifest results ignored; statuses may be inaccurate"
+        fi
     fi
 
     # Scan per-item log files
@@ -1344,8 +1349,7 @@ genies_status() {
         phase=$(_status_parse_phase "$log_file")
         local log_mtime
         log_mtime=$(_status_file_mtime "$log_file")
-        local idle_secs=$(( now - log_mtime ))
-        local duration_secs=$(( now - log_mtime ))  # approximation: file mtime is last activity
+        local duration_secs=$(( now - log_mtime ))  # approximation: file mtime is last write
 
         # Determine status
         local item_status
@@ -1358,7 +1362,7 @@ genies_status() {
             item_status="failed"
             has_failed=true
         elif _genies_status_process_alive "$slug"; then
-            if [[ $idle_secs -gt $stuck_threshold ]]; then
+            if [[ $duration_secs -gt $stuck_threshold ]]; then
                 item_status="stuck"
                 has_stuck=true
             else
