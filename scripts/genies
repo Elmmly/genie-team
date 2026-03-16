@@ -235,6 +235,8 @@ sanitize_slug() {
 parse_args() {
     # Reset defaults
     FROM_PHASE="discover"
+    FROM_PHASE_EXPLICIT="false"
+    MIN_PHASE=""
     THROUGH_PHASE="done"
     INPUT=""
     USE_WORKTREE="true"
@@ -295,8 +297,9 @@ parse_args() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --from)              FROM_PHASE="$2"; shift 2 ;;
+            --from)              FROM_PHASE="$2"; FROM_PHASE_EXPLICIT="true"; shift 2 ;;
             --through)           THROUGH_PHASE="$2"; shift 2 ;;
+            --min-phase)         MIN_PHASE="$2"; shift 2 ;;
             --no-worktree)       USE_WORKTREE="false"; shift ;;
             --no-resume)         NO_RESUME="true"; shift ;;
             --lock)              USE_LOCK="true"; shift ;;
@@ -346,8 +349,9 @@ parse_args() {
                 echo "  genies item1.md item2.md          # specific items"
                 echo ""
                 echo "Phase range:"
-                echo "  --from <phase>          Start phase (default: discover)"
+                echo "  --from <phase>          Start phase — strict override in batch mode (default: discover)"
                 echo "  --through <phase>       End phase (default: done)"
+                echo "  --min-phase <phase>     Batch floor: never start earlier than this phase"
                 echo ""
                 echo "Batch:"
                 echo "  --parallel <N>          Run N items concurrently in worktrees"
@@ -428,6 +432,22 @@ validate_args() {
     if [[ "$from_idx" -ge 2 ]]; then
         if [[ ! "$INPUT" =~ ^docs/ ]] && [[ ! -f "$INPUT" ]]; then
             log_error "Phase '$FROM_PHASE' requires an existing backlog item path, not a topic string"
+            exit 3
+        fi
+    fi
+
+    # Validate --min-phase when set
+    if [[ -n "${MIN_PHASE:-}" ]]; then
+        local mp_idx
+        mp_idx=$(phase_index "$MIN_PHASE") || exit 3
+        if [[ $mp_idx -gt $through_idx ]]; then
+            log_error "--min-phase ($MIN_PHASE) must precede --through ($THROUGH_PHASE)"
+            exit 3
+        fi
+        # --from and --min-phase are mutually exclusive: --from is a hard override,
+        # --min-phase is a floor — combining them produces undefined routing behavior
+        if [[ "$FROM_PHASE_EXPLICIT" == "true" ]]; then
+            log_error "--from and --min-phase are mutually exclusive; use one or the other"
             exit 3
         fi
     fi
@@ -1435,6 +1455,28 @@ worktree_teardown_failure() {
 # Batch Mode Functions
 # ─────────────────────────────────────────────
 
+# Apply --from / --min-phase constraints to a status-derived phase.
+# --from (FROM_PHASE_EXPLICIT=true): strict override — all items start at FROM_PHASE
+# --min-phase (MIN_PHASE non-empty): floor — item phase is max(status_phase, MIN_PHASE)
+# No flags: returns status_phase unchanged
+_batch_effective_phase() {
+    local status_phase="$1"
+    if [[ "$FROM_PHASE_EXPLICIT" == "true" ]]; then
+        echo "$FROM_PHASE"
+        return
+    fi
+    if [[ -n "$MIN_PHASE" ]]; then
+        local sp_idx mp_idx
+        sp_idx=$(phase_index "$status_phase" 2>/dev/null) || { echo "$status_phase"; return; }
+        mp_idx=$(phase_index "$MIN_PHASE" 2>/dev/null) || { echo "$status_phase"; return; }
+        if [[ $sp_idx -lt $mp_idx ]]; then
+            echo "$MIN_PHASE"
+            return
+        fi
+    fi
+    echo "$status_phase"
+}
+
 # Resolve batch items from inputs or backlog scan
 # Sets: BATCH_ITEMS array (format: "phase:input")
 resolve_batch_items() {
@@ -1480,7 +1522,7 @@ resolve_batch_items() {
                 [[ "$match" == "true" ]] || continue
             fi
 
-            BATCH_ITEMS+=("$item_phase:$file")
+            BATCH_ITEMS+=("$(_batch_effective_phase "$item_phase"):$file")
         done
 
         # Scan docs/topics/ for pending intake items
@@ -1534,9 +1576,10 @@ resolve_batch_items() {
                     log_info "Skipping $input (status: $status — not actionable)"
                     continue
                 }
-                BATCH_ITEMS+=("$item_phase:$input")
+                BATCH_ITEMS+=("$(_batch_effective_phase "$item_phase"):$input")
             else
-                # Topic string — start from discover
+                # Topic strings always start at discover — they haven't been shaped yet,
+                # so --from and --min-phase overrides intentionally do not apply here.
                 BATCH_ITEMS+=("discover:$input")
             fi
         done

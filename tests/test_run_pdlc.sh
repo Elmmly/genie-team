@@ -3981,6 +3981,175 @@ eval "$_orig_session_cleanup_item_ws"
 teardown_temp
 
 # ═══════════════════════════════════════════════
+# Category 46: --from strict override and --min-phase floor (issue #9)
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- --from strict override / --min-phase floor ---"
+
+# Test: default FROM_PHASE_EXPLICIT is false
+parse_args "docs/backlog/P2-item.md"
+assert_eq "false" "$FROM_PHASE_EXPLICIT" "parse_args: default FROM_PHASE_EXPLICIT is false"
+
+# Test: --from sets FROM_PHASE_EXPLICIT to true
+parse_args --from deliver "docs/backlog/P2-item.md"
+assert_eq "true" "$FROM_PHASE_EXPLICIT" "parse_args: --from sets FROM_PHASE_EXPLICIT to true"
+
+# Test: default MIN_PHASE is empty
+parse_args "docs/backlog/P2-item.md"
+assert_eq "" "$MIN_PHASE" "parse_args: default MIN_PHASE is empty"
+
+# Test: --min-phase sets MIN_PHASE
+parse_args --min-phase deliver "docs/backlog/P2-item.md"
+assert_eq "deliver" "$MIN_PHASE" "parse_args: --min-phase sets MIN_PHASE"
+
+# Test: FROM_PHASE_EXPLICIT=true forces phase for shaped item (would normally be design)
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+printf '%s\n' '---' 'status: shaped' 'priority: P1' 'title: "Shaped Item"' '---' \
+    > "$TEMP_DIR/docs/backlog/P1-shaped.md"
+
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+FROM_PHASE="deliver"
+FROM_PHASE_EXPLICIT="true"
+MIN_PHASE=""
+resolve_batch_items
+popd > /dev/null || exit
+
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: --from override enqueues shaped item"
+assert_contains "${BATCH_ITEMS[0]}" "deliver:" "resolve_batch_items: --from deliver overrides shaped→design to deliver"
+teardown_temp
+
+# Test: FROM_PHASE_EXPLICIT=true forces phase for designed item (would normally be deliver)
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+printf '%s\n' '---' 'status: designed' 'priority: P1' 'title: "Designed Item"' '---' \
+    > "$TEMP_DIR/docs/backlog/P1-designed.md"
+
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+FROM_PHASE="discern"
+FROM_PHASE_EXPLICIT="true"
+MIN_PHASE=""
+resolve_batch_items
+popd > /dev/null || exit
+
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: --from override enqueues designed item"
+assert_contains "${BATCH_ITEMS[0]}" "discern:" "resolve_batch_items: --from discern overrides designed→deliver to discern"
+teardown_temp
+
+# Test: MIN_PHASE raises phase for item below floor (shaped→design raised to deliver)
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+printf '%s\n' '---' 'status: shaped' 'priority: P1' 'title: "Shaped Item"' '---' \
+    > "$TEMP_DIR/docs/backlog/P1-shaped.md"
+
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+FROM_PHASE="discover"
+FROM_PHASE_EXPLICIT="false"
+MIN_PHASE="deliver"
+resolve_batch_items
+popd > /dev/null || exit
+
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: --min-phase enqueues item below floor"
+assert_contains "${BATCH_ITEMS[0]}" "deliver:" "resolve_batch_items: --min-phase deliver raises shaped→design to deliver"
+teardown_temp
+
+# Test: MIN_PHASE preserves phase for item at or above floor
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+printf '%s\n' '---' 'status: implemented' 'priority: P1' 'title: "Implemented Item"' '---' \
+    > "$TEMP_DIR/docs/backlog/P1-impl.md"
+
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+FROM_PHASE="discover"
+FROM_PHASE_EXPLICIT="false"
+MIN_PHASE="deliver"
+resolve_batch_items
+popd > /dev/null || exit
+
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: --min-phase preserves phase at or above floor"
+assert_contains "${BATCH_ITEMS[0]}" "discern:" "resolve_batch_items: implemented→discern not lowered by --min-phase deliver"
+teardown_temp
+
+# Test: no --from, no --min-phase preserves status-based phase (regression guard)
+setup_temp
+mkdir -p "$TEMP_DIR/docs/backlog"
+printf '%s\n' '---' 'status: shaped' 'priority: P1' 'title: "Shaped Item"' '---' \
+    > "$TEMP_DIR/docs/backlog/P1-shaped.md"
+
+pushd "$TEMP_DIR" > /dev/null || exit
+INPUTS=()
+PRIORITIES=()
+FROM_PHASE="discover"
+FROM_PHASE_EXPLICIT="false"
+MIN_PHASE=""
+resolve_batch_items
+popd > /dev/null || exit
+
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: no override preserves status-based phase"
+assert_contains "${BATCH_ITEMS[0]}" "design:" "resolve_batch_items: shaped→design unchanged without override"
+teardown_temp
+
+# Test: FROM_PHASE_EXPLICIT=true with explicit file input
+setup_temp
+printf '%s\n' '---' 'status: shaped' 'priority: P1' 'title: "Explicit Item"' '---' \
+    > "$TEMP_DIR/explicit-item.md"
+
+INPUTS=("$TEMP_DIR/explicit-item.md")
+PRIORITIES=()
+FROM_PHASE="deliver"
+FROM_PHASE_EXPLICIT="true"
+MIN_PHASE=""
+resolve_batch_items
+
+assert_eq "1" "${#BATCH_ITEMS[@]}" "resolve_batch_items: --from override applies to explicit file inputs"
+assert_contains "${BATCH_ITEMS[0]}" "deliver:" "resolve_batch_items: --from deliver overrides explicit shaped item"
+teardown_temp
+
+# Test: validate_args rejects invalid --min-phase
+FROM_PHASE="discover"
+FROM_PHASE_EXPLICIT="false"
+THROUGH_PHASE="done"
+MIN_PHASE="notaphase"
+INPUT="docs/backlog/P2-item.md"
+output=$(validate_args 2>&1)
+ec=$?
+assert_eq "3" "$ec" "validate_args: invalid --min-phase exits 3"
+MIN_PHASE=""
+
+# Test: validate_args rejects --min-phase after --through
+FROM_PHASE="discover"
+FROM_PHASE_EXPLICIT="false"
+THROUGH_PHASE="deliver"
+MIN_PHASE="discern"
+INPUT="docs/backlog/P2-item.md"
+output=$(validate_args 2>&1)
+ec=$?
+assert_eq "3" "$ec" "validate_args: --min-phase after --through exits 3"
+MIN_PHASE=""
+
+# Test: validate_args rejects --from and --min-phase used together
+FROM_PHASE="deliver"
+FROM_PHASE_EXPLICIT="true"
+THROUGH_PHASE="done"
+MIN_PHASE="discern"
+INPUT="docs/backlog/P2-item.md"
+output=$(validate_args 2>&1)
+ec=$?
+assert_eq "3" "$ec" "validate_args: --from and --min-phase together exits 3"
+assert_contains "$output" "mutually exclusive" "validate_args: --from + --min-phase error mentions mutually exclusive"
+MIN_PHASE=""
+FROM_PHASE_EXPLICIT="false"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 
