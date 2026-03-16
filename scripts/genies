@@ -9,6 +9,16 @@
 #   2  Merge conflict during PR creation
 #   3  Input validation error (bad args, missing file, lock held)
 
+# Local-first: when invoked as the global install, prefer a project-scoped version.
+# Only fires from ~/.claude/scripts/ — project installs skip this block entirely.
+_genies_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "$_genies_script_dir" == "$HOME/.claude/scripts" ]]; then
+    _local_genies="$(git rev-parse --show-toplevel 2>/dev/null)/.claude/scripts/genies"
+    [[ -x "$_local_genies" ]] && exec "$_local_genies" "$@"
+    unset _local_genies
+fi
+unset _genies_script_dir
+
 # Only set strict mode when running directly (not sourced for testing)
 if [[ "${GENIES_SOURCED:-false}" != "true" ]]; then
     set -euo pipefail

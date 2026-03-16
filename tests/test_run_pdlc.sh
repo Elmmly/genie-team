@@ -4150,6 +4150,58 @@ MIN_PHASE=""
 FROM_PHASE_EXPLICIT="false"
 
 # ═══════════════════════════════════════════════
+# Local-first resolution
+# ═══════════════════════════════════════════════
+
+echo ""
+echo "--- local-first genies resolution ---"
+
+# Test: global genies execs into project-scoped version when present
+FAKE_HOME=$(mktemp -d)
+FAKE_REPO=$(mktemp -d)
+mkdir -p "$FAKE_HOME/.claude/scripts"
+mkdir -p "$FAKE_REPO/.claude/scripts"
+cp "$RUN_PDLC" "$FAKE_HOME/.claude/scripts/genies"
+git -C "$FAKE_REPO" init -q
+# Local genies prints a unique marker so we can confirm it ran
+cat > "$FAKE_REPO/.claude/scripts/genies" << 'LOCAL_GENIES'
+#!/bin/bash
+echo "local-genies-ran"
+exit 0
+LOCAL_GENIES
+chmod +x "$FAKE_REPO/.claude/scripts/genies"
+
+output=$(cd "$FAKE_REPO" && HOME="$FAKE_HOME" bash "$FAKE_HOME/.claude/scripts/genies" 2>/dev/null) || true
+assert_contains "$output" "local-genies-ran" \
+    "local-first: global genies execs into project-scoped version"
+rm -rf "$FAKE_HOME" "$FAKE_REPO"
+
+# Test: global genies runs normally when no project-scoped version exists
+FAKE_HOME2=$(mktemp -d)
+FAKE_REPO2=$(mktemp -d)
+mkdir -p "$FAKE_HOME2/.claude/scripts"
+cp "$RUN_PDLC" "$FAKE_HOME2/.claude/scripts/genies"
+git -C "$FAKE_REPO2" init -q
+# No .claude/scripts/genies in repo — falls through to global (exits 3: no input)
+ec=0
+cd "$FAKE_REPO2" && HOME="$FAKE_HOME2" bash "$FAKE_HOME2/.claude/scripts/genies" 2>/dev/null || ec=$?
+assert_eq "3" "$ec" \
+    "local-first: falls back to global when no project-scoped version exists"
+rm -rf "$FAKE_HOME2" "$FAKE_REPO2"
+
+# Test: global genies runs normally when invoked outside a git repo
+FAKE_HOME3=$(mktemp -d)
+FAKE_NOGREPO=$(mktemp -d)
+mkdir -p "$FAKE_HOME3/.claude/scripts"
+cp "$RUN_PDLC" "$FAKE_HOME3/.claude/scripts/genies"
+# No git init — git rev-parse --show-toplevel will fail; shim must fall through safely
+ec=0
+cd "$FAKE_NOGREPO" && HOME="$FAKE_HOME3" bash "$FAKE_HOME3/.claude/scripts/genies" 2>/dev/null || ec=$?
+assert_eq "3" "$ec" \
+    "local-first: falls through safely when invoked outside a git repo"
+rm -rf "$FAKE_HOME3" "$FAKE_NOGREPO"
+
+# ═══════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════
 
