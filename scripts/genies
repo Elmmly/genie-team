@@ -1296,14 +1296,21 @@ print_batch_dry_run() {
         fi
     done
 
-    if [[ "$PARALLEL_JOBS" -gt 0 && "$TRUNK_MODE" == "true" ]]; then
-        log_info "Mode: parallel ($PARALLEL_JOBS workers, trunk-based, worktrees)"
-    elif [[ "$PARALLEL_JOBS" -gt 0 ]]; then
-        log_info "Mode: parallel ($PARALLEL_JOBS workers, PR-based, worktrees)"
-    elif [[ "$TRUNK_MODE" == "true" ]]; then
-        log_info "Mode: sequential (trunk-based, worktrees)"
+    local finish_label
+    if [[ "$TRUNK_MODE" == "true" ]]; then
+        finish_label="trunk-based"
+    elif [[ "$FINISH_MODE" == "--leave-branch" ]]; then
+        finish_label="branch-preserve"
+    elif [[ "$FINISH_MODE" == "--merge" ]]; then
+        finish_label="merge-based"
     else
-        log_info "Mode: sequential (worktrees)"
+        finish_label="PR-based"
+    fi
+
+    if [[ "$PARALLEL_JOBS" -gt 0 ]]; then
+        log_info "Mode: parallel ($PARALLEL_JOBS workers, ${finish_label}, worktrees)"
+    else
+        log_info "Mode: sequential (${finish_label}, worktrees)"
     fi
     log_info "(dry run — not executing)"
 }
@@ -1324,7 +1331,9 @@ print_batch_summary() {
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     log_info "BATCH SUMMARY"
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    log_info "Succeeded: $succeeded"
+    local succeeded_label="Succeeded"
+    [[ "${FINISH_MODE:-}" == "--leave-branch" ]] && succeeded_label="Branches preserved"
+    log_info "${succeeded_label}: $succeeded"
     log_info "Failed:    $failed"
     log_info "Duration:  ${duration_mins}m"
 
@@ -1374,7 +1383,9 @@ print_batch_parallel_summary() {
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     log_info "BATCH SUMMARY (parallel)"
     log_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    log_info "Succeeded:       $succeeded"
+    local succeeded_label="Succeeded"
+    [[ "${FINISH_MODE:-}" == "--leave-branch" ]] && succeeded_label="Branches preserved"
+    log_info "${succeeded_label}:       $succeeded"
     log_info "Failed:          $failed"
     log_info "Merge conflicts: $conflicts"
     log_info "Duration:        ${duration_mins}m"
@@ -1382,7 +1393,7 @@ print_batch_parallel_summary() {
 
     if [[ ${#succeeded_items[@]} -gt 0 ]]; then
         log_info ""
-        log_info "Succeeded:"
+        log_info "${succeeded_label}:"
         for item in "${succeeded_items[@]}"; do
             log_info "  $(basename "$item" .md)"
         done
@@ -1510,7 +1521,9 @@ run_batch_sequential() {
         if [[ $ec -eq 0 ]]; then
             # Integrate the worktree branch
             local integrate_ec=0
-            if [[ "$TRUNK_MODE" == "true" ]]; then
+            if [[ "$FINISH_MODE" == "--leave-branch" ]]; then
+                log_info "Branch preserved: $slug (--finish-mode --leave-branch)"
+            elif [[ "$TRUNK_MODE" == "true" ]]; then
                 session_integrate_trunk "$slug" || integrate_ec=$?
             else
                 session_integrate_pr "$slug" || integrate_ec=$?
@@ -2119,65 +2132,69 @@ run_batch_parallel() {
 
     # ── Integration phase: serialize merges/PRs ──
     if [[ ${#succeeded_items[@]} -gt 0 ]]; then
-        log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
+        if [[ "$FINISH_MODE" == "--leave-branch" ]]; then
+            log_info "Branches preserved (--finish-mode --leave-branch): ${succeeded_slugs[*]+"${succeeded_slugs[*]}"}"
+        else
+            log_info "Integration phase: ${#succeeded_items[@]} items to integrate"
 
-        local integrate_idx=0
-        while [[ $integrate_idx -lt ${#succeeded_items[@]} ]]; do
-            local slug="${succeeded_slugs[$integrate_idx]}"
-            local input="${succeeded_items[$integrate_idx]}"
-            log_info "Integrating: $slug"
+            local integrate_idx=0
+            while [[ $integrate_idx -lt ${#succeeded_items[@]} ]]; do
+                local slug="${succeeded_slugs[$integrate_idx]}"
+                local input="${succeeded_items[$integrate_idx]}"
+                log_info "Integrating: $slug"
 
-            if [[ "$TRUNK_MODE" == "true" ]]; then
-                session_integrate_trunk "$slug"
-                local ec=$?
-                case $ec in
-                    0)
-                        log_info "Merged to trunk: $slug"
-                        ;;
-                    1)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "No branch found: $slug"
-                        ;;
-                    2)
-                        merge_conflicts=$((merge_conflicts + 1))
-                        conflict_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Rebase conflict: $slug"
-                        ;;
-                    3)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Checkout failed: $slug"
-                        ;;
-                    4)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Merge failed (not fast-forwardable): $slug"
-                        ;;
-                    *)
-                        failed=$((failed + 1))
-                        failed_items+=("$input")
-                        succeeded=$((succeeded - 1))
-                        log_error "Integration failed (exit $ec): $slug"
-                        ;;
-                esac
-            else
-                if session_integrate_pr "$slug"; then
-                    log_info "PR created: $slug"
+                if [[ "$TRUNK_MODE" == "true" ]]; then
+                    session_integrate_trunk "$slug"
+                    local ec=$?
+                    case $ec in
+                        0)
+                            log_info "Merged to trunk: $slug"
+                            ;;
+                        1)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "No branch found: $slug"
+                            ;;
+                        2)
+                            merge_conflicts=$((merge_conflicts + 1))
+                            conflict_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Rebase conflict: $slug"
+                            ;;
+                        3)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Checkout failed: $slug"
+                            ;;
+                        4)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Merge failed (not fast-forwardable): $slug"
+                            ;;
+                        *)
+                            failed=$((failed + 1))
+                            failed_items+=("$input")
+                            succeeded=$((succeeded - 1))
+                            log_error "Integration failed (exit $ec): $slug"
+                            ;;
+                    esac
                 else
-                    failed=$((failed + 1))
-                    failed_items+=("$input")
-                    log_error "PR creation failed: $slug"
-                    succeeded=$((succeeded - 1))
+                    if session_integrate_pr "$slug"; then
+                        log_info "PR created: $slug"
+                    else
+                        failed=$((failed + 1))
+                        failed_items+=("$input")
+                        log_error "PR creation failed: $slug"
+                        succeeded=$((succeeded - 1))
+                    fi
                 fi
-            fi
 
-            integrate_idx=$((integrate_idx + 1))
-        done
+                integrate_idx=$((integrate_idx + 1))
+            done
+        fi
     fi
 
     # Print summary
@@ -2198,7 +2215,11 @@ run_batch_parallel() {
             "${conflict_items[@]+"${conflict_items[@]}"}"
 
         # Reconcile shared state (backlog statuses, current_work.md)
-        reconcile_batch_state
+        # Skip when --leave-branch: branches haven't been integrated yet,
+        # so marking items done would corrupt state before human review.
+        if [[ "$FINISH_MODE" != "--leave-branch" ]]; then
+            reconcile_batch_state
+        fi
     fi
 
     if [[ $failed -gt 0 || $merge_conflicts -gt 0 ]]; then
