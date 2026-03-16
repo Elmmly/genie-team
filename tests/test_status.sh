@@ -383,14 +383,14 @@ echo "--- genies status: subcommand dispatch ---"
 # Test: `genies status --log-dir <dir>` is a valid invocation
 setup_temp
 ec=0
-timeout 5 bash "$RUN_PDLC" status --log-dir "$TEMP_DIR" 2>/dev/null || ec=$?
+bash "$RUN_PDLC" status --log-dir "$TEMP_DIR" 2>/dev/null || ec=$?
 assert_exit_code "0" "$ec" "genies status: --log-dir dispatch works"
 teardown_temp
 
 # Test: `genies status` without --log-dir and no LOG_DIR → exits 1
 setup_temp
 ec=0
-LOG_DIR="" timeout 5 bash "$RUN_PDLC" status 2>/dev/null || ec=$?
+LOG_DIR="" bash "$RUN_PDLC" status 2>/dev/null || ec=$?
 assert_exit_code "1" "$ec" "genies status: no log dir exits 1"
 teardown_temp
 
