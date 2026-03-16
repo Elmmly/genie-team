@@ -34,9 +34,12 @@ Read and internalize `.claude/agents/designer.md` for your identity, charter, an
 
 **WRITE:**
 - `docs/brand/{name}.md` (brand guide with YAML frontmatter + markdown narrative)
+- `docs/brand/index.html` (visual HTML brand guide — browsable reference)
 - `docs/brand/tokens.json` (W3C Design Tokens derived from brand guide)
+- `docs/brand/brand.css` (portable CSS — framework-agnostic component styles and tokens)
 - `docs/brand/assets/manifest.md` (asset catalog with provenance)
 - `docs/brand/assets/*.png` (generated images from workshop)
+- `docs/brand/assets/*.html` (phase previews: palettes, typography, forms, AI elements)
 
 ---
 
@@ -202,27 +205,99 @@ Save approved versions to `docs/brand/assets/` and log to `docs/brand/assets/man
 
 Output: Target examples saved with provenance.
 
-#### Phase 6: Consolidation
+#### Phase 6: Forms & UI Components
+
+Define the brand's form language — button specs, input specs, spacing tokens, and border-radius tokens. These ensure every interactive element feels cohesive with the brand.
+
+**MANDATORY: You MUST produce a viewable artifact.** Write `docs/brand/assets/forms-preview.html` using the Write tool. The HTML file MUST:
+- Be a self-contained HTML file (inline CSS, no external dependencies except Google Fonts CDN)
+- Use the chosen brand colors, fonts, and design language throughout
+- Show all elements on the brand's background color
+
+**Required sections in the HTML preview:**
+
+1. **Button Matrix** — Show every button variant (Primary, Secondary, Accent, Ghost, Outline, Destructive) at each size (Small, Default, Large). Include hover and disabled states.
+2. **Form Fields** — Text input, textarea, select dropdown, checkbox, radio, and toggle. Show default, focus (with glow), error, and disabled states.
+3. **Composed Form** — A realistic form (e.g., sign-up, settings, or contact) combining labels, inputs, help text, error text, and submit button to show how the system works together.
+4. **Spacing & Radius Reference** — Visual ruler showing each spacing token (xs through 4xl) and radius token (sm through full) with labeled examples.
+
+**Tell the user** to open: `open docs/brand/assets/forms-preview.html`
+
+**Derivation rules:**
+- Input height MUST match default button height for inline alignment
+- Border radius should be consistent between buttons and inputs
+- Focus ring uses primary color — glow intensity should match brand energy level
+- Spacing tokens should follow a consistent scale (e.g., 4px base × multiplier)
+
+Present to user for confirmation or adjustment. If user requests changes, **regenerate the HTML file**.
+
+Output: Forms & UI Components section with button spec, form field spec, spacing tokens, and border-radius tokens.
+
+#### Phase 7: AI Design System (Optional)
+
+**Ask the user:** "Does this product include AI-powered features? (copilot, suggestions, auto-fill, etc.)"
+
+If **no**: Skip this phase entirely. No AI section in the brand guide.
+
+If **yes**: Define the visual language for AI features. The goal is to distinguish "AI is here" (static markers) from "AI is working" (animated states) through progressive visual intensity.
+
+**MANDATORY: You MUST produce a viewable artifact.** Write `docs/brand/assets/ai-elements-preview.html` using the Write tool. The HTML file MUST:
+- Be a self-contained HTML file (inline CSS with `@keyframes`, no external dependencies except Google Fonts CDN)
+- Use the brand's colors and fonts
+- Include working CSS animations (not static screenshots)
+
+**Required sections in the HTML preview:**
+
+1. **AI Indicator Icon** — Show the chosen AI icon (e.g., sparkle) in idle and active (breathing + glow) states. Demonstrate the no-spin rule: the icon breathes and glows but never rotates.
+2. **Two-Tier Glow System** — Side-by-side comparison:
+   - Decorative glow (multi-layer, for buttons/icons/FABs)
+   - Functional glow (single-layer, for form fields being populated)
+3. **AI Button** — Show idle, hover, and working states. Working state should show the animated glow and breathing icon.
+4. **AI Form States** — Show a form field progressing through each state:
+   - Populating (glow pulse + streaming cursor, field locked)
+   - Suggestion (chip below field with accept/dismiss)
+   - Accepted (confirmation indicator + "AI-suggested" label)
+   - Insight (breathing sparkle + sentiment-colored border: neutral/warning/positive)
+   - Recommended (primary border + "AI pick" badge)
+5. **AI Gradient Bar** (if applicable) — Animated gradient strip for global AI activity indication
+6. **Animation Reference Table** — List all keyframe names, durations, and what uses them
+
+**Tell the user** to open: `open docs/brand/assets/ai-elements-preview.html`
+
+**Design principles for AI styling:**
+- AI elements layer ON TOP of the standard UI — they extend, not replace
+- Animation intensity communicates AI activity level (static → breathing → pulsing)
+- Glow color should derive from the brand's primary color
+- Keep animation durations between 1.5-3s for comfortable ambient motion
+- The AI gradient (if used) should flow warm-to-cool for visual interest
+
+Present to user for confirmation. If user wants changes, **regenerate the HTML file**.
+
+Output: AI Design System section with glow specs, animation keyframes, icon behavior, button states, form states, and gradient definition.
+
+#### Phase 8: Consolidation
 
 Write three brand guide artifacts:
 
-##### 6a. Markdown Brand Guide (`docs/brand/{name}.md`)
+##### 8a. Markdown Brand Guide (`docs/brand/{name}.md`)
 
 1. **YAML frontmatter** — All structured data per `schemas/brand-spec.schema.md`:
    - `spec_version: "1.0"`
    - `type: brand-spec`
    - `brand_name`, `status: draft`, `created`, `author: designer`
    - `identity` object (mission, values, voice, positioning)
-   - `visual` object (colors, typography, imagery)
+   - `visual` object (colors, typography, imagery, forms, ai)
 
 2. **Markdown body** — Human-readable narrative:
    - Design principles and philosophy
    - Color application rules (when to use primary vs secondary vs accent)
    - Typography hierarchy
    - Imagery guidelines and dos/don'ts
+   - Forms & UI Components (button spec, form field spec, spacing, border-radius)
+   - AI Design System (if applicable — glow system, animations, form states)
    - Workshop decisions captured (why this palette, why this imagery style)
 
-##### 6b. HTML Brand Guide (`docs/brand/index.html`)
+##### 8b. HTML Brand Guide (`docs/brand/index.html`)
 
 **Write a rich, self-contained HTML brand guide** that consolidates all workshop decisions into a polished, browsable document. This is the primary visual reference for the brand.
 
@@ -240,9 +315,11 @@ The HTML file MUST:
 5. **Color Palette** — Visual swatches for every color (primary, secondary, accent, semantic, dark mode). Each swatch shows: color block, name, hex value, role/usage. Include a "colors in context" section showing the palette applied to realistic UI patterns
 6. **Typography** — Font pairings with live Google Fonts rendering. Show the type scale (h1-h6, body, caption) with actual sizes and weights. Include 2-3 real-world usage scenarios
 7. **Imagery** — Style guidelines with references to generated assets from Phase 4-5. Describe the tiers (e.g., photography, illustration, abstract) with dos and don'ts
-8. **Voice & Tone** — Writing guidelines from Phase 1. Include do/don't examples for different contexts (marketing, UI, notifications, error messages)
-9. **Decision Log** — Key workshop decisions with rationale (why this palette over alternatives, why these fonts, etc.)
-10. **Quick Reference** — Prompt guidance for generating brand-consistent content with AI tools
+8. **Forms & UI Components** — Button matrix (all variants × sizes), form field states (default, focus, error, disabled), composed form example, spacing/radius reference. From Phase 6
+9. **AI Design System** (if applicable) — Glow system, AI icon states, AI button states, AI form states, gradient bar, animation reference. From Phase 7. Omit this section if Phase 7 was skipped
+10. **Voice & Tone** — Writing guidelines from Phase 1. Include do/don't examples for different contexts (marketing, UI, notifications, error messages)
+11. **Decision Log** — Key workshop decisions with rationale (why this palette over alternatives, why these fonts, etc.)
+12. **Quick Reference** — Prompt guidance for generating brand-consistent content with AI tools
 
 **Design quality standards:**
 - Responsive layout (readable on mobile and desktop)
@@ -253,11 +330,45 @@ The HTML file MUST:
 
 **Tell the user** to open: `open docs/brand/index.html`
 
-##### 6c. Design Tokens (`docs/brand/tokens.json`)
+##### 8c. Design Tokens (`docs/brand/tokens.json`)
 
-Generate in W3C format.
+Generate in W3C Design Tokens format. Include all color, typography, spacing, border-radius, and (if applicable) AI glow/animation tokens.
 
-##### 6d. Status Report
+##### 8d. Brand CSS (`docs/brand/brand.css`)
+
+Generate a framework-agnostic CSS file that can be dropped into any frontend project. This is the portable implementation of the brand's design system.
+
+**Required sections:**
+
+1. **CSS Custom Properties** (`:root` block) — All design tokens as CSS variables:
+   - Colors: `--color-primary`, `--color-accent`, `--color-background`, etc.
+   - Typography: `--font-heading`, `--font-body`, `--font-mono`
+   - Spacing: `--space-xs` through `--space-4xl`
+   - Border radius: `--radius-sm` through `--radius-full`
+   - Shadows: `--focus-ring`, `--shadow-sm`, `--shadow-md`
+
+2. **Button Component Classes** — `.btn`, `.btn-primary`, `.btn-secondary`, `.btn-accent`, `.btn-ghost`, `.btn-outline`, `.btn-destructive`, plus size modifiers `.btn-sm`, `.btn-lg`. Include `:hover`, `:focus-visible`, `:disabled` states.
+
+3. **Form Field Classes** — `.form-input`, `.form-textarea`, `.form-select`, `.form-label`, `.form-help`, `.form-error`. Include `:focus`, `.has-error`, `:disabled` states with the brand's focus ring.
+
+4. **AI Component Classes** (if Phase 7 was completed):
+   - `.ai-glow-decorative`, `.ai-glow-functional` — glow layers
+   - `.ai-button`, `.ai-button--working` — AI button states
+   - `.ai-field--populating`, `.ai-field--suggestion`, `.ai-field--accepted`, `.ai-field--insight`, `.ai-field--recommended` — form state classes
+   - `.ai-gradient-bar` — animated gradient strip
+   - `.ai-sparkle`, `.ai-sparkle--active` — icon animation states
+   - All `@keyframes` for glow pulses, breathing, gradient flow, shimmer
+
+5. **Dark/Light Mode** — If the brand defines both modes, use `@media (prefers-color-scheme: dark)` or a `.dark` class to switch token values.
+
+**Design principles for the CSS:**
+- Framework-agnostic — no Tailwind, no Bootstrap, just vanilla CSS
+- Use CSS custom properties so any framework can consume the tokens via `var(--token)`
+- Component classes use BEM-like naming for clarity
+- All animations use `prefers-reduced-motion` media query to disable for accessibility
+- File should be self-contained and droppable into any project
+
+##### 8e. Status Report
 
 ```
 > Brand guide complete!
@@ -265,6 +376,7 @@ Generate in W3C format.
 > Saved: docs/brand/{name}.md (structured reference)
 > Saved: docs/brand/index.html (visual brand guide — open in browser)
 > Saved: docs/brand/tokens.json (W3C design tokens)
+> Saved: docs/brand/brand.css (portable component CSS — drop into any project)
 > Saved: docs/brand/assets/manifest.md ({N} target examples)
 >
 > Open the visual guide: open docs/brand/index.html
@@ -317,13 +429,36 @@ Present the existing brand assets phase-by-phase for affirmation. The user confi
    - "Needs a new direction"
 5. If "Needs a new direction": Enter Phase 4 (Imagery Style) + Phase 5 (Target Examples) from Mode 1
 
-#### Review Phase 5: Consolidation
+#### Review Phase 5: Forms & Components Affirmation
+
+1. **Check** if forms section exists in the brand guide
+2. If exists: **Write** `docs/brand/assets/forms-review.html` showing the current button matrix, form fields, and spacing system using the same format from Mode 1 Phase 6
+3. **Tell the user** to open: `open docs/brand/assets/forms-review.html`
+4. **Use AskUserQuestion:** "Are the form components still working?" with options:
+   - "Yes, keep as-is"
+   - "Needs refinement"
+   - "Not yet defined" (enter Phase 6 from Mode 1 to define them)
+5. If refinement: Enter Phase 6 from Mode 1, starting from current specs
+
+#### Review Phase 6: AI Design Affirmation (if applicable)
+
+1. **Check** if AI design system section exists in the brand guide
+2. If exists: **Write** `docs/brand/assets/ai-elements-review.html` showing current AI states and animations
+3. **Tell the user** to open: `open docs/brand/assets/ai-elements-review.html`
+4. **Use AskUserQuestion:** "Is the AI design system still working?" with options:
+   - "Yes, keep as-is"
+   - "Needs refinement"
+   - "Remove AI section" (product no longer uses AI features)
+5. If refinement: Enter Phase 7 from Mode 1
+6. If no AI section exists: Ask "Does this product now include AI features?" If yes, enter Phase 7
+
+#### Review Phase 7: Consolidation
 
 1. If ANY phase was flagged for revision:
    - **Update** the brand guide with revised sections
    - **Preserve** unchanged sections verbatim
    - Update frontmatter: `updated: {today}`
-   - Regenerate `docs/brand/tokens.json` if visual values changed
+   - Regenerate `docs/brand/tokens.json` and `docs/brand/brand.css` if visual values changed
    - Report what changed and what was affirmed
 2. If ALL phases affirmed:
    - Report: "Brand guide reviewed and affirmed. No changes needed."
@@ -340,10 +475,12 @@ Re-enter specific workshop phases to update an existing brand guide:
    - "adding dark mode" → Phase 2 (Color Exploration) + Phase 5 (Target Examples)
    - "new font" → Phase 3 (Typography) + Phase 5 (Target Examples)
    - "pivoting to illustration" → Phase 4 (Imagery Style) + Phase 5 (Target Examples)
+   - "updating forms" / "new button styles" → Phase 6 (Forms & UI Components)
+   - "adding AI features" / "updating AI styling" → Phase 7 (AI Design System)
    - "rebranding" → All phases
 3. Run the relevant phases, preserving unchanged sections
 4. Update the brand guide frontmatter (`updated: {today}`)
-5. Regenerate `docs/brand/tokens.json` if visual values changed
+5. Regenerate `docs/brand/tokens.json` and `docs/brand/brand.css` if visual values changed
 
 ### Mode 4: Activate (`--activate`)
 
@@ -363,7 +500,7 @@ Promote an existing brand guide from `draft` → `active`:
 
 ## Visual Output Rule
 
-**CRITICAL: Every visual phase (2-5) MUST produce a viewable artifact. Text-only tables and descriptions are NEVER acceptable for visual decisions.**
+**CRITICAL: Every visual phase (2-7) MUST produce a viewable artifact. Text-only tables and descriptions are NEVER acceptable for visual decisions.**
 
 The workshop uses two output strategies:
 
@@ -373,9 +510,11 @@ The workshop uses two output strategies:
 | Phase 3: Typography | **HTML file** (Write tool, Google Fonts CDN) | Real fonts rendered in browser, exact colors |
 | Phase 4: Imagery | **Image generation** (MCP tool) | Can't show photo vs illustration vs abstract without AI |
 | Phase 5: Targets | **Image generation** (MCP tool) | Brand north star needs actual generated images |
-| Phase 6: Consolidation | **HTML file** + Markdown + tokens (Write tool) | Rich visual brand guide, structured reference, design tokens |
+| Phase 6: Forms | **HTML file** (Write tool) | Interactive states, focus rings, button matrices need real rendering |
+| Phase 7: AI Design | **HTML file** (Write tool, CSS animations) | Glow pulses, breathing icons, form state transitions need live CSS |
+| Phase 8: Consolidation | **HTML file** + Markdown + tokens (Write tool) | Rich visual brand guide, structured reference, design tokens |
 
-**For Phases 2-3:** Always write an HTML file to `docs/brand/assets/` and tell the user to open it (`open docs/brand/assets/{file}.html`). HTML gives pixel-perfect color rendering and real font previews — better than any image generation for these use cases.
+**For Phases 2-3, 6-7:** Always write an HTML file to `docs/brand/assets/` and tell the user to open it (`open docs/brand/assets/{file}.html`). HTML gives pixel-perfect color rendering, real font previews, and working CSS animations — better than any image generation for these use cases.
 
 **For Phases 4-5:** Check if `mcp__imagegen__image_generate_gemini` is available:
 - **If available:** Generate images. If a call fails, retry once, then fall back to prompt-only for that specific image.
@@ -433,11 +572,13 @@ After brand workshop:
 
 ## Notes
 
-- **SHOW, don't describe.** Every visual phase (2-5) MUST produce generated images. Text-only palette tables, typography descriptions, or style explanations are NOT acceptable when image generation tools are available. The user needs to SEE and REACT to visuals, not read about them.
-- Each phase allows iteration — if the user wants changes, generate a NEW image with the adjustments
-- Flash tier is used for all workshop exploration (cost-efficient)
+- **SHOW, don't describe.** Every visual phase (2-7) MUST produce viewable artifacts. Text-only tables and descriptions are NEVER acceptable for visual decisions. The user needs to SEE and REACT to visuals, not read about them.
+- Each phase allows iteration — if the user wants changes, regenerate the artifact
+- Flash tier is used for all image generation during workshop exploration (cost-efficient)
 - Target examples are the brand's visual north star — the standard future generations aim to match
 - Brand guide is written with `status: draft` — user must explicitly `--activate`
 - Evolution mode preserves unchanged sections and only re-enters relevant phases
+- Phase 6 (Forms) always runs — every brand needs form specs. Phase 7 (AI Design) is opt-in.
+- The CSS output (`brand.css`) is framework-agnostic — it can be imported into React, Vue, Svelte, vanilla HTML, or any frontend stack
 
 ARGUMENTS: $ARGUMENTS

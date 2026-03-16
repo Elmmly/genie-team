@@ -73,6 +73,8 @@ Brand Specs provide machine-readable brand definitions that guide:
 | `typography` | object | Typography system (see Typography Object) |
 | `imagery` | object | Imagery guidelines (see Imagery Object) |
 | `spacing` | object | Spacing scale (optional) |
+| `forms` | object | Forms & UI components (see Forms Object, optional) |
+| `ai` | object | AI design system (see AI Object, optional) |
 
 ### Colors Object
 
@@ -116,6 +118,73 @@ Follows W3C Design Tokens format where applicable.
 | `avoid` | array of strings | Subjects/styles to avoid |
 | `aspect_ratios` | array of strings | Preferred aspect ratios |
 | `filters` | object | Color grading/filter preferences |
+
+### Forms Object
+
+Defines the brand's form and UI component specifications. All values are framework-agnostic — they describe the design, not the implementation.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `button` | object | Button component spec (see Button Object) |
+| `input` | object | Form input spec (see Input Object) |
+| `spacing` | object | Spacing token scale (key-value: xs, sm, md, lg, xl, 2xl, 3xl, 4xl) |
+| `border_radius` | object | Border radius token scale (key-value: sm, md, lg, full) |
+
+### Button Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `height_default` | string | Default button height (e.g., "36px") |
+| `height_small` | string | Small button height (e.g., "32px") |
+| `height_large` | string | Large button height (e.g., "40px") |
+| `radius` | string | Button border radius (e.g., "6px") |
+| `font_size` | string | Button font size (e.g., "14px") |
+| `font_weight` | string or number | Button font weight (e.g., 500) |
+| `variants` | array of strings | Available variants (e.g., primary, secondary, accent, ghost, outline, destructive) |
+
+### Input Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `height` | string | Input height — should match default button height |
+| `radius` | string | Input border radius |
+| `font_size` | string | Input font size |
+| `focus_ring` | string | Focus ring description (e.g., "primary border + 2px outer glow") |
+
+### AI Object
+
+Optional — only present when the product uses AI-powered features.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `indicator_icon` | string | Icon used as universal AI indicator (e.g., "sparkle") |
+| `glow` | object | Glow system (see Glow Object) |
+| `gradient` | object | AI gradient bar definition (optional) |
+| `animations` | object | Animation keyframe specs |
+| `form_states` | array of strings | Progressive AI form states (e.g., populating, suggestion, accepted, insight, recommended) |
+
+### Glow Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `decorative` | string | Multi-layer glow CSS (for icons, buttons, FABs) |
+| `functional` | string | Single-layer glow CSS (for form fields) |
+
+### AI Gradient Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stops` | array of strings | Gradient color stops (hex values) |
+| `flow_duration` | string | Gradient animation duration (e.g., "3s") |
+
+### AI Animations Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `glow_pulse` | string | Glow pulse duration (e.g., "2s") |
+| `breathe` | string | Icon breathe duration (e.g., "2s") |
+| `gradient_flow` | string | Gradient flow duration (e.g., "3s") |
+| `shimmer_sweep` | string | Shimmer sweep duration (e.g., "3s") |
 
 ## Status Lifecycle
 

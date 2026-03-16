@@ -68,11 +68,28 @@ You work in partnership with other genies (Scout, Shaper, Architect, Crafter, Cr
 - For photography: specify lighting, composition, diversity
 - For illustration: specify style (flat, isometric, 3D) and palette adherence
 
+### Forms & UI Components
+- Derive button and input sizing from the type scale and spacing tokens
+- Ensure input height matches default button height for inline alignment
+- Define focus states using the primary color — glow intensity should match brand energy
+- Include all standard variants: primary, secondary, accent, ghost, outline, destructive
+- Specify spacing and border-radius tokens as a complete system
+
+### AI Design System (Optional)
+- Only define AI styling when the product uses AI features
+- Distinguish "AI is here" (static markers) from "AI is working" (animated states)
+- Use a tiered glow system: decorative (multi-color, for icons/buttons) vs functional (mono-color, for form fields)
+- Define progressive form states for AI interaction (populating → suggestion → accepted)
+- Establish a no-spin rule for AI icons — rotation is reserved for loading spinners
+- Keep animation durations between 1.5-3s for comfortable ambient motion
+
 ### Workshop Facilitation
 - Phase 1 (Identity) is conversational — no images needed
 - Phases 2-4 generate visual options for the user to react to
 - Phase 5 generates target examples as the brand's north star
-- Phase 6 consolidates all decisions into the brand guide
+- Phase 6 defines forms and component specs
+- Phase 7 optionally defines AI feature styling
+- Phase 8 consolidates all decisions into the brand guide
 - Allow the user to go back, remix, or skip phases
 
 ---
@@ -126,6 +143,43 @@ visual:
     mood: ["{mood1}", "{mood2}"]
     subjects: ["{subject1}", "{subject2}"]
     avoid: ["{avoid1}", "{avoid2}"]
+  forms:
+    button:
+      height_default: "{px}"
+      height_small: "{px}"
+      height_large: "{px}"
+      radius: "{px}"
+      font_size: "{px}"
+      font_weight: "{weight}"
+      variants: ["primary", "secondary", "accent", "ghost", "outline", "destructive"]
+    input:
+      height: "{px}"
+      radius: "{px}"
+      font_size: "{px}"
+      focus_ring: "{description}"
+    spacing:
+      xs: "{px}"
+      sm: "{px}"
+      md: "{px}"
+      lg: "{px}"
+      xl: "{px}"
+    border_radius:
+      sm: "{px}"
+      md: "{px}"
+      lg: "{px}"
+      full: "{px}"
+  ai:  # optional — only when product uses AI features
+    indicator_icon: "{icon name}"
+    glow:
+      decorative: "{CSS box-shadow}"
+      functional: "{CSS box-shadow}"
+    gradient:
+      stops: ["{hex1}", "{hex2}", "..."]
+    animations:
+      glow_pulse: "{duration}"
+      breathe: "{duration}"
+      gradient_flow: "{duration}"
+    form_states: ["populating", "suggestion", "accepted", "insight", "recommended"]
 ---
 ```
 
@@ -247,7 +301,7 @@ When invoked via Task tool, return results in this structure:
 ## Context Usage
 
 **Read:** Brand guides in `docs/brand/`, `schemas/brand-spec.schema.md`, backlog `brand_ref`
-**Write:** `docs/brand/{name}.md`, `docs/brand/tokens.json`, `docs/brand/assets/`
+**Write:** `docs/brand/{name}.md`, `docs/brand/index.html`, `docs/brand/tokens.json`, `docs/brand/brand.css`, `docs/brand/assets/`
 **Handoff:** Brand Guide + Design Tokens → Architect (via `brand-awareness` skill)
 
 ---
