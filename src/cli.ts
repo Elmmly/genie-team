@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { loadGenieConfig } from "./config/genie-config.js";
 import { formatModelsTable } from "./environment/models.js";
+import { runChecks, formatCheckResult } from "./environment/check.js";
 
 function loadVersion(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -30,10 +31,21 @@ export function createCli(): Command {
     .description(
       "Run environment health checks (Claude CLI, auth, gh, MCP, install, git)"
     )
-    .action(() => {
-      // Placeholder — Slice 4 implements the real checks
-      console.log("genies check: not yet implemented");
-      process.exit(127);
+    .action(async () => {
+      console.log("Environment Health Check");
+      console.log("─".repeat(60));
+      const { results, exitCode } = await runChecks();
+      for (const r of results) {
+        console.log(formatCheckResult(r));
+      }
+      console.log("");
+      const passed = results.filter((r) => r.status === "pass").length;
+      const warned = results.filter((r) => r.status === "warn").length;
+      const failed = results.filter((r) => r.status === "fail").length;
+      console.log(
+        `${passed} passed, ${warned} warnings, ${failed} failed`,
+      );
+      process.exit(exitCode);
     });
 
   program
