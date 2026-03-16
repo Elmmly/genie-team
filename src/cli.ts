@@ -2,6 +2,8 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { loadGenieConfig } from "./config/genie-config.js";
+import { formatModelsTable } from "./environment/models.js";
 
 function loadVersion(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -38,9 +40,8 @@ export function createCli(): Command {
     .command("models")
     .description("Display model tier configuration and per-genie assignments")
     .action(() => {
-      // Placeholder — Slice 5 implements the real display
-      console.log("genies models: not yet implemented");
-      process.exit(127);
+      const config = loadGenieConfig();
+      console.log(formatModelsTable(config));
     });
 
   // Unknown commands exit 127 to signal shell fallback
