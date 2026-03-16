@@ -329,11 +329,13 @@ parse_args() {
                 echo "       genies session <command> [args]"
                 echo "       genies daemon [OPTIONS]"
                 echo "       genies quality [files...]"
+                echo "       genies status [--log-dir <dir>] [--stuck-mins <N>] [--json]"
                 echo ""
                 echo "Subcommands:"
                 echo "  session    Manage parallel worktree sessions (start, list, finish, cleanup)"
                 echo "  daemon     Run continuous PDLC loop (daemon start|stop|status)"
                 echo "  quality    Run quality validation scripts against files"
+                echo "  status     Show live batch status (running/stuck/done/failed per item)"
                 echo ""
                 echo "Single item (one input, no --parallel):"
                 echo "  genies [OPTIONS] <topic|backlog-item-path>"
@@ -1168,6 +1170,226 @@ worktree_run_setup() {
         fi
     fi
 
+    return 0
+}
+
+# ─────────────────────────────────────────────
+# Status Surface (issue #10)
+# ─────────────────────────────────────────────
+
+# Check if a genies process is alive for the given slug.
+# Extracted into its own function so tests can override it.
+# Usage: _genies_status_process_alive <slug>
+# Returns 0 if alive, 1 if not
+_genies_status_process_alive() {
+    local slug="$1"
+    # Matches genies run-pdlc invocations spawned with --slug <slug>
+    pgrep -f "genies.*--slug[[:space:]]$slug" >/dev/null 2>&1
+}
+
+# Format seconds as human-readable duration (e.g. "14m", "1h22m")
+_status_fmt_duration() {
+    local secs="$1"
+    local mins=$(( secs / 60 ))
+    local hours=$(( mins / 60 ))
+    local rem_mins=$(( mins % 60 ))
+    if [[ $hours -gt 0 ]]; then
+        echo "${hours}h${rem_mins}m"
+    else
+        echo "${mins}m"
+    fi
+}
+
+# Extract current phase from a per-item log file.
+# Returns the phase name from the last "[phase] Starting" line, or "unknown".
+_status_parse_phase() {
+    local log_file="$1"
+    local phase="unknown"
+    local line
+    while IFS= read -r line; do
+        if [[ "$line" =~ \[([a-z]+)\][[:space:]]Starting ]]; then
+            phase="${BASH_REMATCH[1]}"
+        fi
+    done < "$log_file"
+    echo "$phase"
+}
+
+# Get file mtime in epoch seconds (portable: macOS + Linux)
+# Validates that the result is numeric to avoid GNU stat -f returning mount paths.
+_status_file_mtime() {
+    local file="$1"
+    local mtime
+    # BSD/macOS: stat -f %m
+    mtime=$(stat -f %m "$file" 2>/dev/null)
+    [[ "$mtime" =~ ^[0-9]+$ ]] && { echo "$mtime"; return; }
+    # GNU/Linux: stat -c %Y
+    mtime=$(stat -c %Y "$file" 2>/dev/null)
+    [[ "$mtime" =~ ^[0-9]+$ ]] && { echo "$mtime"; return; }
+    echo 0
+}
+
+# Print status table; reads pipe-delimited item entries from stdin (slug|phase|status|dur|log)
+_status_print_table() {
+    printf "%-35s %-10s %-10s %s\n" "Item" "Phase" "Status" "Duration"
+    printf "%s\n" "───────────────────────────────────────────────────────────────────"
+    while IFS='|' read -r slug phase status duration_secs log_file; do
+        local dur flag=""
+        dur=$(_status_fmt_duration "$duration_secs")
+        [[ "$status" == "stuck" ]] && flag=" ← no output for >${STATUS_STUCK_MINS:-10}m"
+        printf "%-35s %-10s %-10s %s%s\n" "$slug" "$phase" "$status" "$dur" "$flag"
+    done
+}
+
+# Print JSON status report; reads pipe-delimited item entries from stdin
+_status_print_json() {
+    local total=0 done_count=0 running_count=0 stuck_count=0 failed_count=0
+    local entries=()
+
+    while IFS='|' read -r slug phase status duration_secs log_file; do
+        entries+=("$slug|$phase|$status|$duration_secs|$log_file")
+        total=$((total + 1))
+        case "$status" in
+            done)            done_count=$((done_count + 1)) ;;
+            running)         running_count=$((running_count + 1)) ;;
+            stuck)           stuck_count=$((stuck_count + 1)) ;;
+            failed|conflict) failed_count=$((failed_count + 1)) ;;
+        esac
+    done
+
+    printf '{\n'
+    printf '  "items": [\n'
+    local first=true
+    for entry in "${entries[@]+"${entries[@]}"}"; do
+        IFS='|' read -r slug phase status duration_secs log_file <<< "$entry"
+        [[ "$first" == "true" ]] && first=false || printf ',\n'
+        printf '    {"slug": "%s", "phase": "%s", "status": "%s", "duration_secs": %s, "log": "%s"}' \
+            "$slug" "$phase" "$status" "$duration_secs" "$log_file"
+    done
+    [[ $total -gt 0 ]] && printf '\n'
+    printf '  ],\n'
+    printf '  "summary": {\n'
+    printf '    "total": %s,\n' "$total"
+    printf '    "done": %s,\n' "$done_count"
+    printf '    "running": %s,\n' "$running_count"
+    printf '    "stuck": %s,\n' "$stuck_count"
+    printf '    "failed": %s\n' "$failed_count"
+    printf '  }\n'
+    printf '}\n'
+}
+
+# Read the active log directory and report batch item statuses.
+# Environment variables (all optional):
+#   STATUS_LOG_DIR   — log directory to read (overrides LOG_DIR)
+#   STATUS_STUCK_MINS — minutes without output before flagging stuck (default: 10)
+#   STATUS_JSON       — "true" to emit JSON instead of table
+# Exit codes:
+#   0 — all items done (or no items found)
+#   1 — one or more items stuck, failed, or in conflict
+#   2 — one or more items still running (none stuck/failed)
+genies_status() {
+    local log_dir="${STATUS_LOG_DIR:-${LOG_DIR:-}}"
+    local stuck_mins="${STATUS_STUCK_MINS:-10}"
+    local json_mode="${STATUS_JSON:-false}"
+
+    if [[ -z "$log_dir" || ! -d "$log_dir" ]]; then
+        log_error "No log directory found. Specify with --log-dir <dir> or STATUS_LOG_DIR."
+        return 1
+    fi
+
+    local now
+    now=$(date +%s)
+    local stuck_threshold=$(( stuck_mins * 60 ))
+
+    # Read manifest
+    local manifest="$log_dir/batch-manifest.json"
+    local manifest_succeeded=()
+    local manifest_failed=()
+    local manifest_conflicts=()
+    if [[ -f "$manifest" ]]; then
+        if command -v jq &>/dev/null; then
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && manifest_succeeded+=("$(basename "$item" .md)")
+            done < <(jq -r '.succeeded[]' "$manifest" 2>/dev/null)
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && manifest_failed+=("$(basename "$item" .md)")
+            done < <(jq -r '.failed[]' "$manifest" 2>/dev/null)
+            while IFS= read -r item; do
+                [[ -n "$item" ]] && manifest_conflicts+=("$(basename "$item" .md)")
+            done < <(jq -r '.conflicts[]' "$manifest" 2>/dev/null)
+        else
+            log_warn "jq not found — manifest results ignored; statuses may be inaccurate"
+        fi
+    fi
+
+    # Scan per-item log files
+    local items=()
+    local has_running=false
+    local has_stuck=false
+    local has_failed=false
+
+    for log_file in "$log_dir"/*.log; do
+        [[ -f "$log_file" ]] || continue
+        local slug
+        slug=$(basename "$log_file" .log)
+
+        # Check manifest membership
+        local in_succeeded=false in_failed=false in_conflict=false
+        for s in "${manifest_succeeded[@]+"${manifest_succeeded[@]}"}"; do
+            [[ "$(sanitize_slug "$s")" == "$slug" || "$s" == "$slug" ]] && { in_succeeded=true; break; }
+        done
+        for s in "${manifest_failed[@]+"${manifest_failed[@]}"}"; do
+            [[ "$(sanitize_slug "$s")" == "$slug" || "$s" == "$slug" ]] && { in_failed=true; break; }
+        done
+        for s in "${manifest_conflicts[@]+"${manifest_conflicts[@]}"}"; do
+            [[ "$(sanitize_slug "$s")" == "$slug" || "$s" == "$slug" ]] && { in_conflict=true; break; }
+        done
+
+        # Phase and timing
+        local phase
+        phase=$(_status_parse_phase "$log_file")
+        local log_mtime
+        log_mtime=$(_status_file_mtime "$log_file")
+        local duration_secs=$(( now - log_mtime ))  # approximation: file mtime is last write
+
+        # Determine status
+        local item_status
+        if [[ "$in_succeeded" == "true" ]]; then
+            item_status="done"
+        elif [[ "$in_conflict" == "true" ]]; then
+            item_status="conflict"
+            has_failed=true
+        elif [[ "$in_failed" == "true" ]]; then
+            item_status="failed"
+            has_failed=true
+        elif _genies_status_process_alive "$slug"; then
+            if [[ $duration_secs -gt $stuck_threshold ]]; then
+                item_status="stuck"
+                has_stuck=true
+            else
+                item_status="running"
+                has_running=true
+            fi
+        else
+            item_status="failed"
+            has_failed=true
+        fi
+
+        items+=("$slug|$phase|$item_status|$duration_secs|$log_file")
+    done
+
+    # Output — pipe items array to the appropriate printer
+    if [[ "$json_mode" == "true" ]]; then
+        printf '%s\n' "${items[@]+"${items[@]}"}" | _status_print_json
+    else
+        printf '%s\n' "${items[@]+"${items[@]}"}" | _status_print_table
+    fi
+
+    # Exit code
+    if [[ "$has_stuck" == "true" || "$has_failed" == "true" ]]; then
+        return 1
+    elif [[ "$has_running" == "true" ]]; then
+        return 2
+    fi
     return 0
 }
 
@@ -2575,6 +2797,20 @@ case "${1:-}" in
             -h|--help|"") _gs_usage ;;
             *)            _gs_error "Unknown session command: $1"; _gs_usage; exit 1 ;;
         esac
+        ;;
+    status)
+        shift
+        # Parse --log-dir, --stuck-mins, --json from remaining args
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --log-dir)    STATUS_LOG_DIR="$2"; shift 2 ;;
+                --stuck-mins) STATUS_STUCK_MINS="$2"; shift 2 ;;
+                --json)       STATUS_JSON=true; shift ;;
+                *)            shift ;;
+            esac
+        done
+        genies_status
+        exit $?
         ;;
     quality)
         shift
