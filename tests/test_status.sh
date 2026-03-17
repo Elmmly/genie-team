@@ -395,6 +395,28 @@ assert_exit_code "1" "$ec" "genies status: no log dir exits 1"
 teardown_temp
 
 # ─────────────────────────────────────────────
+# Test: non-item log files (claude_stderr, batch-manifest) are skipped
+# ─────────────────────────────────────────────
+setup_temp
+# Write a real item log and two batch-runner artefacts that must be ignored
+printf "[INFO] done\n" > "$TEMP_DIR/P1-my-feature.log"
+printf "stderr output\n" > "$TEMP_DIR/claude_stderr.log"
+printf "stderr output\n" > "$TEMP_DIR/claude_stdout.log"
+printf "extra data\n"    > "$TEMP_DIR/batch-manifest.log"
+write_manifest "$TEMP_DIR" "P1-my-feature"
+
+ec=0
+output=$(STATUS_LOG_DIR="$TEMP_DIR" genies_status 2>/dev/null) || ec=$?
+
+# Only the real item should appear in output
+assert_contains "$output" "P1-my-feature" \
+    "genies_status: real item appears in status output"
+actual_count=$(echo "$output" | grep -cE "claude_stderr|claude_stdout|batch-manifest" || true)
+assert_eq "0" "$actual_count" \
+    "genies_status: non-item log files (claude_*, batch-manifest*) are excluded from status"
+teardown_temp
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 

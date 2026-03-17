@@ -1368,6 +1368,9 @@ genies_status() {
         local slug
         slug=$(basename "$log_file" .log)
 
+        # Skip non-item files written by the batch runner itself
+        [[ "$slug" == claude_* || "$slug" == batch-manifest* ]] && continue
+
         # Check manifest membership
         local in_succeeded=false in_failed=false in_conflict=false
         for s in "${manifest_succeeded[@]+"${manifest_succeeded[@]}"}"; do
