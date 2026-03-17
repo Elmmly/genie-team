@@ -1322,6 +1322,12 @@ genies_status() {
     local json_mode="${STATUS_JSON:-false}"
 
     if [[ -z "$log_dir" || ! -d "$log_dir" ]]; then
+        local repo_root
+        repo_root=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+        log_dir=$(ls -1dt "$repo_root"/logs/batch-* 2>/dev/null | head -1) || true
+    fi
+
+    if [[ -z "$log_dir" || ! -d "$log_dir" ]]; then
         log_error "No log directory found. Specify with --log-dir <dir> or STATUS_LOG_DIR."
         return 1
     fi

@@ -390,7 +390,7 @@ teardown_temp
 # Test: `genies status` without --log-dir and no LOG_DIR → exits 1
 setup_temp
 ec=0
-LOG_DIR="" bash "$RUN_PDLC" status 2>/dev/null || ec=$?
+LOG_DIR="" STATUS_LOG_DIR="/nonexistent/no-batch-logs" bash "$RUN_PDLC" status 2>/dev/null || ec=$?
 assert_exit_code "1" "$ec" "genies status: no log dir exits 1"
 teardown_temp
 
