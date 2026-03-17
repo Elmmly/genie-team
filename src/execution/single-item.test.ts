@@ -1,0 +1,210 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  executeSingleItem,
+  type SingleItemOptions,
+  type SingleItemResult,
+} from "./single-item.js";
+import type { PhaseResult } from "../core/phase-executor.js";
+
+// Mock runPhase
+vi.mock("../core/phase-executor.js", () => ({
+  runPhase: vi.fn(),
+}));
+
+import { runPhase } from "../core/phase-executor.js";
+
+function mockPhaseResult(overrides?: Partial<PhaseResult>): PhaseResult {
+  return {
+    output: "Phase completed successfully.",
+    sessionId: "sess-" + Math.random().toString(36).slice(2, 8),
+    inputTokens: 500,
+    outputTokens: 200,
+    costUsd: 0.01,
+    numTurns: 5,
+    exhausted: false,
+    ...overrides,
+  };
+}
+
+describe("executeSingleItem", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("runs phases from discover through done", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    const result = await executeSingleItem("user auth", {
+      fromPhase: "discover",
+      throughPhase: "done",
+    });
+
+    // Assert — should call runPhase for each phase
+    expect(vi.mocked(runPhase).mock.calls.length).toBe(7);
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("respects fromPhase and throughPhase range", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "design",
+      throughPhase: "deliver",
+    });
+
+    // Assert — only design and deliver
+    const phases = vi.mocked(runPhase).mock.calls.map((c) => c[0]);
+    expect(phases).toEqual(["design", "deliver"]);
+  });
+
+  it("accumulates total cost across phases", async () => {
+    // Arrange
+    vi.mocked(runPhase)
+      .mockResolvedValueOnce(mockPhaseResult({ costUsd: 0.05 }))
+      .mockResolvedValueOnce(mockPhaseResult({ costUsd: 0.10 }));
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "design",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    expect(result.totalCostUsd).toBeCloseTo(0.15);
+  });
+
+  it("passes session IDs for cross-phase resume", async () => {
+    // Arrange
+    vi.mocked(runPhase)
+      .mockResolvedValueOnce(mockPhaseResult({ sessionId: "sess-discover" }))
+      .mockResolvedValueOnce(mockPhaseResult({ sessionId: "sess-define" }));
+
+    // Act
+    await executeSingleItem("user auth", {
+      fromPhase: "discover",
+      throughPhase: "define",
+    });
+
+    // Assert — second call should get resume from first
+    const secondCall = vi.mocked(runPhase).mock.calls[1];
+    const opts = secondCall[2];
+    expect(opts?.resumeSessionId).toBe("sess-discover");
+  });
+
+  it("detects APPROVED verdict from discern phase", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(
+      mockPhaseResult({
+        output: "Review complete. Verdict: APPROVED.",
+      }),
+    );
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "discern",
+      throughPhase: "discern",
+    });
+
+    // Assert
+    expect(result.verdict).toBe("APPROVED");
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("detects BLOCKED verdict and exits 1", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(
+      mockPhaseResult({
+        output: "Critical issues found. Verdict: BLOCKED.",
+      }),
+    );
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "discern",
+      throughPhase: "discern",
+    });
+
+    // Assert
+    expect(result.verdict).toBe("BLOCKED");
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("handles CHANGES_REQUESTED with review cycle", async () => {
+    // Arrange — first discern requests changes, deliver fixes, second discern approves
+    vi.mocked(runPhase)
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Verdict: CHANGES REQUESTED. Fix the tests." }),
+      )
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Fixed the tests as requested." }),
+      )
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Verdict: APPROVED." }),
+      );
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "discern",
+      throughPhase: "discern",
+      reviewCycles: 2,
+    });
+
+    // Assert — should have done: discern → deliver → discern
+    const phases = vi.mocked(runPhase).mock.calls.map((c) => c[0]);
+    expect(phases).toEqual(["discern", "deliver", "discern"]);
+    expect(result.verdict).toBe("APPROVED");
+  });
+
+  it("stops review cycles at max limit", async () => {
+    // Arrange — always requests changes
+    vi.mocked(runPhase).mockResolvedValue(
+      mockPhaseResult({ output: "Verdict: CHANGES REQUESTED." }),
+    );
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "discern",
+      throughPhase: "discern",
+      reviewCycles: 1,
+    });
+
+    // Assert — discern once, deliver once (review cycle), discern again = 3 calls max
+    expect(vi.mocked(runPhase).mock.calls.length).toBeLessThanOrEqual(3);
+  });
+
+  it("exits 1 when phase exhausts turns", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(
+      mockPhaseResult({ exhausted: true }),
+    );
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    expect(result.exitCode).toBe(1);
+  });
+
+  it("collects phase results for logging", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "design",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    expect(result.phaseResults).toHaveLength(2);
+    expect(result.phaseResults[0].phase).toBe("design");
+    expect(result.phaseResults[1].phase).toBe("deliver");
+  });
+});
