@@ -889,6 +889,46 @@ assert_exit_code "1" "$ec" \
 teardown
 
 # ─────────────────────────────────────────────
+# Test: session_integrate_pr skips pr create when PR already exists
+# ─────────────────────────────────────────────
+echo ""
+echo "--- session_integrate_pr: existing PR ---"
+
+setup
+
+# Arrange — create session with a commit
+cd "$MAIN_REPO" && session_start "existing-pr-item" "deliver" >/dev/null 2>&1
+git -C "$TEMP_DIR/main-repo--existing-pr-item" config user.email "test@test.com"
+git -C "$TEMP_DIR/main-repo--existing-pr-item" config user.name "Test"
+echo "feature" > "$TEMP_DIR/main-repo--existing-pr-item/feature.txt"
+git -C "$TEMP_DIR/main-repo--existing-pr-item" add feature.txt
+git -C "$TEMP_DIR/main-repo--existing-pr-item" commit -m "add feature" -q
+
+# Arrange — mock gh: pr list returns existing URL, pr create must not be reached
+MOCK_BIN_EXISTING="$TEMP_DIR/mock-bin-existing"
+mkdir -p "$MOCK_BIN_EXISTING"
+cat > "$MOCK_BIN_EXISTING/gh" << 'MOCK_GH'
+#!/bin/bash
+if [[ "$1 $2" == "pr list" && "$*" == *"--head genie/existing-pr-item-deliver"* ]]; then
+    echo "https://github.com/test/repo/pull/99"; exit 0
+fi
+echo "ERROR: unexpected gh call: $*" >&2; exit 1
+MOCK_GH
+chmod +x "$MOCK_BIN_EXISTING/gh"
+
+# Act
+ec=0
+stdout=$(cd "$MAIN_REPO" && PATH="$MOCK_BIN_EXISTING:$PATH" session_integrate_pr "existing-pr-item" 2>/dev/null) || ec=$?
+
+# Assert
+assert_exit_code "0" "$ec" \
+    "session_integrate_pr: returns 0 when PR already exists"
+assert_contains "$stdout" "https://github.com/test/repo/pull/99" \
+    "session_integrate_pr: returns existing PR URL when PR already exists"
+
+teardown
+
+# ─────────────────────────────────────────────
 # Summary
 # ─────────────────────────────────────────────
 echo ""

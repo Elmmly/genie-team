@@ -505,6 +505,18 @@ session_integrate_pr() {
     local remote_url
     remote_url=$(git -C "$repo_root" remote get-url origin 2>/dev/null)
     if command -v gh >/dev/null 2>&1; then
+        # If a PR already exists for this branch, treat as success.
+        # The /commit phase creates the PR; integration only needs to push
+        # any subsequent /done commits onto the existing branch.
+        local existing_pr
+        existing_pr=$(cd "$repo_root" && gh pr list --head "$branch" --base "$default_branch" \
+            --json url --jq '.[0].url' 2>/dev/null)
+        if [[ -n "$existing_pr" ]]; then
+            _gs_log "PR already exists: $existing_pr"
+            echo "$existing_pr"
+            return 0
+        fi
+
         local pr_url
         if ! pr_url=$(cd "$repo_root" && gh pr create \
             --base "$default_branch" \
