@@ -423,9 +423,11 @@ jobs:
            steps.scout.conclusion == 'failure' || steps.critic.conclusion == 'failure')
         env:
           SECRETS_ADMIN_PAT: ${{ secrets.SECRETS_ADMIN_PAT }}
-          NEW_OAUTH_TOKEN: ${{ env.CLAUDE_CODE_OAUTH_TOKEN }}
-          NEW_REFRESH_TOKEN: ${{ env.CLAUDE_REFRESH_TOKEN }}
-          NEW_EXPIRES_AT: ${{ env.CLAUDE_EXPIRES_AT }}
+          # Read from secrets directly — env.* vars are only defined at step scope
+          # inside the Scout/Critic steps and are empty at job scope here.
+          NEW_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          NEW_REFRESH_TOKEN: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
+          NEW_EXPIRES_AT: ${{ secrets.CLAUDE_EXPIRES_AT }}
         run: |
           # Only run if SECRETS_ADMIN_PAT is set (OAuth path indicator)
           if [[ -z "${SECRETS_ADMIN_PAT:-}" ]]; then

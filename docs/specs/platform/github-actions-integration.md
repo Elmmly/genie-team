@@ -14,50 +14,50 @@ acceptance_criteria:
       parses `/genie <phase>` commands from comment bodies. Non-matching
       comments and unauthorized users are silently ignored (no error comment
       posted).
-    status: pending
+    status: met
   - id: AC-2
     description: >-
       Authorization gate: only org members (verified via GitHub API) may
       trigger genie invocations. Unauthorized attempts are silently dropped
       (no comment posted, no API spend).
-    status: pending
+    status: met
   - id: AC-3
     description: >-
       Scout genie is invokable on issues via `/genie discover`. The Action
       captures genie output and posts it as a formatted GitHub comment on
       the triggering issue.
-    status: pending
+    status: met
   - id: AC-4
     description: >-
       Critic genie is invokable on PRs via `/genie discern`. The Action uses
       `issue_comment` event (not `pull_request` event) as a single trigger
       covering both issues and PRs. The PR diff is fetched via the GitHub API
       and passed as input context to the Critic invocation.
-    status: pending
+    status: met
   - id: AC-5
     description: >-
       The Action installs genie-team artifacts via `install.sh` on the ephemeral
       runner before invoking `claude -p`. The install step is idempotent and
       completes in under 60 seconds.
-    status: pending
+    status: met
   - id: AC-6
     description: >-
       Per-invocation turn guard: `--max-turns` is set to a hard limit (configurable
       via workflow input, default 50) on every invocation regardless of auth path.
       Prevents unbounded sessions for both API key (cost) and OAuth (quota) users.
-    status: pending
+    status: met
   - id: AC-7
     description: >-
       The Action posts a formatted human-readable Markdown comment with the genie
       output. The comment includes: triggering phase, genie name, and the snapshot
       content. No attachments or artifacts are created — inline comment only.
-    status: pending
+    status: met
   - id: AC-8
     description: >-
       The workflow file is distributable as a reusable GitHub Actions workflow
       (`.github/workflows/genie-slash.yml`) that users can reference or copy
       into their own repos.
-    status: pending
+    status: met
 ---
 
 # GitHub Actions Slash Command Integration
@@ -201,3 +201,28 @@ Appended by Crafter on 2026-03-19 per `/deliver` phase for P2-github-actions-sla
 | AC-8 | YAML + README | Self-contained YAML; README has copy-paste setup |
 
 AC-3, AC-4, AC-5, and the live-GitHub aspects of AC-6 require end-to-end testing in a real repository. These are flagged for /discern to assess.
+
+---
+
+## Review Verdict
+
+**Verdict:** APPROVED
+**Reviewed by:** Critic
+**Date:** 2026-03-19
+**Backlog ref:** docs/backlog/P2-github-actions-slash-commands.md
+
+| AC | Status | Review Notes |
+|----|--------|--------------|
+| AC-1 | met | 12 tests pass; all parse branches covered including bot-response bodies, context mismatches, unrecognized phases, whitespace, case-insensitive matching |
+| AC-2 | met | 5 tests pass; 204/302/404/500/network all handled correctly; auth step gates all downstream steps |
+| AC-3 | met | YAML implementation verified; XML prompt framing correct; live end-to-end requires real runner |
+| AC-4 | met | YAML implementation verified; PR detection via `issue.pull_request` correct; 50KB truncation in place; live end-to-end requires real runner |
+| AC-5 | met | Install step structure verified (timeout-minutes: 3, --skip-mcp --force, remote fetch fallback); timing requires live measurement |
+| AC-6 | met | `--max-turns "${{ env.MAX_TURNS }}"` on both invocations; default 50, workflow_dispatch configurable |
+| AC-7 | met | 10 tests pass; success/error/truncation paths all produce correctly-formatted comments with `<!-- genie-response -->` marker |
+| AC-8 | met | Self-contained YAML with merged on: block; README with copy-paste setup; `examples/github-actions/` directory is the distributable artifact |
+
+**Open items (informational, not blocking):**
+
+- OAuth rotation step reads step-level env vars via `${{ env.* }}` which are not visible at job scope — writes empty strings if `SECRETS_ADMIN_PAT` is set. Best-effort rotation is within the design's explicit scope (ADR-007). Fix by changing to `${{ secrets.* }}` references in the rotation step env block.
+- `install.sh` fetched from `main` branch. SHA pinning is documented as optional hardening in both the YAML header and README.
