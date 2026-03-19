@@ -73,13 +73,13 @@ jobs:
     # Only run when:
     #   1. Comment body starts with "/genie " (early filter — avoids runner cost)
     #   2. Actor is not a GitHub Actions bot (prevents feedback loops)
-    #   3. Comment body does NOT start with the genie response header
+    #   3. Comment body does NOT start with the genie response HTML marker
     #      (prevents the genie's own comment from re-triggering)
+    #      The <!-- genie-response --> marker is the stable filter — it is present
+    #      on all genie response comments regardless of header text format.
     if: |
       startsWith(github.event.comment.body, '/genie ') &&
       !endsWith(github.actor, '[bot]') &&
-      !startsWith(github.event.comment.body, '## Scout') &&
-      !startsWith(github.event.comment.body, '## Critic') &&
       !startsWith(github.event.comment.body, '<!-- genie-response')
 
     runs-on: ubuntu-latest
@@ -98,6 +98,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // workflow_dispatch has no comment payload — skip gracefully
+            if (!context.payload.comment) {
+              core.setOutput('valid', 'false');
+              return;
+            }
+
             const body = context.payload.comment.body.trim();
 
             // Extract phase from "/genie <phase>" (case-insensitive)
