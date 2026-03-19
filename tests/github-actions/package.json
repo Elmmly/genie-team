@@ -1,0 +1,15 @@
+{
+  "name": "genie-github-actions-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for GitHub Actions genie-slash.yml step logic",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "test:parse": "node --test parse.test.js",
+    "test:auth": "node --test auth.test.js",
+    "test:post-result": "node --test post-result.test.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
