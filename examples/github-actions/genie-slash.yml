@@ -5,17 +5,20 @@
 # SETUP
 # -----
 # 1. Copy this file to .github/workflows/genie-slash.yml in your repository.
-# 2. Add the required secret:
-#      ANTHROPIC_API_KEY — API key from console.anthropic.com (API key billing path)
+# 2. Add auth secrets — ONE path required, not both:
 #
-# OPTIONAL: OAuth subscription billing path (uses Max/Pro subscription, not per-token)
-#   CLAUDE_CODE_OAUTH_TOKEN — from `claude setup-token`
-#   CLAUDE_REFRESH_TOKEN    — from `claude setup-token`
-#   CLAUDE_EXPIRES_AT       — from `claude setup-token`
-#   SECRETS_ADMIN_PAT       — GitHub PAT with `secrets:write` scope (enables auto-rotation)
+#    Option A — API key (simplest, per-token billing):
+#      ANTHROPIC_API_KEY — API key from console.anthropic.com
 #
-#   When OAuth secrets are present, they take precedence over ANTHROPIC_API_KEY.
-#   See ADR-007 for auth path selection rationale.
+#    Option B — OAuth subscription token (uses Max/Pro subscription, no per-token cost):
+#      CLAUDE_CODE_OAUTH_TOKEN — from `claude setup-token`
+#      CLAUDE_REFRESH_TOKEN    — from `claude setup-token`
+#      CLAUDE_EXPIRES_AT       — from `claude setup-token`
+#      SECRETS_ADMIN_PAT       — GitHub PAT with `secrets:write` scope (enables auto-rotation)
+#
+#    When OAuth secrets are present, they are used automatically.
+#    ANTHROPIC_API_KEY is used only when OAuth secrets are absent.
+#    See ADR-007 for auth path selection rationale.
 #
 # REQUIRED PERMISSIONS
 #   issues: write         — post result comment to issues

@@ -23,14 +23,28 @@ curl -fsSL \
   -o .github/workflows/genie-slash.yml
 ```
 
-### Step 2: Add the required secret
+### Step 2: Add auth secrets (one path required)
 
 Go to your repository **Settings → Secrets and variables → Actions → New repository secret**.
 
-**Required (API key path):**
+Choose one:
+
+**Option A — API key** (simplest, per-token billing):
 - `ANTHROPIC_API_KEY` — Your Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
 
-This is the simplest setup. Invocations are billed per-token to your API key.
+**Option B — OAuth subscription token** (uses your Claude Max/Pro subscription, no per-token cost):
+- `CLAUDE_CODE_OAUTH_TOKEN` — from `claude setup-token`
+- `CLAUDE_REFRESH_TOKEN` — from `claude setup-token`
+- `CLAUDE_EXPIRES_AT` — from `claude setup-token`
+- `SECRETS_ADMIN_PAT` — GitHub PAT with `secrets:write` scope (enables auto-rotation)
+
+When OAuth secrets are present, they are used automatically. `ANTHROPIC_API_KEY` is used only when OAuth secrets are absent. You do not need both.
+
+To generate the OAuth token bundle:
+```bash
+claude setup-token
+# Follow prompts, then copy the three output values to repo secrets
+```
 
 ### Step 3: Commit and push
 
@@ -44,23 +58,6 @@ git push
 
 Open any issue in your repository and comment `/genie discover`. Scout should respond within 3-5 minutes.
 
-## OAuth Path (Advanced)
-
-If you have a Claude Max/Pro subscription and prefer subscription billing over per-token API billing, you can use the OAuth path instead.
-
-**Required secrets (OAuth path):**
-- `CLAUDE_CODE_OAUTH_TOKEN` — from `claude setup-token`
-- `CLAUDE_REFRESH_TOKEN` — from `claude setup-token`
-- `CLAUDE_EXPIRES_AT` — from `claude setup-token`
-- `SECRETS_ADMIN_PAT` — GitHub Personal Access Token with `secrets:write` scope on this repo (enables auto-rotation of the OAuth token after each use)
-
-When the OAuth secrets are present alongside `ANTHROPIC_API_KEY`, OAuth takes precedence. If only `ANTHROPIC_API_KEY` is set, it is used exclusively.
-
-To create the OAuth token bundle:
-```bash
-claude setup-token
-# Follow prompts, then copy the output values to repo secrets
-```
 
 ## Configuring Max Turns
 
@@ -83,7 +80,7 @@ env:
 **Workflow runs but posts an error comment**
 - Click the workflow run link in the error comment for the full log.
 - Install failures (step 4): npm install or curl may have timed out. Re-run the workflow.
-- Claude failures (exit code 1): Check `ANTHROPIC_API_KEY` is set correctly.
+- Claude failures (exit code 1): Verify your auth secret is set correctly (`ANTHROPIC_API_KEY` for API key path, or all four OAuth secrets for OAuth path).
 
 **`/genie discover` on a PR gets no response**
 - By design: `discover` is for issues only. Use `discern` on PRs.
