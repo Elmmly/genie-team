@@ -33,17 +33,14 @@ Choose one:
 - `ANTHROPIC_API_KEY` — Your Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
 
 **Option B — OAuth subscription token** (uses your Claude Max/Pro subscription, no per-token cost):
-- `CLAUDE_CODE_OAUTH_TOKEN` — from `claude setup-token`
-- `CLAUDE_REFRESH_TOKEN` — from `claude setup-token`
-- `CLAUDE_EXPIRES_AT` — from `claude setup-token`
-- `SECRETS_ADMIN_PAT` — GitHub PAT with `secrets:write` scope (enables auto-rotation)
+- `CLAUDE_CODE_OAUTH_TOKEN` — from `claude setup-token` (long-lived, ~1 year)
 
-When OAuth secrets are present, they are used automatically. `ANTHROPIC_API_KEY` is used only when OAuth secrets are absent. You do not need both.
+When `CLAUDE_CODE_OAUTH_TOKEN` is present, it is used automatically. `ANTHROPIC_API_KEY` is used only when it is absent. You do not need both.
 
-To generate the OAuth token bundle:
+To generate the OAuth token:
 ```bash
 claude setup-token
-# Follow prompts, then copy the three output values to repo secrets
+# Copy the output value to the CLAUDE_CODE_OAUTH_TOKEN repo secret
 ```
 
 ### Step 3: Commit and push
@@ -80,7 +77,7 @@ env:
 **Workflow runs but posts an error comment**
 - Click the workflow run link in the error comment for the full log.
 - Install failures (step 4): npm install or curl may have timed out. Re-run the workflow.
-- Claude failures (exit code 1): Verify your auth secret is set correctly (`ANTHROPIC_API_KEY` for API key path, or all four OAuth secrets for OAuth path).
+- Claude failures (exit code 1): Verify your auth secret is set correctly (`ANTHROPIC_API_KEY` for API key path, or `CLAUDE_CODE_OAUTH_TOKEN` for OAuth path).
 
 **`/genie discover` on a PR gets no response**
 - By design: `discover` is for issues only. Use `discern` on PRs.
@@ -96,12 +93,10 @@ env:
   ```
   https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh
   ```
-- **SECRETS_ADMIN_PAT:** This is a high-privilege secret. Grant it only `secrets:write` scope on the specific repository, not organization-wide.
-
 ## Architecture
 
 This workflow uses `issue_comment` as a single event trigger for both issues and PRs (see ADR-006). The `issue.pull_request` field distinguishes PR comments from issue comments.
 
-Auth strategy follows ADR-007: implicit dual-path with OAuth preferred when configured.
+Auth strategy follows ADR-007: implicit dual-path with `CLAUDE_CODE_OAUTH_TOKEN` preferred when present.
 
 See `docs/backlog/P2-github-actions-slash-commands.md` and `docs/specs/platform/github-actions-integration.md` in the genie-team repo for full design and acceptance criteria.

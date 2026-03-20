@@ -11,13 +11,10 @@
 #      ANTHROPIC_API_KEY — API key from console.anthropic.com
 #
 #    Option B — OAuth subscription token (uses Max/Pro subscription, no per-token cost):
-#      CLAUDE_CODE_OAUTH_TOKEN — from `claude setup-token`
-#      CLAUDE_REFRESH_TOKEN    — from `claude setup-token`
-#      CLAUDE_EXPIRES_AT       — from `claude setup-token`
-#      SECRETS_ADMIN_PAT       — GitHub PAT with `secrets:write` scope (enables auto-rotation)
+#      CLAUDE_CODE_OAUTH_TOKEN — from `claude setup-token` (long-lived, ~1 year)
 #
-#    When OAuth secrets are present, they are used automatically.
-#    ANTHROPIC_API_KEY is used only when OAuth secrets are absent.
+#    When CLAUDE_CODE_OAUTH_TOKEN is present, it is used automatically.
+#    ANTHROPIC_API_KEY is used only when CLAUDE_CODE_OAUTH_TOKEN is absent.
 #    See ADR-007 for auth path selection rationale.
 #
 # REQUIRED PERMISSIONS
@@ -34,7 +31,6 @@
 #   - issue_comment event does not fire on inline PR review comments (only top-level).
 #   - Org membership check uses GITHUB_TOKEN (rate-limited at 1,000/hr per repo).
 #   - No support for forked repositories. Same-repo PRs and issues only.
-#   - OAuth token rotation depends on Claude Code updating env vars in-process.
 #
 # SECURITY HARDENING (optional)
 #   Pin the install.sh curl URL to a specific commit SHA for reproducibility:
@@ -312,11 +308,9 @@ jobs:
           steps.install.outputs.install_ok == 'true'
         env:
           # Auth — dual path (ADR-007):
-          # OAuth path: all four OAuth vars must be set for subscription billing
+          # OAuth path: CLAUDE_CODE_OAUTH_TOKEN preferred when present (subscription billing)
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          CLAUDE_REFRESH_TOKEN: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
-          CLAUDE_EXPIRES_AT: ${{ secrets.CLAUDE_EXPIRES_AT }}
-          # API key path: used when OAuth vars are absent
+          # API key path: used when CLAUDE_CODE_OAUTH_TOKEN is absent
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
@@ -371,8 +365,6 @@ jobs:
           steps.install.outputs.install_ok == 'true'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          CLAUDE_REFRESH_TOKEN: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
-          CLAUDE_EXPIRES_AT: ${{ secrets.CLAUDE_EXPIRES_AT }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -euo pipefail
@@ -418,57 +410,7 @@ jobs:
         continue-on-error: true
 
       # -----------------------------------------------------------------------
-      # STEP 7: OAuth token rotation (OAuth path only)
-      # After claude runs, the OAuth token may have been auto-refreshed internally
-      # by Claude Code. Write the updated token back to repo secrets so the next
-      # invocation picks up the fresh token.
-      # This step is a no-op if OAuth secrets are not configured.
-      # -----------------------------------------------------------------------
-      - name: Rotate OAuth token
-        if: |
-          (steps.parse.outputs.valid == 'true' &&
-          steps.auth.outputs.authorized == 'true') &&
-          (steps.scout.conclusion == 'success' || steps.critic.conclusion == 'success' ||
-           steps.scout.conclusion == 'failure' || steps.critic.conclusion == 'failure')
-        env:
-          SECRETS_ADMIN_PAT: ${{ secrets.SECRETS_ADMIN_PAT }}
-          # Read from secrets directly — env.* vars are only defined at step scope
-          # inside the Scout/Critic steps and are empty at job scope here.
-          NEW_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          NEW_REFRESH_TOKEN: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
-          NEW_EXPIRES_AT: ${{ secrets.CLAUDE_EXPIRES_AT }}
-        run: |
-          # Only run if SECRETS_ADMIN_PAT is set (OAuth path indicator)
-          if [[ -z "${SECRETS_ADMIN_PAT:-}" ]]; then
-            echo "SECRETS_ADMIN_PAT not set — skipping token rotation (API key path)"
-            exit 0
-          fi
-
-          echo "Rotating OAuth tokens via SECRETS_ADMIN_PAT..."
-
-          # Use gh CLI with the admin PAT to update the three OAuth secrets.
-          # The environment vars may have been updated by Claude Code's internal
-          # refresh mechanism during the claude invocation above.
-          gh secret set CLAUDE_CODE_OAUTH_TOKEN \
-            --repo "${{ github.repository }}" \
-            --body "${NEW_OAUTH_TOKEN}" \
-            --token "${SECRETS_ADMIN_PAT}" 2>/dev/null || true
-
-          gh secret set CLAUDE_REFRESH_TOKEN \
-            --repo "${{ github.repository }}" \
-            --body "${NEW_REFRESH_TOKEN}" \
-            --token "${SECRETS_ADMIN_PAT}" 2>/dev/null || true
-
-          gh secret set CLAUDE_EXPIRES_AT \
-            --repo "${{ github.repository }}" \
-            --body "${NEW_EXPIRES_AT}" \
-            --token "${SECRETS_ADMIN_PAT}" 2>/dev/null || true
-
-          echo "Token rotation complete"
-        continue-on-error: true
-
-      # -----------------------------------------------------------------------
-      # STEP 8: Post result comment
+      # STEP 7: Post result comment
       # Posts the genie output (or an error message) back to the issue/PR.
       # This step ALWAYS runs when the command was valid and authorized, so every
       # failure mode produces a visible comment rather than a silent failure.

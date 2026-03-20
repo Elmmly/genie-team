@@ -273,8 +273,8 @@ A single distributable GitHub Actions workflow file (`genie-team.yml`) that list
 `issue_comment: created` events, gates on org membership, routes to Scout (issues) or
 Critic (PRs) based on context detection, installs genie-team via `install.sh global`,
 invokes `claude -p` headlessly with a defensively-framed prompt, and posts the result
-as a formatted Markdown comment. Auth follows a dual-path strategy: OAuth subscription
-billing when the four OAuth secrets are present, API key billing otherwise (see ADR-007).
+as a formatted Markdown comment. Auth follows a dual-path strategy: OAuth subscription billing when `CLAUDE_CODE_OAUTH_TOKEN`
+is present, API key billing otherwise (see ADR-007).
 
 ---
 
@@ -288,13 +288,11 @@ Crafter should implement this file verbatim at `.github/workflows/genie-team.yml
 # Genie Team — Slash Command Interface
 #
 # Invocation: comment "/genie discover" on an issue or "/genie discern" on a PR.
-# Requires: ANTHROPIC_API_KEY (API key path) OR the four OAuth secrets (OAuth path).
-# Optional: CLAUDE_CODE_OAUTH_TOKEN + CLAUDE_REFRESH_TOKEN + CLAUDE_EXPIRES_AT +
-#           SECRETS_ADMIN_PAT (enables subscription billing via OAuth).
+# Requires: ANTHROPIC_API_KEY (API key path) OR CLAUDE_CODE_OAUTH_TOKEN (OAuth path).
 #
 # Distribution: copy this file into .github/workflows/ in any repo using genie-team.
 
-name: Genie Slash Commands
+name: Genie Team
 
 on:
   issue_comment:
