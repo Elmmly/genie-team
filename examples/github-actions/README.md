@@ -93,6 +93,11 @@ env:
   ```
   https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh
   ```
+- **Action SHA pinning:** For stricter supply-chain hardening, pin the bundled actions to full commit SHAs:
+  ```yaml
+  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+  uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+  ```
 ## Architecture
 
 This workflow uses `issue_comment` as a single event trigger for both issues and PRs (see ADR-006). The `issue.pull_request` field distinguishes PR comments from issue comments.
