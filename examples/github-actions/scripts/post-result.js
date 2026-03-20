@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Result posting logic for genie-slash.yml.
+ * Result posting logic for genie-team.yml.
  *
  * Builds the formatted Markdown comment body based on the genie invocation result.
  * This is the pure logic extracted from the actions/github-script step for testability.

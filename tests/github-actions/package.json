@@ -1,7 +1,7 @@
 {
   "name": "genie-github-actions-tests",
   "version": "1.0.0",
-  "description": "Unit tests for GitHub Actions genie-slash.yml step logic",
+  "description": "Unit tests for GitHub Actions genie-team.yml step logic",
   "private": true,
   "scripts": {
     "test": "node --test",

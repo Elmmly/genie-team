@@ -1,10 +1,10 @@
-# examples/github-actions/genie-slash.yml
+# examples/github-actions/genie-team.yml
 # Genie Team — Slash Command Interface
 # ================================================================================
 #
 # SETUP
 # -----
-# 1. Copy this file to .github/workflows/genie-slash.yml in your repository.
+# 1. Copy this file to .github/workflows/genie-team.yml in your repository.
 # 2. Add auth secrets — ONE path required, not both:
 #
 #    Option A — API key (simplest, per-token billing):
@@ -45,7 +45,7 @@
 #   Copy it freely into any repo. No additional files required.
 # ================================================================================
 
-name: Genie Slash Commands
+name: Genie Team
 
 on:
   issue_comment:
@@ -190,7 +190,7 @@ jobs:
           # Fetch only the latest commit — install.sh is in the genie-team repo,
           # but for the user's own repo, we need the repo root for install.sh to
           # find the source artifacts.
-          # NOTE: For user repos that have copied genie-slash.yml but do NOT have
+          # NOTE: For user repos that have copied genie-team.yml but do NOT have
           # install.sh, the install step below fetches install.sh from the
           # genie-team repo directly (see Install step).
           fetch-depth: 1

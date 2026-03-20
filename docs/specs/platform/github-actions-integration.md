@@ -55,7 +55,7 @@ acceptance_criteria:
   - id: AC-8
     description: >-
       The workflow file is distributable as a reusable GitHub Actions workflow
-      (`.github/workflows/genie-slash.yml`) that users can reference or copy
+      (`.github/workflows/genie-team.yml`) that users can reference or copy
       into their own repos.
     status: met
 ---
@@ -98,7 +98,7 @@ Every `claude -p` invocation includes `--max-turns $MAX_TURNS` where `MAX_TURNS`
 The posted comment is formatted Markdown. It includes a header identifying the genie and phase, the full snapshot content from genie output, and a footer with the triggering comment reference. The comment is posted to the same issue or PR that triggered the slash command.
 
 ### AC-8: Distributable workflow file
-The workflow is a single self-contained YAML file at `.github/workflows/genie-slash.yml` in the genie-team repo. Users can copy this file into their own repos and configure `ANTHROPIC_API_KEY` as a repo secret to activate the integration.
+The workflow is a single self-contained YAML file at `.github/workflows/genie-team.yml` in the genie-team repo. Users can copy this file into their own repos and configure `ANTHROPIC_API_KEY` as a repo secret to activate the integration.
 
 ---
 
@@ -170,7 +170,7 @@ Appended by Crafter on 2026-03-19 per `/deliver` phase for P2-github-actions-sla
 
 | File | AC Coverage |
 |------|------------|
-| `examples/github-actions/genie-slash.yml` | AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8 |
+| `examples/github-actions/genie-team.yml` | AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8 |
 | `examples/github-actions/README.md` | AC-8 (setup documentation) |
 | `examples/github-actions/scripts/parse.js` | AC-1 (parse step logic, extracted for testability) |
 | `examples/github-actions/scripts/auth.js` | AC-2 (auth step logic, injectable Octokit client) |

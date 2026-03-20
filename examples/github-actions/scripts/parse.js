@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Parse step logic for genie-slash.yml.
+ * Parse step logic for genie-team.yml.
  *
  * Extracts the genie phase from a comment body and validates it against the
  * comment context (issue vs PR). This is the pure logic extracted from the

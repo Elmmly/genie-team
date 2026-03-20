@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Auth step logic for genie-slash.yml.
+ * Auth step logic for genie-team.yml.
  *
  * Checks whether the given actor is a member of the given GitHub org.
  * Uses the Octokit REST client (injected for testability).

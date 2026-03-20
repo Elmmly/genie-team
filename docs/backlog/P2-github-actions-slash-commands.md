@@ -269,7 +269,7 @@ adr_refs:
 
 ## Summary
 
-A single distributable GitHub Actions workflow file (`genie-slash.yml`) that listens for
+A single distributable GitHub Actions workflow file (`genie-team.yml`) that listens for
 `issue_comment: created` events, gates on org membership, routes to Scout (issues) or
 Critic (PRs) based on context detection, installs genie-team via `install.sh global`,
 invokes `claude -p` headlessly with a defensively-framed prompt, and posts the result
@@ -281,10 +281,10 @@ billing when the four OAuth secrets are present, API key billing otherwise (see 
 ## Workflow Structure
 
 The following is the complete annotated workflow YAML. This is the primary deliverable.
-Crafter should implement this file verbatim at `.github/workflows/genie-slash.yml`.
+Crafter should implement this file verbatim at `.github/workflows/genie-team.yml`.
 
 ```yaml
-# .github/workflows/genie-slash.yml
+# .github/workflows/genie-team.yml
 # Genie Team — Slash Command Interface
 #
 # Invocation: comment "/genie discover" on an issue or "/genie discern" on a PR.
@@ -426,7 +426,7 @@ jobs:
           # Fetch only the latest commit — install.sh is in the genie-team repo,
           # but for the user's own repo, we need the repo root for install.sh to
           # find the source artifacts.
-          # NOTE: For user repos that have copied genie-slash.yml but do NOT have
+          # NOTE: For user repos that have copied genie-team.yml but do NOT have
           # install.sh, the install step below fetches install.sh from the
           # genie-team repo directly (see Install step).
           fetch-depth: 1
@@ -847,7 +847,7 @@ The `is_pr` output from the `parse` step drives all subsequent conditional step 
 ### Install Step
 
 Two cases:
-1. **User copied genie-slash.yml into their own repo** (expected case): `install.sh` is
+1. **User copied genie-team.yml into their own repo** (expected case): `install.sh` is
    NOT present. The step fetches it from the genie-team repo via curl before running.
    Crafter must replace `Elmmly/genie-team` with the actual repo path.
 2. **Running from the genie-team repo itself** (CI/testing): `install.sh` IS present.
@@ -1067,7 +1067,7 @@ Total elapsed: ~3-5 minutes (dominated by claude invocation time)
 
 ### Step-by-Step for Crafter
 
-1. **Create `.github/workflows/genie-slash.yml`**
+1. **Create `.github/workflows/genie-team.yml`**
    - Use the annotated YAML above as the template.
    - Merge the two `on:` blocks into one (issue_comment + workflow_dispatch).
    - Replace `Elmmly/genie-team` with the actual repository path in the install step
@@ -1166,7 +1166,7 @@ All open design questions from the shaped contract are resolved.
 
 | File | Purpose |
 |------|---------|
-| `examples/github-actions/genie-slash.yml` | Primary deliverable — complete distributable workflow YAML (AC-8) |
+| `examples/github-actions/genie-team.yml` | Primary deliverable — complete distributable workflow YAML (AC-8) |
 | `examples/github-actions/README.md` | Setup instructions, secrets documentation, troubleshooting |
 | `examples/github-actions/scripts/parse.js` | Parse step logic — extracted from workflow for testability |
 | `examples/github-actions/scripts/auth.js` | Auth step logic — injectable Octokit client for testability |
@@ -1191,12 +1191,12 @@ All 27 tests pass across 3 test files and 12 describe blocks.
 |----|--------|---------|
 | AC-1 | Covered by tests | 12 tests in `parse.test.js`; workflow `if:` condition + parse step in YAML |
 | AC-2 | Covered by tests | 5 tests in `auth.test.js`; auth step in YAML with 302/404 silent drop and 5xx throw |
-| AC-3 | Implemented | Scout step (Step 6a) in `genie-slash.yml` with defensive XML prompt framing |
-| AC-4 | Implemented | Critic step (Step 6b) in `genie-slash.yml` with 50KB diff truncation |
+| AC-3 | Implemented | Scout step (Step 6a) in `genie-team.yml` with defensive XML prompt framing |
+| AC-4 | Implemented | Critic step (Step 6b) in `genie-team.yml` with 50KB diff truncation |
 | AC-5 | Implemented | Install step with `timeout-minutes: 3`; `--skip-mcp --force` flags; README notes 60s budget |
 | AC-6 | Implemented | `--max-turns "${{ env.MAX_TURNS }}"` on both Scout and Critic invocations; default 50, configurable via workflow_dispatch |
 | AC-7 | Covered by tests | 10 tests in `post-result.test.js`; result poster step in YAML with `<!-- genie-response -->` header |
-| AC-8 | Implemented | `examples/github-actions/genie-slash.yml` is self-contained; README has copy-paste setup instructions |
+| AC-8 | Implemented | `examples/github-actions/genie-team.yml` is self-contained; README has copy-paste setup instructions |
 
 ## Design Deviations
 
@@ -1241,7 +1241,7 @@ All 27 tests pass. The implementation faithfully follows the design YAML, correc
 | AC-5: Install step under 60s | Pass (timing pending) | Install step has `timeout-minutes: 3`, uses `--skip-mcp --force`, fetches remote `install.sh` if not local. Timing requires a live run to measure. |
 | AC-6: Max-turns cost guard | Pass | `--max-turns "${{ env.MAX_TURNS }}"` on both claude invocations; default 50, configurable via `workflow_dispatch` input. |
 | AC-7: Formatted comment output | Pass | 10 tests cover success path, install failure, claude failure, truncation boundary. HTML comment marker on all paths. Footer with actor attribution and run link confirmed. |
-| AC-8: Distributable workflow file | Pass | `examples/github-actions/genie-slash.yml` is self-contained; merged `on:` block (issue_comment + workflow_dispatch); README with copy-paste setup. |
+| AC-8: Distributable workflow file | Pass | `examples/github-actions/genie-team.yml` is self-contained; merged `on:` block (issue_comment + workflow_dispatch); README with copy-paste setup. |
 
 ## Code Quality
 
@@ -1258,9 +1258,9 @@ All 27 tests pass. The implementation faithfully follows the design YAML, correc
 
 | Issue | Severity | Location | Fix |
 |-------|----------|----------|-----|
-| OAuth rotation step reads empty env vars | Major | `genie-slash.yml:426-428` | See detail below |
-| `${{ env.MAX_TURNS }}` in JS string context | Minor | `genie-slash.yml:508` | See detail below |
-| install.sh fetched from `main` not a pinned SHA | Minor | `genie-slash.yml:210` | Document in README hardening section; already noted in YAML comment |
+| OAuth rotation step reads empty env vars | Major | `genie-team.yml:426-428` | See detail below |
+| `${{ env.MAX_TURNS }}` in JS string context | Minor | `genie-team.yml:508` | See detail below |
+| install.sh fetched from `main` not a pinned SHA | Minor | `genie-team.yml:210` | Document in README hardening section; already noted in YAML comment |
 
 **Major: OAuth rotation reads empty job-level env vars (line 426-428)**
 

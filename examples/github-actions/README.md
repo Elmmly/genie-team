@@ -1,4 +1,4 @@
-# Genie Slash Commands — GitHub Actions
+# Genie Team — GitHub Actions
 
 On-demand genie invocations from GitHub issue and PR comments.
 
@@ -15,12 +15,12 @@ Comments from bots and genie response comments are silently filtered. Only org m
 
 ### Step 1: Copy the workflow file
 
-Copy `genie-slash.yml` to `.github/workflows/genie-slash.yml` in your repository.
+Copy `genie-team.yml` to `.github/workflows/genie-team.yml` in your repository.
 
 ```bash
 curl -fsSL \
-  "https://raw.githubusercontent.com/Elmmly/genie-team/main/examples/github-actions/genie-slash.yml" \
-  -o .github/workflows/genie-slash.yml
+  "https://raw.githubusercontent.com/Elmmly/genie-team/main/examples/github-actions/genie-team.yml" \
+  -o .github/workflows/genie-team.yml
 ```
 
 ### Step 2: Add auth secrets (one path required)
@@ -49,8 +49,8 @@ claude setup-token
 ### Step 3: Commit and push
 
 ```bash
-git add .github/workflows/genie-slash.yml
-git commit -m "feat: add genie slash command GitHub Action"
+git add .github/workflows/genie-team.yml
+git commit -m "feat: add genie team GitHub Action"
 git push
 ```
 
@@ -61,9 +61,9 @@ Open any issue in your repository and comment `/genie discover`. Scout should re
 
 ## Configuring Max Turns
 
-The default `--max-turns` limit is 50. To change it, trigger the workflow manually via GitHub Actions UI (Actions → Genie Slash Commands → Run workflow) and specify a different value.
+The default `--max-turns` limit is 50. To change it, trigger the workflow manually via GitHub Actions UI (Actions → Genie Team → Run workflow) and specify a different value.
 
-To change the default permanently, edit `genie-slash.yml`:
+To change the default permanently, edit `genie-team.yml`:
 ```yaml
 env:
   MAX_TURNS: ${{ inputs.max_turns || '75' }}  # change 75 to your preferred default
