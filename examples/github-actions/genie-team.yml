@@ -364,10 +364,14 @@ jobs:
           steps.parse.outputs.phase == 'discern'
         env:
           GH_TOKEN: ${{ github.token }}
+          # Pass through env to avoid template injection in shell (issue_number is
+          # user-controlled via workflow_dispatch inputs; repository is attacker-controlled
+          # in fork scenarios, though forks are unsupported — use env: for consistency)
+          PR_NUMBER: ${{ steps.parse.outputs.issue_number }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          PR_NUMBER="${{ steps.parse.outputs.issue_number }}"
           DIFF_FILE="$RUNNER_TEMP/genie-pr-diff.diff"
 
           # Fetch PR diff — truncate at 50KB to avoid context overflow.
@@ -378,7 +382,7 @@ jobs:
           curl -fsSL \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github.diff" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
+            "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}" \
             > "$DIFF_FILE.raw"
 
           RAW_SIZE=$(wc -c < "$DIFF_FILE.raw")
@@ -411,10 +415,16 @@ jobs:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # API key path: used when CLAUDE_CODE_OAUTH_TOKEN is absent
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CONTEXT_FILE: ${{ steps.issue_context.outputs.context_file }}
         run: |
           set -euo pipefail
 
-          CONTEXT_FILE="${{ steps.issue_context.outputs.context_file }}"
+          # Validate MAX_TURNS is a positive integer (user-supplied via workflow_dispatch)
+          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]]; then
+            echo "max_turns must be a positive integer, got: $MAX_TURNS" >&2
+            exit 1
+          fi
+
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           ISSUE_CONTENT=$(cat "$CONTEXT_FILE")
 
@@ -448,7 +458,7 @@ jobs:
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
-            --max-turns "${{ env.MAX_TURNS }}" \
+            --max-turns "$MAX_TURNS" \
             --output-format text \
             -p "$(cat "$RUNNER_TEMP/genie-prompt.txt")" \
             > "$RESULT_FILE" 2>&1
@@ -471,13 +481,19 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIFF_FILE: ${{ steps.pr_context.outputs.diff_file }}
+          TRUNCATED: ${{ steps.pr_context.outputs.truncated }}
         run: |
           set -euo pipefail
 
-          DIFF_FILE="${{ steps.pr_context.outputs.diff_file }}"
+          # Validate MAX_TURNS is a positive integer (user-supplied via workflow_dispatch)
+          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]]; then
+            echo "max_turns must be a positive integer, got: $MAX_TURNS" >&2
+            exit 1
+          fi
+
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           DIFF_CONTENT=$(cat "$DIFF_FILE")
-          TRUNCATED="${{ steps.pr_context.outputs.truncated }}"
 
           # Sanitize XML closing tag to prevent boundary injection attacks.
           DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|</pr-diff>|[/pr-diff]|g')
@@ -508,7 +524,7 @@ jobs:
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
-            --max-turns "${{ env.MAX_TURNS }}" \
+            --max-turns "$MAX_TURNS" \
             --output-format text \
             -p "$(cat "$RUNNER_TEMP/genie-prompt.txt")" \
             > "$RESULT_FILE" 2>&1
