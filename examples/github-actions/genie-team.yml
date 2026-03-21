@@ -283,7 +283,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # No cache: project uses pnpm; npm cache would never warm here.
+          # cache: omitted — add 'cache: npm' or 'cache: pnpm' here if your
+          # project has a lockfile and you want to speed up repeated runs.
 
       # -----------------------------------------------------------------------
       # STEP 5: Install Claude Code + genie-team artifacts
@@ -708,9 +709,13 @@ STATIC
             } else {
               const result = fs.readFileSync(resultFile, 'utf8').trim();
 
-              // Truncate result at 65000 chars — GitHub comment limit is 65536 bytes
+              // GitHub comment limit is 65536 bytes (not chars).
+              // Check byte length so multi-byte UTF-8 content (CJK, emoji) doesn't
+              // slip past a char-count guard. Slice at 65000 chars — conservative
+              // relative to bytes for typical ASCII markdown; avoids the complexity
+              // of splitting at a byte boundary while remaining well within the limit.
               const MAX_COMMENT = 65000;
-              const displayResult = result.length > MAX_COMMENT
+              const displayResult = Buffer.byteLength(result, 'utf8') > MAX_COMMENT
                 ? result.slice(0, MAX_COMMENT) + '\n\n*[Output truncated — see workflow run for full output]*'
                 : result;
 
