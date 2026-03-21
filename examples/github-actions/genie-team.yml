@@ -461,7 +461,9 @@ jobs:
 
           Run /discover on this issue content and produce the full Opportunity Snapshot."
 
-          # Write prompt to file to avoid shell expansion of special characters
+          # Write prompt to file to avoid shell expansion of special characters.
+          # The file is fed via stdin redirect (<) rather than -p "$(cat ...)" to avoid
+          # shell re-expansion of file contents (backticks, $(...), etc.) as a CLI argument.
           printf '%s' "$PROMPT" > "$RUNNER_TEMP/genie-prompt.txt"
 
           # Invoke claude headlessly
@@ -469,12 +471,14 @@ jobs:
           # --allowedTools: restrict to read-only tools — Scout/Critic do not need Bash/Write/Edit
           # --max-turns: cost guard (AC-6)
           # --output-format text: clean stdout for comment posting
+          # Prompt is read from stdin (<) — avoids shell re-expansion of file content
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
             --max-turns "$MAX_TURNS" \
             --output-format text \
-            -p "$(cat "$RUNNER_TEMP/genie-prompt.txt")" \
+            -p \
+            < "$RUNNER_TEMP/genie-prompt.txt" \
             > "$RESULT_FILE" 2>&1
 
           EXIT_CODE=$?
@@ -537,12 +541,14 @@ jobs:
 
           printf '%s' "$PROMPT" > "$RUNNER_TEMP/genie-prompt.txt"
 
+          # Prompt is read from stdin (<) — avoids shell re-expansion of file content
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
             --max-turns "$MAX_TURNS" \
             --output-format text \
-            -p "$(cat "$RUNNER_TEMP/genie-prompt.txt")" \
+            -p \
+            < "$RUNNER_TEMP/genie-prompt.txt" \
             > "$RESULT_FILE" 2>&1
 
           EXIT_CODE=$?
