@@ -67,10 +67,17 @@ on:
         type: string
 
 # Permissions needed for this workflow:
-#   issues: write       — post result comment to issues
-#   pull-requests: write — post result comment to PRs
-#   contents: read      — checkout repo (needed by install.sh)
-#   id-token: none      — not needed; auth via secrets
+#   issues: write         — post result comment to issues
+#   pull-requests: write  — post result comment to PRs
+#   contents: read        — checkout repo (needed by install.sh)
+#   id-token: none        — not needed; auth via secrets
+#
+# Note on org membership check: orgs.checkMembershipForUser requires the token
+# to hold read:org (members: read at org level) for accurate results. Without it,
+# non-member requesters may receive a 302 redirect (which the Octokit SDK surfaces
+# as an unexpected status) rather than 404, causing the auth step to setFailed
+# rather than deny silently. If you see unexpected auth failures on org repos,
+# grant the Actions app read:org under Settings → Actions → General.
 permissions:
   issues: write
   pull-requests: write
@@ -214,10 +221,11 @@ jobs:
             try {
               const { data: ownerData } = await github.rest.users.getByUsername({ username: owner });
               isOrg = ownerData.type === 'Organization';
-            } catch (_) {
+            } catch (err) {
               // Can't determine owner type (network error, etc.) — default to deny.
               // Defaulting to true (org path) risks core.setFailed on unexpected API
               // status; defaulting to false (personal path) degrades to owner-only deny.
+              core.warning(`Could not determine owner type for ${owner} (${err.message}) — defaulting to personal repo path`);
               isOrg = false;
             }
 
@@ -461,7 +469,14 @@ jobs:
           # Sanitize XML boundary tags (both opening and closing) to prevent injection.
           # An attacker injecting <issue-context> could open a second boundary and escape
           # the data block; </issue-context> could close the current boundary early.
-          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|<issue-context>|[issue-context]|g; s|</issue-context>|[/issue-context]|g')
+          # Strip boundary tags AND Anthropic semantic control tags (<system>, <human>,
+          # <assistant>) to prevent an org member from injecting a <system> block that
+          # would be interpreted as a prompt control directive rather than issue data.
+          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed \
+            's|<issue-context>|[issue-context]|g; s|</issue-context>|[/issue-context]|g
+             s|<system>|[system]|g;    s|</system>|[/system]|g
+             s|<human>|[human]|g;      s|</human>|[/human]|g
+             s|<assistant>|[assistant]|g; s|</assistant>|[/assistant]|g')
 
           # Build prompt file using a heredoc so untrusted content (ISSUE_CONTENT_SAFE)
           # never passes through a shell variable assignment. Assigning $ISSUE_CONTENT_SAFE
@@ -493,7 +508,7 @@ STATIC
           } > "$RUNNER_TEMP/genie-prompt.txt"
 
           # Invoke claude headlessly
-          # --dangerously-skip-permissions: required for headless runner execution
+          # --dangerously-skip-permissions: required for headless runner execution (ADR-010)
           # --allowedTools: restrict to read-only tools — Scout/Critic do not need Bash/Write/Edit
           # --max-turns: cost guard (AC-6)
           # --output-format text: clean stdout for comment posting
@@ -501,6 +516,10 @@ STATIC
           # stderr is separated from stdout so internal error messages (auth failures,
           # stack traces) don't appear verbatim in the posted GitHub comment.
           # The full log including stderr is always available in the workflow run.
+          # set +e before claude: under set -euo pipefail a non-zero exit from claude
+          # would immediately terminate the script before EXIT_CODE=$? is reached.
+          # set -e is restored immediately after so subsequent commands retain strict mode.
+          set +e
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
@@ -510,8 +529,9 @@ STATIC
             < "$RUNNER_TEMP/genie-prompt.txt" \
             > "$RESULT_FILE" \
             2> "$RUNNER_TEMP/genie-stderr.log"
-
           EXIT_CODE=$?
+          set -e
+
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           echo "result_file=$RESULT_FILE" >> "$GITHUB_OUTPUT"
         continue-on-error: true
@@ -537,8 +557,13 @@ STATIC
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           DIFF_CONTENT=$(cat "$DIFF_FILE")
 
-          # Sanitize XML boundary tags (both opening and closing) to prevent injection.
-          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|<pr-diff>|[pr-diff]|g; s|</pr-diff>|[/pr-diff]|g')
+          # Strip boundary tags AND Anthropic semantic control tags (<system>, <human>,
+          # <assistant>) to prevent an org member from injecting a <system> block.
+          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed \
+            's|<pr-diff>|[pr-diff]|g;  s|</pr-diff>|[/pr-diff]|g
+             s|<system>|[system]|g;    s|</system>|[/system]|g
+             s|<human>|[human]|g;      s|</human>|[/human]|g
+             s|<assistant>|[assistant]|g; s|</assistant>|[/assistant]|g')
 
           TRUNCATION_NOTICE=""
           if [[ "$TRUNCATED" == "true" ]]; then
@@ -578,6 +603,9 @@ STATIC
           # stderr is separated from stdout so internal error messages (auth failures,
           # stack traces) don't appear verbatim in the posted GitHub comment.
           # The full log including stderr is always available in the workflow run.
+          # set +e before claude: under set -euo pipefail a non-zero exit from claude
+          # would immediately terminate the script before EXIT_CODE=$? is reached.
+          set +e
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
@@ -587,8 +615,9 @@ STATIC
             < "$RUNNER_TEMP/genie-prompt.txt" \
             > "$RESULT_FILE" \
             2> "$RUNNER_TEMP/genie-stderr.log"
-
           EXIT_CODE=$?
+          set -e
+
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
           echo "result_file=$RESULT_FILE" >> "$GITHUB_OUTPUT"
         continue-on-error: true
