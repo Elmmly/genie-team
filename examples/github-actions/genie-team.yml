@@ -228,7 +228,11 @@ jobs:
                 core.info(`${actor} is an org member of ${owner} — authorized`);
                 core.setOutput('authorized', 'true');
               } catch (err) {
-                if (err.status === 302 || err.status === 404) {
+                // 404 = user is not a member of the org.
+                // Note: GitHub docs mention 302 for non-org-member requesters, but
+                // the Octokit SDK follows redirects before surfacing responses to
+                // userland, so err.status === 302 is never reached here.
+                if (err.status === 404) {
                   core.info(`${actor} is NOT an org member of ${owner} — silently dropping`);
                   core.setOutput('authorized', 'false');
                 } else {
@@ -344,7 +348,11 @@ jobs:
           ISSUE_NUMBER: ${{ steps.parse.outputs.issue_number }}
         with:
           script: |
-            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER, 10);
+            if (Number.isNaN(issueNumber)) {
+              core.setFailed(`Invalid issue number: "${process.env.ISSUE_NUMBER}"`);
+              return;
+            }
             const { data: issue } = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -412,7 +420,10 @@ jobs:
 
           RAW_SIZE=$(wc -c < "$DIFF_FILE.raw")
           if [[ "$RAW_SIZE" -gt "$DIFF_LIMIT" ]]; then
-            head -c "$DIFF_LIMIT" "$DIFF_FILE.raw" > "$DIFF_FILE"
+            # head -c truncates at a raw byte boundary, which can split a multi-byte
+            # UTF-8 character and produce invalid sequences in the diff.
+            # Pipe through iconv -c to silently drop the partial character at the cut point.
+            head -c "$DIFF_LIMIT" "$DIFF_FILE.raw" | iconv -f utf-8 -t utf-8 -c > "$DIFF_FILE"
             echo "" >> "$DIFF_FILE"
             echo "--- [TRUNCATED: diff exceeded 50KB — showing first 50KB only] ---" >> "$DIFF_FILE"
             echo "truncated=true" >> "$GITHUB_OUTPUT"
@@ -587,7 +598,7 @@ jobs:
         with:
           script: |
             const phase = process.env.PHASE;
-            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER, 10);
             const actor = process.env.ACTOR;
             const installOk = process.env.INSTALL_OK === 'true';
             const scoutExitCode = process.env.SCOUT_EXIT_CODE;
