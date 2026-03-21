@@ -123,6 +123,21 @@ jobs:
                 core.setOutput('valid', 'false');
                 return;
               }
+              // For discern, validate the number is actually a PR (not just an issue)
+              if (phase === 'discern') {
+                try {
+                  await github.rest.pulls.get({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: parseInt(issueNumber),
+                  });
+                } catch (err) {
+                  core.info(`#${issueNumber} is not a PR — discern requires a PR number`);
+                  core.setOutput('valid', 'false');
+                  return;
+                }
+              }
+
               // discover → issue context, discern → PR context
               const isPR = phase === 'discern';
               core.setOutput('valid', 'true');
@@ -249,7 +264,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          # No cache: project uses pnpm; npm cache would never warm here.
 
       # -----------------------------------------------------------------------
       # STEP 5: Install Claude Code + genie-team artifacts
@@ -272,7 +287,12 @@ jobs:
           echo "--- Installing genie-team artifacts ---"
           # Fetch install.sh from genie-team repo if not present locally.
           # This is the expected path for user repos that copied only this YAML file.
-          # Security note: Pin to a commit SHA instead of 'main' for production hardening.
+          # Security hardening: pin the URL to a specific commit SHA (see SECURITY HARDENING
+          # note at the top of this file). After downloading, verify the sha256 checksum:
+          #   echo '<known-sha256>  /tmp/install.sh' | sha256sum --check
+          # Accepted risk: SHA-pinning the URL guarantees the git commit pointer but does
+          # not guard against a compromised CDN serving different bytes. Add a checksum
+          # for full supply-chain verification.
           if [[ ! -f "./install.sh" ]]; then
             curl -fsSL \
               "https://raw.githubusercontent.com/Elmmly/genie-team/main/install.sh" \
@@ -300,9 +320,11 @@ jobs:
           steps.auth.outputs.authorized == 'true' &&
           steps.parse.outputs.phase == 'discover'
         uses: actions/github-script@v7
+        env:
+          ISSUE_NUMBER: ${{ steps.parse.outputs.issue_number }}
         with:
           script: |
-            const issueNumber = parseInt('${{ steps.parse.outputs.issue_number }}');
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
             const { data: issue } = await github.rest.issues.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -507,16 +529,31 @@ jobs:
           steps.parse.outputs.valid == 'true' &&
           steps.auth.outputs.authorized == 'true'
         uses: actions/github-script@v7
+        env:
+          # Pass all step outputs and context values through env to avoid JS template injection
+          PHASE: ${{ steps.parse.outputs.phase }}
+          ISSUE_NUMBER: ${{ steps.parse.outputs.issue_number }}
+          ACTOR: ${{ steps.parse.outputs.actor }}
+          INSTALL_OK: ${{ steps.install.outputs.install_ok }}
+          SCOUT_EXIT_CODE: ${{ steps.scout.outputs.exit_code }}
+          CRITIC_EXIT_CODE: ${{ steps.critic.outputs.exit_code }}
+          SCOUT_RESULT_FILE: ${{ steps.scout.outputs.result_file }}
+          CRITIC_RESULT_FILE: ${{ steps.critic.outputs.result_file }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
-            const phase = '${{ steps.parse.outputs.phase }}';
-            const issueNumber = parseInt('${{ steps.parse.outputs.issue_number }}');
+            const phase = process.env.PHASE;
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+            const actor = process.env.ACTOR;
+            const installOk = process.env.INSTALL_OK === 'true';
+            const scoutExitCode = process.env.SCOUT_EXIT_CODE;
+            const criticExitCode = process.env.CRITIC_EXIT_CODE;
+            const resultFile = phase === 'discover'
+              ? process.env.SCOUT_RESULT_FILE
+              : process.env.CRITIC_RESULT_FILE;
+            const runUrl = process.env.RUN_URL;
+            const maxTurns = process.env.MAX_TURNS;
             const fs = require('fs');
-
-            // Determine which step ran and its result
-            const scoutExitCode = '${{ steps.scout.outputs.exit_code }}';
-            const criticExitCode = '${{ steps.critic.outputs.exit_code }}';
-            const resultFile = '${{ steps.scout.outputs.result_file || steps.critic.outputs.result_file }}';
 
             // Genie metadata for the comment header
             const genieNames = { discover: 'Scout', discern: 'Critic' };
@@ -526,7 +563,6 @@ jobs:
 
             // Determine success/failure
             const exitCode = phase === 'discover' ? scoutExitCode : criticExitCode;
-            const installOk = '${{ steps.install.outputs.install_ok }}' === 'true';
 
             let body;
 
@@ -537,7 +573,7 @@ jobs:
                 '',
                 '**Error:** Genie installation failed. Check the workflow run for details.',
                 '',
-                `> Triggered by @${{ steps.parse.outputs.actor }} via \`/genie ${phase}\``,
+                `> Triggered by @${actor} via \`/genie ${phase}\``,
               ].join('\n');
             } else if (exitCode !== '0' || !resultFile || !fs.existsSync(resultFile)) {
               // claude failed or hit max-turns
@@ -545,7 +581,7 @@ jobs:
               if (exitCode === '1') {
                 errorNote = 'The genie encountered an error during execution.';
               } else {
-                errorNote = `The genie exited with code \`${exitCode}\`. This may indicate the session hit the \`--max-turns\` limit (${{ env.MAX_TURNS }}).`;
+                errorNote = `The genie exited with code \`${exitCode}\`. This may indicate the session hit the \`--max-turns\` limit (${maxTurns}).`;
               }
 
               body = [
@@ -554,9 +590,9 @@ jobs:
                 '',
                 `**Error:** ${errorNote}`,
                 '',
-                'Check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for the full log.',
+                `Check the [workflow run](${runUrl}) for the full log.`,
                 '',
-                `> Triggered by @${{ steps.parse.outputs.actor }} via \`/genie ${phase}\``,
+                `> Triggered by @${actor} via \`/genie ${phase}\``,
               ].join('\n');
             } else {
               const result = fs.readFileSync(resultFile, 'utf8').trim();
@@ -574,7 +610,7 @@ jobs:
                 displayResult,
                 '',
                 '---',
-                `> Triggered by @${{ steps.parse.outputs.actor }} via \`/genie ${phase}\` | [Workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`,
+                `> Triggered by @${actor} via \`/genie ${phase}\` | [Workflow run](${runUrl})`,
               ].join('\n');
             }
 
