@@ -287,12 +287,16 @@ jobs:
           echo "--- Installing genie-team artifacts ---"
           # Fetch install.sh from genie-team repo if not present locally.
           # This is the expected path for user repos that copied only this YAML file.
-          # Security hardening: pin the URL to a specific commit SHA (see SECURITY HARDENING
-          # note at the top of this file). After downloading, verify the sha256 checksum:
-          #   echo '<known-sha256>  /tmp/install.sh' | sha256sum --check
-          # Accepted risk: SHA-pinning the URL guarantees the git commit pointer but does
-          # not guard against a compromised CDN serving different bytes. Add a checksum
-          # for full supply-chain verification.
+          # Security hardening: pin the URL to a specific commit SHA and verify the
+          # sha256 checksum for full supply-chain integrity:
+          #   1. Replace 'main' with the commit SHA:
+          #      "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh"
+          #   2. Get the expected checksum:
+          #      curl -fsSL "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh" | sha256sum
+          #   3. Add a verification step after the curl:
+          #      echo "<sha256>  /tmp/install.sh" | sha256sum --check
+          # SHA-pinning alone guarantees the git commit pointer; adding a checksum also
+          # guards against a CDN serving bytes that differ from the pinned commit.
           if [[ ! -f "./install.sh" ]]; then
             curl -fsSL \
               "https://raw.githubusercontent.com/Elmmly/genie-team/main/install.sh" \
