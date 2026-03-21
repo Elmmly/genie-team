@@ -94,6 +94,11 @@ jobs:
 
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Concurrency group prevents duplicate parallel runs on the same issue/PR.
+    # Template expressions are the only syntax available in concurrency keys —
+    # the env: pattern used elsewhere cannot be applied here. inputs.issue_number
+    # is user-controlled but the value is only used as a string identifier, not
+    # executed, so injection is not possible in this context.
     concurrency:
       group: genie-${{ github.event.issue.number || inputs.issue_number || github.run_id }}
       cancel-in-progress: true
@@ -280,6 +285,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Validate MAX_TURNS early — fail fast before spending time on npm install.
+          # Upper bound (200) guards against unbounded runner time/cost from
+          # workflow_dispatch callers. Centralised here to avoid duplication in
+          # Scout and Critic steps (Q3).
+          if ! [[ "$MAX_TURNS" =~ ^[1-9][0-9]*$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
+            echo "max_turns must be a positive integer between 1 and 200, got: $MAX_TURNS" >&2
+            exit 1
+          fi
+
           echo "--- Installing Claude Code CLI ---"
           # Pinned version for supply-chain safety — update intentionally when upgrading.
           # Note: npm install -g is intentional here; claude-code is a global CLI tool
@@ -430,14 +444,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Validate MAX_TURNS: must be a positive integer with an upper bound.
-          # Upper bound guards against unbounded runner time and API cost from
-          # a workflow_dispatch caller passing max_turns=999999.
-          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
-            echo "max_turns must be a positive integer <= 200, got: $MAX_TURNS" >&2
-            exit 1
-          fi
-
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           ISSUE_CONTENT=$(cat "$CONTEXT_FILE")
 
@@ -471,7 +477,10 @@ jobs:
           # --allowedTools: restrict to read-only tools — Scout/Critic do not need Bash/Write/Edit
           # --max-turns: cost guard (AC-6)
           # --output-format text: clean stdout for comment posting
-          # Prompt is read from stdin (<) — avoids shell re-expansion of file content
+          # Prompt is read from stdin (<) — avoids shell re-expansion of file content.
+          # stderr is separated from stdout so internal error messages (auth failures,
+          # stack traces) don't appear verbatim in the posted GitHub comment.
+          # The full log including stderr is always available in the workflow run.
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
@@ -479,7 +488,8 @@ jobs:
             --output-format text \
             -p \
             < "$RUNNER_TEMP/genie-prompt.txt" \
-            > "$RESULT_FILE" 2>&1
+            > "$RESULT_FILE" \
+            2> "$RUNNER_TEMP/genie-stderr.log"
 
           EXIT_CODE=$?
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
@@ -503,14 +513,6 @@ jobs:
           TRUNCATED: ${{ steps.pr_context.outputs.truncated }}
         run: |
           set -euo pipefail
-
-          # Validate MAX_TURNS: must be a positive integer with an upper bound.
-          # Upper bound guards against unbounded runner time and API cost from
-          # a workflow_dispatch caller passing max_turns=999999.
-          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
-            echo "max_turns must be a positive integer <= 200, got: $MAX_TURNS" >&2
-            exit 1
-          fi
 
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           DIFF_CONTENT=$(cat "$DIFF_FILE")
@@ -541,7 +543,10 @@ jobs:
 
           printf '%s' "$PROMPT" > "$RUNNER_TEMP/genie-prompt.txt"
 
-          # Prompt is read from stdin (<) — avoids shell re-expansion of file content
+          # Prompt is read from stdin (<) — avoids shell re-expansion of file content.
+          # stderr is separated from stdout so internal error messages (auth failures,
+          # stack traces) don't appear verbatim in the posted GitHub comment.
+          # The full log including stderr is always available in the workflow run.
           claude \
             --dangerously-skip-permissions \
             --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
@@ -549,7 +554,8 @@ jobs:
             --output-format text \
             -p \
             < "$RUNNER_TEMP/genie-prompt.txt" \
-            > "$RESULT_FILE" 2>&1
+            > "$RESULT_FILE" \
+            2> "$RUNNER_TEMP/genie-stderr.log"
 
           EXIT_CODE=$?
           echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
@@ -614,9 +620,12 @@ jobs:
                 `> Triggered by @${actor} via \`/genie ${phase}\``,
               ].join('\n');
             } else if (exitCode !== '0' || !resultFile || !fs.existsSync(resultFile)) {
-              // claude failed or hit max-turns
+              // claude failed, hit max-turns, or the step was skipped entirely
               let errorNote = '';
-              if (exitCode === '1') {
+              if (!exitCode) {
+                // Empty exitCode means the genie step was skipped (e.g. install failed)
+                errorNote = 'The genie step did not run — check the workflow run for details.';
+              } else if (exitCode === '1') {
                 errorNote = 'The genie encountered an error during execution.';
               } else {
                 errorNote = `The genie exited with code \`${exitCode}\`. This may indicate the session hit the \`--max-turns\` limit (${maxTurns}).`;
