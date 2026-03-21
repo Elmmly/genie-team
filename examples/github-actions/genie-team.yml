@@ -32,8 +32,8 @@
 #   - Org membership check uses GITHUB_TOKEN (rate-limited at 1,000/hr per repo).
 #   - No support for forked repositories. Same-repo PRs and issues only.
 #   - Prompt injection: XML tag boundaries reduce but do not eliminate injection risk.
-#     A crafted issue body containing </issue-context> could escape the data boundary.
-#     Closing tags are sanitized before embedding; this is a known residual risk.
+#     Both opening and closing boundary tags are sanitized before embedding. Residual
+#     risk from prompt-level instructions in issue/PR content remains.
 #
 # SECURITY HARDENING (optional)
 #   Pin the install.sh curl URL to a specific commit SHA for reproducibility:
@@ -210,8 +210,10 @@ jobs:
               const { data: ownerData } = await github.rest.users.getByUsername({ username: owner });
               isOrg = ownerData.type === 'Organization';
             } catch (_) {
-              // If we can't determine owner type, default to org path (safer)
-              isOrg = true;
+              // Can't determine owner type (network error, etc.) — default to deny.
+              // Defaulting to true (org path) risks core.setFailed on unexpected API
+              // status; defaulting to false (personal path) degrades to owner-only deny.
+              isOrg = false;
             }
 
             if (isOrg) {
@@ -335,12 +337,17 @@ jobs:
               issue_number: issueNumber,
             });
 
-            // Fetch up to 20 top-level comments — discussion context matters for Scout
+            // Fetch the most recent 20 comments — recent discussion is most relevant to Scout.
+            // The API returns comments in ascending order with no direction param, so we
+            // calculate the last page from the issue's comment count.
+            const totalComments = issue.comments;
+            const lastPage = Math.max(1, Math.ceil(totalComments / 20));
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
               per_page: 20,
+              page: lastPage,
             });
 
             const commentBlock = comments.length > 0
@@ -423,18 +430,21 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Validate MAX_TURNS is a positive integer (user-supplied via workflow_dispatch)
-          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]]; then
-            echo "max_turns must be a positive integer, got: $MAX_TURNS" >&2
+          # Validate MAX_TURNS: must be a positive integer with an upper bound.
+          # Upper bound guards against unbounded runner time and API cost from
+          # a workflow_dispatch caller passing max_turns=999999.
+          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
+            echo "max_turns must be a positive integer <= 200, got: $MAX_TURNS" >&2
             exit 1
           fi
 
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           ISSUE_CONTENT=$(cat "$CONTEXT_FILE")
 
-          # Sanitize XML closing tag to prevent boundary injection attacks.
-          # An issue body containing </issue-context> could otherwise escape the data boundary.
-          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|</issue-context>|[/issue-context]|g')
+          # Sanitize XML boundary tags (both opening and closing) to prevent injection.
+          # An attacker injecting <issue-context> could open a second boundary and escape
+          # the data block; </issue-context> could close the current boundary early.
+          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|<issue-context>|[issue-context]|g; s|</issue-context>|[/issue-context]|g')
 
           # Defensive prompt framing: label input as data, not instructions.
           # XML-style delimiters are Claude's native context boundaries (ADR-007).
@@ -490,17 +500,19 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Validate MAX_TURNS is a positive integer (user-supplied via workflow_dispatch)
-          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]]; then
-            echo "max_turns must be a positive integer, got: $MAX_TURNS" >&2
+          # Validate MAX_TURNS: must be a positive integer with an upper bound.
+          # Upper bound guards against unbounded runner time and API cost from
+          # a workflow_dispatch caller passing max_turns=999999.
+          if ! [[ "$MAX_TURNS" =~ ^[0-9]+$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
+            echo "max_turns must be a positive integer <= 200, got: $MAX_TURNS" >&2
             exit 1
           fi
 
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           DIFF_CONTENT=$(cat "$DIFF_FILE")
 
-          # Sanitize XML closing tag to prevent boundary injection attacks.
-          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|</pr-diff>|[/pr-diff]|g')
+          # Sanitize XML boundary tags (both opening and closing) to prevent injection.
+          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|<pr-diff>|[pr-diff]|g; s|</pr-diff>|[/pr-diff]|g')
 
           TRUNCATION_NOTICE=""
           if [[ "$TRUNCATED" == "true" ]]; then
