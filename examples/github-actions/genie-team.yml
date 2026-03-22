@@ -458,7 +458,8 @@ jobs:
           steps.parse.outputs.valid == 'true' &&
           steps.auth.outputs.authorized == 'true' &&
           steps.parse.outputs.phase == 'discover' &&
-          steps.install.outputs.install_ok == 'true'
+          steps.install.outputs.install_ok == 'true' &&
+          steps.issue_context.outcome == 'success'
         env:
           # Auth — dual path (ADR-007):
           # OAuth path: CLAUDE_CODE_OAUTH_TOKEN preferred when present (subscription billing)
@@ -741,7 +742,7 @@ STATIC
               // (U+FFFD) that Node produces for the partial sequence at the cut point.
               const MAX_COMMENT = 65000;
               const displayResult = Buffer.byteLength(result, 'utf8') > MAX_COMMENT
-                ? Buffer.from(result, 'utf8').slice(0, MAX_COMMENT).toString('utf8').replace(/\uFFFD*$/, '') + '\n\n*[Output truncated — see workflow run for full output]*'
+                ? Buffer.from(result, 'utf8').subarray(0, MAX_COMMENT).toString('utf8').replace(/\uFFFD*$/, '') + '\n\n*[Output truncated — see workflow run for full output]*'
                 : result;
 
               body = [
