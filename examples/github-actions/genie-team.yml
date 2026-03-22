@@ -387,7 +387,7 @@ jobs:
 
             const commentBlock = comments.length > 0
               ? '\n\nComments:\n' + comments
-                  .map(c => `@${c.user.login}: ${c.body}`)
+                  .map(c => `@${c.user?.login ?? '[deleted]'}: ${c.body}`)
                   .join('\n\n---\n\n')
               : '';
 
@@ -482,7 +482,11 @@ jobs:
             's|<issue-context>|[issue-context]|gI; s|</issue-context>|[/issue-context]|gI
              s|<system>|[system]|gI;    s|</system>|[/system]|gI
              s|<human>|[human]|gI;      s|</human>|[/human]|gI
-             s|<assistant>|[assistant]|gI; s|</assistant>|[/assistant]|gI')
+             s|<assistant>|[assistant]|gI; s|</assistant>|[/assistant]|gI
+             s|<function_calls>|[function_calls]|gI; s|</function_calls>|[/function_calls]|gI
+             s|<function>|[function]|gI; s|</function>|[/function]|gI
+             s|<parameter>|[parameter]|gI; s|</parameter>|[/parameter]|gI
+             s|<invoke>|[invoke]|gI; s|</invoke>|[/invoke]|gI')
 
           # Build prompt file using a heredoc so untrusted content (ISSUE_CONTENT_SAFE)
           # never passes through a shell variable assignment. Assigning $ISSUE_CONTENT_SAFE
@@ -514,7 +518,10 @@ STATIC
           } > "$RUNNER_TEMP/genie-prompt.txt"
 
           # Invoke claude headlessly
-          # --dangerously-skip-permissions: required for headless runner execution (ADR-010)
+          # --dangerously-skip-permissions: required for headless runner execution (ADR-010).
+          #   --allowedTools (below) is the effective capability boundary — it prevents Bash,
+          #   Write, Edit, and all other write tools regardless of this flag. Do not remove
+          #   --allowedTools to make this invocation "safer"; that would broaden the toolset.
           # --allowedTools: restrict to read-only tools — Scout/Critic do not need Bash/Write/Edit
           # --max-turns: cost guard (AC-6)
           # --output-format text: clean stdout for comment posting
@@ -551,7 +558,8 @@ STATIC
           steps.parse.outputs.valid == 'true' &&
           steps.auth.outputs.authorized == 'true' &&
           steps.parse.outputs.phase == 'discern' &&
-          steps.install.outputs.install_ok == 'true'
+          steps.install.outputs.install_ok == 'true' &&
+          steps.pr_context.outcome == 'success'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -569,7 +577,11 @@ STATIC
             's|<pr-diff>|[pr-diff]|gI;  s|</pr-diff>|[/pr-diff]|gI
              s|<system>|[system]|gI;    s|</system>|[/system]|gI
              s|<human>|[human]|gI;      s|</human>|[/human]|gI
-             s|<assistant>|[assistant]|gI; s|</assistant>|[/assistant]|gI')
+             s|<assistant>|[assistant]|gI; s|</assistant>|[/assistant]|gI
+             s|<function_calls>|[function_calls]|gI; s|</function_calls>|[/function_calls]|gI
+             s|<function>|[function]|gI; s|</function>|[/function]|gI
+             s|<parameter>|[parameter]|gI; s|</parameter>|[/parameter]|gI
+             s|<invoke>|[invoke]|gI; s|</invoke>|[/invoke]|gI')
 
           TRUNCATION_NOTICE=""
           if [[ "$TRUNCATED" == "true" ]]; then
@@ -605,6 +617,14 @@ verdict (APPROVED, CONDITIONAL, or BLOCKED) and acceptance criteria assessment.
 STATIC
           } > "$RUNNER_TEMP/genie-prompt.txt"
 
+          # Invoke claude headlessly
+          # --dangerously-skip-permissions: required for headless runner execution (ADR-010).
+          #   --allowedTools (below) is the effective capability boundary — it prevents Bash,
+          #   Write, Edit, and all other write tools regardless of this flag. Do not remove
+          #   --allowedTools to make this invocation "safer"; that would broaden the toolset.
+          # --allowedTools: restrict to read-only tools — Scout/Critic do not need Bash/Write/Edit
+          # --max-turns: cost guard (AC-6)
+          # --output-format text: clean stdout for comment posting
           # Prompt is read from stdin (<) — avoids shell re-expansion of file content.
           # stderr is separated from stdout so internal error messages (auth failures,
           # stack traces) don't appear verbatim in the posted GitHub comment.
