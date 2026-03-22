@@ -31,9 +31,13 @@
 #   - issue_comment event does not fire on inline PR review comments (only top-level).
 #   - Org membership check uses GITHUB_TOKEN (rate-limited at 1,000/hr per repo).
 #   - No support for forked repositories. Same-repo PRs and issues only.
-#   - Prompt injection: XML tag boundaries reduce but do not eliminate injection risk.
-#     Both opening and closing boundary tags are sanitized before embedding. Residual
-#     risk from prompt-level instructions in issue/PR content remains.
+#   - Prompt injection: angle brackets in issue/PR content are HTML-encoded (&lt;/&gt;)
+#     before embedding, which neutralises all XML/HTML tag injection. Residual risk
+#     from prompt-level natural-language instructions in issue/PR content remains.
+#   - Read/Glob/Grep access to the checked-out repo: Claude can read any file in the
+#     repository, including accidentally committed secrets. Run a secrets scan (e.g.
+#     trufflesecurity/trufflehog, gitleaks) and confirm the repo is clean before
+#     enabling this workflow.
 #
 # SECURITY HARDENING (optional)
 #   Pin the install.sh curl URL to a specific commit SHA for reproducibility:
@@ -451,6 +455,10 @@ jobs:
 
       # -----------------------------------------------------------------------
       # STEP 6a: Invoke Scout (discover path)
+      # NOTE: Scout (6a) and Critic (6b) share identical claude invocation
+      # boilerplate. Extracting to a composite action would require a second
+      # file (.github/actions/genie-invoke/action.yml), breaking the
+      # single-file distribution model. The duplication is intentional.
       # -----------------------------------------------------------------------
       - name: Run Scout (discover)
         id: scout
@@ -473,21 +481,15 @@ jobs:
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           ISSUE_CONTENT=$(cat "$CONTEXT_FILE")
 
-          # Sanitize XML boundary tags (both opening and closing) to prevent injection.
-          # An attacker injecting <issue-context> could open a second boundary and escape
-          # the data block; </issue-context> could close the current boundary early.
-          # Strip boundary tags AND Anthropic semantic control tags (<system>, <human>,
-          # <assistant>) to prevent an org member from injecting a <system> block that
-          # would be interpreted as a prompt control directive rather than issue data.
-          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed \
-            's|<issue-context>|[issue-context]|gI; s|</issue-context>|[/issue-context]|gI
-             s|<system>|[system]|gI;    s|</system>|[/system]|gI
-             s|<human>|[human]|gI;      s|</human>|[/human]|gI
-             s|<assistant>|[assistant]|gI; s|</assistant>|[/assistant]|gI
-             s|<function_calls>|[function_calls]|gI; s|</function_calls>|[/function_calls]|gI
-             s|<function>|[function]|gI; s|</function>|[/function]|gI
-             s|<parameter>|[parameter]|gI; s|</parameter>|[/parameter]|gI
-             s|<invoke>|[invoke]|gI; s|</invoke>|[/invoke]|gI')
+          # HTML-encode all angle brackets in untrusted content before embedding.
+          # This neutralises every possible XML/HTML tag injection in one pass —
+          # including boundary tags (<issue-context>), Anthropic control tags
+          # (<system>, <human>, <assistant>), and tool-use envelope tags
+          # (<function_calls>, <invoke>, etc.) — without maintaining a blocklist
+          # that can fall behind new tag names. The prompt wrapper tags
+          # (<issue-context>…</issue-context>) are emitted by static heredoc text,
+          # not by user content, so they are unaffected.
+          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|<|\&lt;|g; s|>|\&gt;|g')
 
           # Build prompt file using a heredoc so untrusted content (ISSUE_CONTENT_SAFE)
           # never passes through a shell variable assignment. Assigning $ISSUE_CONTENT_SAFE
@@ -572,17 +574,11 @@ STATIC
           RESULT_FILE="$RUNNER_TEMP/genie-result.md"
           DIFF_CONTENT=$(cat "$DIFF_FILE")
 
-          # Strip boundary tags AND Anthropic semantic control tags (<system>, <human>,
-          # <assistant>) to prevent an org member from injecting a <system> block.
-          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed \
-            's|<pr-diff>|[pr-diff]|gI;  s|</pr-diff>|[/pr-diff]|gI
-             s|<system>|[system]|gI;    s|</system>|[/system]|gI
-             s|<human>|[human]|gI;      s|</human>|[/human]|gI
-             s|<assistant>|[assistant]|gI; s|</assistant>|[/assistant]|gI
-             s|<function_calls>|[function_calls]|gI; s|</function_calls>|[/function_calls]|gI
-             s|<function>|[function]|gI; s|</function>|[/function]|gI
-             s|<parameter>|[parameter]|gI; s|</parameter>|[/parameter]|gI
-             s|<invoke>|[invoke]|gI; s|</invoke>|[/invoke]|gI')
+          # HTML-encode all angle brackets in untrusted content before embedding.
+          # Same rationale as Scout: one-pass encoding eliminates all tag injection
+          # without a blocklist. Static prompt wrapper tags (<pr-diff>…</pr-diff>)
+          # are in heredoc text and unaffected.
+          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|<|\&lt;|g; s|>|\&gt;|g')
 
           TRUNCATION_NOTICE=""
           if [[ "$TRUNCATED" == "true" ]]; then
