@@ -229,7 +229,7 @@ jobs:
               // Can't determine owner type (network error, etc.) — default to deny.
               // Defaulting to true (org path) risks core.setFailed on unexpected API
               // status; defaulting to false (personal path) degrades to owner-only deny.
-              core.warning(`Could not determine owner type for ${owner} (${err.message}) — defaulting to personal repo path`);
+              core.warning(`Could not determine owner type for ${owner} (status ${err.status ?? 'unknown'}) — defaulting to personal repo path`);
               isOrg = false;
             }
 
@@ -322,18 +322,18 @@ jobs:
           npm install -g @anthropic-ai/claude-code@2.1.81
 
           echo "--- Installing genie-team artifacts ---"
-          # Fetch install.sh from genie-team repo if not present locally.
-          # This is the expected path for user repos that copied only this YAML file.
-          # Security hardening: pin the URL to a specific commit SHA and verify the
-          # sha256 checksum for full supply-chain integrity:
-          #   1. Replace 'main' with the commit SHA:
-          #      "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh"
-          #   2. Get the expected checksum:
-          #      curl -fsSL "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh" | sha256sum
-          #   3. Add a verification step after the curl:
-          #      echo "<sha256>  /tmp/install.sh" | sha256sum --check
-          # SHA-pinning alone guarantees the git commit pointer; adding a checksum also
-          # guards against a CDN serving bytes that differ from the pinned commit.
+          # Resolve install.sh — two paths:
+          #   curl path (no local file): expected for repos that copied only this YAML.
+          #   local path (file present): expected for repos that also have install.sh
+          #     (e.g. the genie-team repo itself). Verify integrity on both paths when
+          #     SHA-pinning is active — see SECURITY HARDENING section in the header.
+          #
+          # To add sha256 verification to both paths when you pin the URL:
+          #   INSTALL_SHA256="<sha256>"
+          #   ... curl ... -o /tmp/install.sh
+          #   echo "${INSTALL_SHA256}  /tmp/install.sh" | sha256sum --check
+          #   ... else ...
+          #   echo "${INSTALL_SHA256}  ./install.sh" | sha256sum --check
           if [[ ! -f "./install.sh" ]]; then
             curl -fsSL \
               "https://raw.githubusercontent.com/Elmmly/genie-team/main/install.sh" \
@@ -395,9 +395,15 @@ jobs:
                   .join('\n\n---\n\n')
               : '';
 
-            // Write issue context to a temp file (safe multiline handling)
+            // Write issue context to a temp file (safe multiline handling).
+            // Cap total context at 100KB to bound Claude API cost and prevent
+            // context overflow on issues with large bodies or many comments.
             const fs = require('fs');
-            const content = `Title: ${issue.title}\n\nBody:\n${issue.body || '(no body)'}${commentBlock}`;
+            const MAX_CONTEXT = 102400; // 100KB
+            const raw = `Title: ${issue.title}\n\nBody:\n${issue.body || '(no body)'}${commentBlock}`;
+            const content = Buffer.byteLength(raw, 'utf8') > MAX_CONTEXT
+              ? Buffer.from(raw, 'utf8').subarray(0, MAX_CONTEXT).toString('utf8').replace(/\uFFFD*$/, '') + '\n\n[Context truncated at 100KB]'
+              : raw;
             const tmpFile = `${process.env.RUNNER_TEMP}/genie-context.md`;
             fs.writeFileSync(tmpFile, content, 'utf8');
             core.setOutput('context_file', tmpFile);
