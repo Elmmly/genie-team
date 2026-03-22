@@ -308,9 +308,13 @@ jobs:
           fi
 
           echo "--- Installing Claude Code CLI ---"
-          # Pinned version for supply-chain safety — update intentionally when upgrading.
-          # Note: npm install -g is intentional here; claude-code is a global CLI tool
-          # that lives outside the project's pnpm workspace.
+          # Version-pinned for supply-chain safety — update intentionally when upgrading.
+          # npm install -g is intentional: claude-code is a global CLI tool, not a
+          # project dependency. Global installs don't use a lockfile, so there is no
+          # npm ci / lockfile-based integrity check available here. npm does verify
+          # the tarball sha512 against the registry manifest at install time, which
+          # provides integrity against CDN tampering. The pinned version is the
+          # primary supply-chain control.
           npm install -g @anthropic-ai/claude-code@2.1.81
 
           echo "--- Installing genie-team artifacts ---"
