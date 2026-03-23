@@ -554,7 +554,8 @@ jobs:
           # logic produces clean content with no trailing-newline-delimited structure.
           ISSUE_CONTENT=$(cat "$CONTEXT_FILE")
 
-          # HTML-encode all angle brackets in untrusted content before embedding.
+          # HTML-encode untrusted content before embedding.
+          # & is encoded first so the & in &lt;/&gt; is not double-encoded.
           # This neutralises every possible XML/HTML tag injection in one pass —
           # including boundary tags (<issue-context>), Anthropic control tags
           # (<system>, <human>, <assistant>), and tool-use envelope tags
@@ -562,7 +563,7 @@ jobs:
           # that can fall behind new tag names. The prompt wrapper tags
           # (<issue-context>…</issue-context>) are emitted by static heredoc text,
           # not by user content, so they are unaffected.
-          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|<|\&lt;|g; s|>|\&gt;|g')
+          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|&|\&amp;|g; s|<|\&lt;|g; s|>|\&gt;|g')
 
           # Build prompt file using a heredoc so untrusted content (ISSUE_CONTENT_SAFE)
           # never passes through a shell variable assignment. Assigning $ISSUE_CONTENT_SAFE
@@ -673,11 +674,10 @@ STATIC
 
           DIFF_CONTENT=$(cat "$DIFF_FILE")
 
-          # HTML-encode all angle brackets in untrusted content before embedding.
-          # Same rationale as Scout: one-pass encoding eliminates all tag injection
-          # without a blocklist. Static prompt wrapper tags (<pr-diff>…</pr-diff>)
-          # are in heredoc text and unaffected.
-          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|<|\&lt;|g; s|>|\&gt;|g')
+          # HTML-encode untrusted content before embedding.
+          # & encoded first — same rationale as Scout (see above).
+          # Static prompt wrapper tags (<pr-diff>…</pr-diff>) are in heredoc text, unaffected.
+          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|&|\&amp;|g; s|<|\&lt;|g; s|>|\&gt;|g')
 
           TRUNCATION_NOTICE=""
           if [[ "$TRUNCATED" == "true" ]]; then
@@ -835,8 +835,9 @@ STATIC
                   ? 'Could not fetch issue/PR content — check the workflow run for details.'
                   : 'The genie step did not run — check the workflow run for details.';
               } else if (exitCode === '0') {
-                // Clean exit but no result file — claude produced no output (empty stdout).
-                // Not a max-turns hit (that's a non-zero exit). Rare but unambiguous.
+                // Outer condition is true because !resultFile || !fs.existsSync(resultFile),
+                // not because exitCode !== '0'. Claude exited cleanly but produced no stdout.
+                // Not a max-turns hit (that's a non-zero exit). Rare but distinct from errors.
                 errorNote = 'The genie exited successfully but produced no output. Check the workflow run for details.';
               } else if (exitCode === '1') {
                 errorNote = 'The genie encountered an error during execution.';
