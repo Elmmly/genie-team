@@ -365,7 +365,7 @@ jobs:
           # --ignore-scripts: prevents any install-time scripts from executing —
           # easy hardening for global CI installs. Omit only if claude requires a
           # postinstall step to function (it does not at the pinned version).
-          npm install -g --ignore-scripts @anthropic-ai/claude-code@2.1.81
+          npm install -g --ignore-scripts --no-fund --no-audit @anthropic-ai/claude-code@2.1.81
 
           echo "--- Installing genie-team artifacts ---"
           # Resolve install.sh — two paths:
@@ -623,7 +623,7 @@ STATIC
           # Opt-in via GENIE_SCOUT_ALLOW_WEB repo variable (see env: block above).
           # Default is read-only; set to 'true' to enable external research.
           SCOUT_TOOLS="Read,Glob,Grep"
-          [[ "$SCOUT_ALLOW_WEB" == "true" ]] && SCOUT_TOOLS="WebFetch,WebSearch,$SCOUT_TOOLS"
+          [[ "${SCOUT_ALLOW_WEB,,}" == "true" ]] && SCOUT_TOOLS="WebFetch,WebSearch,$SCOUT_TOOLS"
           set +e
           claude \
             --dangerously-skip-permissions \
