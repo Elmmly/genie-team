@@ -177,15 +177,22 @@ jobs:
                 }
               }
 
+              // Validate that the supplied issue_number is a valid integer.
+              // parseInt('abc', 10) returns NaN (no exception) — guard explicitly.
+              const parsedNumber = parseInt(issueNumber, 10);
+              if (Number.isNaN(parsedNumber)) {
+                core.info(`workflow_dispatch: issue_number "${issueNumber}" is not a valid integer — ignoring`);
+                core.setOutput('valid', 'false');
+                return;
+              }
               // discover → issue context, discern → PR context
               const isPR = phase === 'discern';
               core.setOutput('valid', 'true');
               core.setOutput('phase', phase);
               core.setOutput('is_pr', isPR ? 'true' : 'false');
-              // Emit the sanitized integer, not the raw user string — parseInt already
-              // validated it; this prevents a value like "123\nfoo" from propagating
-              // downstream even though the curl URL's double-quoting would contain it.
-              core.setOutput('issue_number', String(parseInt(issueNumber, 10)));
+              // Emit the sanitized integer — prevents values like "123\nfoo" from
+              // propagating downstream even though the curl URL's double-quoting would contain it.
+              core.setOutput('issue_number', String(parsedNumber));
               core.setOutput('actor', context.actor);
               return;
             }
@@ -415,17 +422,17 @@ jobs:
               issue_number: issueNumber,
             });
 
-            // Fetch the most recent 20 comments — recent discussion is most relevant to Scout.
-            // The API returns comments in ascending order with no direction param, so we
-            // calculate the last page from the issue's comment count.
-            const totalComments = issue.comments;
-            const lastPage = Math.max(1, Math.ceil(totalComments / 20));
+            // Fetch the 20 most recent comments. direction: 'desc' returns newest-first
+            // on page 1, which always yields the 20 most recent regardless of total count.
+            // The previous lastPage approach could silently return fewer than 20 when
+            // totalComments % 20 !== 0 (e.g. 41 comments → page 3 → only 1 comment).
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
               per_page: 20,
-              page: lastPage,
+              sort: 'created',
+              direction: 'desc',
             });
 
             // Cap individual comment bodies so one large comment can't crowd out the rest.
