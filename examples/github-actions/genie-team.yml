@@ -685,7 +685,7 @@ jobs:
 
           # HTML-encode untrusted content before embedding.
           # & encoded first — same rationale as Scout (see above).
-          # Static prompt wrapper tags (<pr-diff>…</pr-diff>) are in heredoc text, unaffected.
+          # Static prompt wrapper tags (<pr-diff>…</pr-diff>) are in static printf strings, unaffected.
           DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|&|\&amp;|g; s|<|\&lt;|g; s|>|\&gt;|g; s|"|\&quot;|g')
 
           TRUNCATION_NOTICE=""
