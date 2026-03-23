@@ -394,6 +394,10 @@ jobs:
           # Skip MCP (no display on ephemeral runners) and force for idempotency
           "$INSTALL_SCRIPT" global --skip-mcp --force
 
+          # Only written on success — Step 7 checks for the string 'true'; the implicit
+          # empty-string case (early exit before this line) is treated as falsy. Do not add
+          # echo "install_ok=false" — Step 7 handles the empty-string case and an explicit
+          # 'false' would require updating Step 7's check from === 'true' to !== 'false'.
           echo "install_ok=true" >> "$GITHUB_OUTPUT"
         timeout-minutes: 3
 
@@ -437,8 +441,10 @@ jobs:
 
             // Cap individual comment bodies so one large comment can't crowd out the rest.
             const MAX_COMMENT_BODY = 2048;
+            // direction: 'desc' returns newest-first. Reverse to restore chronological order
+            // so Scout reads the thread oldest-first (narrative order matches conversation flow).
             const commentBlock = comments.length > 0
-              ? '\n\nComments:\n' + comments
+              ? '\n\nComments:\n' + [...comments].reverse()
                   .map(c => {
                     const body = c.body.length > MAX_COMMENT_BODY
                       ? c.body.slice(0, MAX_COMMENT_BODY) + ' [truncated]'
@@ -536,8 +542,10 @@ jobs:
           # API key path: used when CLAUDE_CODE_OAUTH_TOKEN is absent
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # Both secrets are injected so claude can select the active path at runtime (ADR-007).
-          # Operators who configure both accept this: --allowedTools prevents Read of /proc/environ
-          # or equivalent, and claude cannot run Bash/env. Known trade-off — no code change needed.
+          # Known trade-off: Read is in the allowlist, so a successful NL injection could direct
+          # claude to read /proc/self/environ and include credentials in its output. Bash/Write/Edit
+          # are excluded, limiting exfiltration vectors. HTML encoding + XML boundary tags reduce
+          # NL injection risk but do not eliminate it. Operators who configure both secrets accept this.
           CONTEXT_FILE: ${{ steps.issue_context.outputs.context_file }}
           # Set GENIE_SCOUT_ALLOW_WEB=true in repo Settings → Variables to enable
           # WebFetch/WebSearch for Scout. Disabled by default to minimise the
