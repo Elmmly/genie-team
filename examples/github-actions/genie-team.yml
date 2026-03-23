@@ -403,7 +403,7 @@ jobs:
             # Extract top-level directory name from the tarball before extracting.
             # GitHub archive format is always genie-team-<ref>/ — this avoids hardcoding
             # the directory name and fails explicitly if the tarball is empty or malformed.
-            GENIE_DIR=$(tar -tzf /tmp/genie-team.tar.gz 2>/dev/null | head -1 | cut -d/ -f1 || true)
+            GENIE_DIR=$(tar -tzf /tmp/genie-team.tar.gz | head -1 | cut -d/ -f1 || true)
             [[ -n "$GENIE_DIR" ]] || { echo "Could not determine genie-team directory from tarball" >&2; exit 1; }
             tar -xzf /tmp/genie-team.tar.gz -C /tmp/ --no-same-owner
             INSTALL_SCRIPT="/tmp/${GENIE_DIR}/install.sh"
