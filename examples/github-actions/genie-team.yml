@@ -101,6 +101,10 @@ jobs:
     #      (prevents the genie's own comment from re-triggering)
     #      The <!-- genie-response --> marker is the stable filter — it is present
     #      on all genie response comments regardless of header text format.
+    #      Note: this guard is logically redundant given guard #1 (a body can't
+    #      simultaneously start with '/genie ' AND '<!-- genie-response'), but it
+    #      is retained as defence-in-depth in case the '/genie ' prefix check is
+    #      ever widened.
     if: |
       github.event_name == 'workflow_dispatch' || (
         startsWith(github.event.comment.body, '/genie ') &&
@@ -164,7 +168,10 @@ jobs:
               core.setOutput('valid', 'true');
               core.setOutput('phase', phase);
               core.setOutput('is_pr', isPR ? 'true' : 'false');
-              core.setOutput('issue_number', issueNumber);
+              // Emit the sanitized integer, not the raw user string — parseInt already
+              // validated it; this prevents a value like "123\nfoo" from propagating
+              // downstream even though the curl URL's double-quoting would contain it.
+              core.setOutput('issue_number', String(parseInt(issueNumber, 10)));
               core.setOutput('actor', context.actor);
               return;
             }
@@ -253,6 +260,11 @@ jobs:
                 if (err.status === 404) {
                   core.info(`${actor} is NOT an org member of ${owner} — silently dropping`);
                   core.setOutput('authorized', 'false');
+                } else if (err.status === 403 || err.status === 429) {
+                  // Rate-limited by GITHUB_TOKEN (1,000 req/hr per repo). Deny gracefully
+                  // rather than marking the job failed — a noisy outcome for a transient limit.
+                  core.warning(`Org membership check rate-limited (status ${err.status}) — denying as a precaution`);
+                  core.setOutput('authorized', 'false');
                 } else {
                   core.setFailed(`Org membership check failed unexpectedly (status ${err.status ?? 'unknown'})`);
                 }
@@ -334,11 +346,11 @@ jobs:
           #     (e.g. the genie-team repo itself). Verify integrity on both paths when
           #     SHA-pinning is active — see SECURITY HARDENING section in the header.
           #
-          # To add sha256 verification to both paths when you pin the URL:
-          #   1. Get the hash: curl -fsSL "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh" | sha256sum
-          #   2. Set: INSTALL_SHA256="<64-hex-chars>"
-          #   3. Add after the curl:  echo "${INSTALL_SHA256}  /tmp/install.sh" | sha256sum --check
-          #   4. Add in the else:     echo "${INSTALL_SHA256}  ./install.sh"   | sha256sum --check
+          # To update the pin (e.g. when upgrading genie-team):
+          #   1. Pick a new commit SHA from Elmmly/genie-team
+          #   2. Get its hash: curl -fsSL "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh" | sha256sum
+          #   3. Update INSTALL_SHA256 below and the curl URL to match the new SHA
+          #   4. Verify the new hash locally before merging
           if [[ ! -f "./install.sh" ]]; then
             curl -fsSL \
               --connect-timeout 10 \
@@ -563,6 +575,12 @@ STATIC
           # set +e before claude: under set -euo pipefail a non-zero exit from claude
           # would immediately terminate the script before EXIT_CODE=$? is reached.
           # set -e is restored immediately after so subsequent commands retain strict mode.
+          # WebFetch,WebSearch are needed for Scout to research external references in issues.
+          # Trade-off: they are also the primary residual exfiltration vector — a crafted
+          # issue body that survives HTML-encoding could instruct Scout to fetch an attacker
+          # URL. HTML-encoding neutralises tag-based injection; natural-language instructions
+          # in issue content remain a residual risk (see KNOWN LIMITATIONS in header).
+          # Remove WebFetch,WebSearch if Scout's research capability is not needed.
           set +e
           claude \
             --dangerously-skip-permissions \
