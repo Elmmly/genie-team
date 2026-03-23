@@ -231,9 +231,10 @@ jobs:
               const { data: ownerData } = await github.rest.users.getByUsername({ username: owner });
               isOrg = ownerData.type === 'Organization';
             } catch (err) {
-              // Can't determine owner type (network error, etc.) — default to deny.
+              // Can't determine owner type (network error, etc.).
               // Defaulting to true (org path) risks core.setFailed on unexpected API
-              // status; defaulting to false (personal path) degrades to owner-only deny.
+              // status; defaulting to false (personal path) degrades to owner-only access
+              // (repo owner allowed, everyone else denied) — the safer fallback.
               core.warning(`Could not determine owner type for ${owner} (status ${err.status ?? 'unknown'}) — defaulting to personal repo path`);
               isOrg = false;
             }
@@ -311,7 +312,7 @@ jobs:
           # Upper bound (200) guards against unbounded runner time/cost from
           # workflow_dispatch callers. Centralised here to avoid duplication in
           # Scout and Critic steps (Q3).
-          if ! [[ "$MAX_TURNS" =~ ^[1-9][0-9]*$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
+          if ! [[ "$MAX_TURNS" =~ ^[1-9][0-9]{0,2}$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
             echo "max_turns must be a positive integer between 1 and 200, got: $MAX_TURNS" >&2
             exit 1
           fi
@@ -334,11 +335,10 @@ jobs:
           #     SHA-pinning is active — see SECURITY HARDENING section in the header.
           #
           # To add sha256 verification to both paths when you pin the URL:
-          #   INSTALL_SHA256="<sha256>"
-          #   ... curl ... -o /tmp/install.sh
-          #   echo "${INSTALL_SHA256}  /tmp/install.sh" | sha256sum --check
-          #   ... else ...
-          #   echo "${INSTALL_SHA256}  ./install.sh" | sha256sum --check
+          #   1. Get the hash: curl -fsSL "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh" | sha256sum
+          #   2. Set: INSTALL_SHA256="<64-hex-chars>"
+          #   3. Add after the curl:  echo "${INSTALL_SHA256}  /tmp/install.sh" | sha256sum --check
+          #   4. Add in the else:     echo "${INSTALL_SHA256}  ./install.sh"   | sha256sum --check
           if [[ ! -f "./install.sh" ]]; then
             curl -fsSL \
               "https://raw.githubusercontent.com/Elmmly/genie-team/main/install.sh" \
@@ -394,9 +394,16 @@ jobs:
               page: lastPage,
             });
 
+            // Cap individual comment bodies so one large comment can't crowd out the rest.
+            const MAX_COMMENT_BODY = 2048;
             const commentBlock = comments.length > 0
               ? '\n\nComments:\n' + comments
-                  .map(c => `@${c.user?.login ?? '[deleted]'}: ${c.body}`)
+                  .map(c => {
+                    const body = c.body.length > MAX_COMMENT_BODY
+                      ? c.body.slice(0, MAX_COMMENT_BODY) + ' [truncated]'
+                      : c.body;
+                    return `@${c.user?.login ?? '[deleted]'}: ${body}`;
+                  })
                   .join('\n\n---\n\n')
               : '';
 
@@ -682,6 +689,7 @@ STATIC
           SCOUT_RESULT_FILE: ${{ steps.scout.outputs.result_file }}
           CRITIC_RESULT_FILE: ${{ steps.critic.outputs.result_file }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MAX_TURNS: ${{ env.MAX_TURNS }}
         with:
           script: |
             const phase = process.env.PHASE;
@@ -730,7 +738,7 @@ STATIC
             } else if (exitCode !== '0' || !resultFile || !fs.existsSync(resultFile)) {
               // claude failed, hit max-turns, or the step was skipped entirely
               let errorNote = '';
-              if (!exitCode) {
+              if (exitCode === '') {
                 // Empty exitCode means the genie step was skipped (e.g. install failed)
                 errorNote = 'The genie step did not run — check the workflow run for details.';
               } else if (exitCode === '1') {
