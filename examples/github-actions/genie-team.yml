@@ -108,6 +108,9 @@ jobs:
     #      simultaneously start with '/genie ' AND '<!-- genie-response'), but it
     #      is retained as defence-in-depth in case the '/genie ' prefix check is
     #      ever widened.
+    # workflow_dispatch bypasses the bot/genie-response filters intentionally —
+    # only users with write access can trigger workflow_dispatch, so the filters
+    # that guard against untrusted comment authors are not needed.
     if: |
       github.event_name == 'workflow_dispatch' || (
         startsWith(github.event.comment.body, '/genie ') &&
@@ -324,9 +327,9 @@ jobs:
           set -euo pipefail
 
           # Validate MAX_TURNS early — fail fast before spending time on npm install.
-          # Upper bound (200) guards against unbounded runner time/cost from
-          # workflow_dispatch callers. Centralised here to avoid duplication in
-          # Scout and Critic steps (Q3).
+          # Regex validates format (positive integer, at most 3 digits); the -gt 200
+          # check enforces the effective ceiling. Together they accept 1–200.
+          # Centralised here to avoid duplication in Scout and Critic steps (Q3).
           if ! [[ "$MAX_TURNS" =~ ^[1-9][0-9]{0,2}$ ]] || [[ "$MAX_TURNS" -gt 200 ]]; then
             echo "max_turns must be a positive integer between 1 and 200, got: $MAX_TURNS" >&2
             exit 1
@@ -433,10 +436,11 @@ jobs:
             const content = Buffer.byteLength(raw, 'utf8') > MAX_CONTEXT
               ? Buffer.from(raw, 'utf8').subarray(0, MAX_CONTEXT).toString('utf8').replace(/\uFFFD*$/, '') + '\n\n[Context truncated at 100KB]'
               : raw;
-            const tmpFile = `${process.env.RUNNER_TEMP}/genie-context.md`;
+            const tmpFile = `${process.env.RUNNER_TEMP}/genie-scout-context.md`;
             fs.writeFileSync(tmpFile, content, 'utf8');
             core.setOutput('context_file', tmpFile);
             core.setOutput('context_title', issue.title);
+        continue-on-error: true # Must not fail the job — Step 7 posts the error comment
 
       # -----------------------------------------------------------------------
       # STEP 5b: Fetch PR diff context (Critic path — PRs only)
@@ -487,7 +491,6 @@ jobs:
           fi
 
           echo "diff_file=$DIFF_FILE" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
         continue-on-error: true # Must not fail the job — Step 7 posts the error comment
 
       # -----------------------------------------------------------------------
