@@ -36,6 +36,9 @@
 #   - issue_comment event does not fire on inline PR review comments (only top-level).
 #   - Org membership check uses GITHUB_TOKEN (rate-limited at 1,000/hr per repo).
 #   - No support for forked repositories. Same-repo PRs and issues only.
+#   - workflow_dispatch discover path: passing a PR number with phase=discover runs
+#     discovery on it as an issue (no diff context). Low risk (write-access gate), but
+#     results will be based on PR description only, not the diff.
 #   - Prompt injection: angle brackets in issue/PR content are HTML-encoded (&lt;/&gt;)
 #     before embedding, which neutralises all XML/HTML tag injection. Residual risk
 #     from prompt-level natural-language instructions in issue/PR content remains.
@@ -154,7 +157,7 @@ jobs:
                   await github.rest.pulls.get({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    pull_number: parseInt(issueNumber),
+                    pull_number: parseInt(issueNumber, 10),
                   });
                 } catch (err) {
                   core.info(`#${issueNumber} is not a PR — discern requires a PR number`);
@@ -305,8 +308,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # cache: omitted — add 'cache: npm' or 'cache: pnpm' here if your
-          # project has a lockfile and you want to speed up repeated runs.
+          # cache: omitted — this workflow installs claude globally via npm with no
+          # lockfile, so lockfile-based caching (npm, pnpm) does not apply here.
 
       # -----------------------------------------------------------------------
       # STEP 5: Install Claude Code + genie-team artifacts
