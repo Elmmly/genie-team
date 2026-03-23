@@ -371,27 +371,35 @@ jobs:
           claude --version
 
           echo "--- Installing genie-team artifacts ---"
-          # Resolve install.sh — two paths:
-          #   curl path (no local file): expected for repos that copied only this YAML.
-          #   local path (file present): expected for repos that also have install.sh
-          #     (e.g. the genie-team repo itself). Verify integrity on both paths when
-          #     SHA-pinning is active — see SECURITY HARDENING section in the header.
+          # install.sh relies on SCRIPT_DIR (its own directory) to locate commands/,
+          # agents/, skills/, etc. — downloading install.sh alone is not sufficient.
+          # Download the full repo tarball so all artifacts are present alongside it.
+          #
+          # Two paths:
+          #   tarball path (no local install.sh): expected for repos that copied only
+          #     this YAML. Downloads the full repo at the pinned commit.
+          #   local path (./install.sh present): expected when running inside the
+          #     genie-team repo itself (e.g. CI for genie-team). All artifacts already
+          #     present in the working directory.
           #
           # To update the pin (e.g. when upgrading genie-team):
           #   1. Pick a new commit SHA from Elmmly/genie-team
-          #   2. Get its hash: curl -fsSL "https://raw.githubusercontent.com/Elmmly/genie-team/<SHA>/install.sh" | sha256sum
-          #   3. Update INSTALL_SHA256 below and the curl URL to match the new SHA
+          #   2. Get its tarball hash: curl -fsSL "https://github.com/Elmmly/genie-team/archive/<SHA>.tar.gz" | sha256sum
+          #   3. Update GENIE_COMMIT and TARBALL_SHA256 below
           #   4. Verify the new hash locally before merging
-          if [[ ! -f "./install.sh" ]]; then
+          if [[ -f "./install.sh" ]]; then
+            INSTALL_SCRIPT="./install.sh"
+          else
+            GENIE_COMMIT="main"
             curl -fsSL \
               --connect-timeout 10 \
               --max-time 60 \
-              "https://raw.githubusercontent.com/Elmmly/genie-team/main/install.sh" \
-              -o /tmp/install.sh
-            chmod +x /tmp/install.sh
-            INSTALL_SCRIPT="/tmp/install.sh"
-          else
-            INSTALL_SCRIPT="./install.sh"
+              "https://github.com/Elmmly/genie-team/archive/${GENIE_COMMIT}.tar.gz" \
+              -o /tmp/genie-team.tar.gz
+            GENIE_DIR=$(tar -tzf /tmp/genie-team.tar.gz | head -1 | cut -d/ -f1)
+            tar -xzf /tmp/genie-team.tar.gz -C /tmp/
+            INSTALL_SCRIPT="/tmp/${GENIE_DIR}/install.sh"
+            chmod +x "$INSTALL_SCRIPT"
           fi
 
           # Global install: copies commands, agents, skills, rules, schemas
