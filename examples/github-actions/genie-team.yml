@@ -50,9 +50,10 @@
 #     before embedding, which neutralises all XML/HTML tag injection. Residual risk
 #     from prompt-level natural-language instructions in issue/PR content remains.
 #   - Read/Glob/Grep access to the checked-out repo: Claude can read any file in the
-#     repository, including accidentally committed secrets. Run a secrets scan (e.g.
-#     trufflesecurity/trufflehog, gitleaks) and confirm the repo is clean before
-#     enabling this workflow.
+#     repository, including accidentally committed secrets. A successful NL injection in
+#     issue/PR content could direct Claude to exfiltrate any repo file. Confirm the repo
+#     is clean (run trufflesecurity/trufflehog or gitleaks) before enabling this workflow.
+#     There is no enforced file-access guard — this is a trust boundary decision for operators.
 #
 # SECURITY HARDENING (optional)
 #   Pin the install.sh curl URL to a specific commit SHA for reproducibility:
@@ -537,13 +538,14 @@ jobs:
           steps.issue_context.outcome == 'success'
         env:
           # Auth — dual path (ADR-007):
-          # OAuth path: CLAUDE_CODE_OAUTH_TOKEN preferred when present (subscription billing)
+          # Both secrets are injected unconditionally. claude detects CLAUDE_CODE_OAUTH_TOKEN
+          # at runtime and prefers it over ANTHROPIC_API_KEY when both are present, so only
+          # one auth path is active. Conditional expression injection (${{ secret == '' &&
+          # secret || '' }}) was considered to limit blast radius, but expression-evaluated
+          # secrets have inconsistent redaction in runner debug modes — the direct reference
+          # pattern here is the more reliable choice for secret masking.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # API key path: injected only when CLAUDE_CODE_OAUTH_TOKEN is absent, so only one
-          # credential is present in the process environment at runtime. This limits the
-          # blast radius of a successful NL injection: Read is in the allowlist and could
-          # reach /proc/self/environ, but at most one credential is exposed at a time.
-          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CONTEXT_FILE: ${{ steps.issue_context.outputs.context_file }}
           # Set GENIE_SCOUT_ALLOW_WEB=true in repo Settings → Variables to enable
           # WebFetch/WebSearch for Scout. Disabled by default to minimise the
@@ -651,10 +653,9 @@ STATIC
           steps.install.outputs.install_ok == 'true' &&
           steps.pr_context.outcome == 'success'
         env:
-          # Auth — same dual-path pattern as Scout: only one credential in env at runtime.
-          # See Scout env block for full rationale (ADR-007).
+          # Auth — same dual-path pattern as Scout (see Scout env block for rationale, ADR-007).
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DIFF_FILE: ${{ steps.pr_context.outputs.diff_file }}
           TRUNCATED: ${{ steps.pr_context.outputs.truncated }}
         run: |
