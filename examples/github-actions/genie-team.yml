@@ -539,13 +539,11 @@ jobs:
           # Auth — dual path (ADR-007):
           # OAuth path: CLAUDE_CODE_OAUTH_TOKEN preferred when present (subscription billing)
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # API key path: used when CLAUDE_CODE_OAUTH_TOKEN is absent
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Both secrets are injected so claude can select the active path at runtime (ADR-007).
-          # Known trade-off: Read is in the allowlist, so a successful NL injection could direct
-          # claude to read /proc/self/environ and include credentials in its output. Bash/Write/Edit
-          # are excluded, limiting exfiltration vectors. HTML encoding + XML boundary tags reduce
-          # NL injection risk but do not eliminate it. Operators who configure both secrets accept this.
+          # API key path: injected only when CLAUDE_CODE_OAUTH_TOKEN is absent, so only one
+          # credential is present in the process environment at runtime. This limits the
+          # blast radius of a successful NL injection: Read is in the allowlist and could
+          # reach /proc/self/environ, but at most one credential is exposed at a time.
+          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           CONTEXT_FILE: ${{ steps.issue_context.outputs.context_file }}
           # Set GENIE_SCOUT_ALLOW_WEB=true in repo Settings → Variables to enable
           # WebFetch/WebSearch for Scout. Disabled by default to minimise the
@@ -563,15 +561,12 @@ jobs:
           ISSUE_CONTENT=$(cat "$CONTEXT_FILE")
 
           # HTML-encode untrusted content before embedding.
-          # & is encoded first so the & in &lt;/&gt; is not double-encoded.
-          # This neutralises every possible XML/HTML tag injection in one pass —
-          # including boundary tags (<issue-context>), Anthropic control tags
-          # (<system>, <human>, <assistant>), and tool-use envelope tags
-          # (<function_calls>, <invoke>, etc.) — without maintaining a blocklist
-          # that can fall behind new tag names. The prompt wrapper tags
-          # (<issue-context>…</issue-context>) are emitted by static heredoc text,
-          # not by user content, so they are unaffected.
-          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|&|\&amp;|g; s|<|\&lt;|g; s|>|\&gt;|g')
+          # & first (prevents double-encoding), then < / > / ".
+          # Encodes all XML/HTML special characters — tag injection and attribute injection —
+          # in one pass without a blocklist that could fall behind new tag names.
+          # Prompt wrapper tags (<issue-context>…</issue-context>) are in static heredoc
+          # text, not user content, and are unaffected.
+          ISSUE_CONTENT_SAFE=$(printf '%s' "$ISSUE_CONTENT" | sed 's|&|\&amp;|g; s|<|\&lt;|g; s|>|\&gt;|g; s|"|\&quot;|g')
 
           # Build prompt file using a heredoc so untrusted content (ISSUE_CONTENT_SAFE)
           # never passes through a shell variable assignment. Assigning $ISSUE_CONTENT_SAFE
@@ -656,9 +651,10 @@ STATIC
           steps.install.outputs.install_ok == 'true' &&
           steps.pr_context.outcome == 'success'
         env:
-          # See Scout env block comment re: dual-secret scope trade-off (ADR-007).
+          # Auth — same dual-path pattern as Scout: only one credential in env at runtime.
+          # See Scout env block for full rationale (ADR-007).
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           DIFF_FILE: ${{ steps.pr_context.outputs.diff_file }}
           TRUNCATED: ${{ steps.pr_context.outputs.truncated }}
         run: |
@@ -685,7 +681,7 @@ STATIC
           # HTML-encode untrusted content before embedding.
           # & encoded first — same rationale as Scout (see above).
           # Static prompt wrapper tags (<pr-diff>…</pr-diff>) are in heredoc text, unaffected.
-          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|&|\&amp;|g; s|<|\&lt;|g; s|>|\&gt;|g')
+          DIFF_CONTENT_SAFE=$(printf '%s' "$DIFF_CONTENT" | sed 's|&|\&amp;|g; s|<|\&lt;|g; s|>|\&gt;|g; s|"|\&quot;|g')
 
           TRUNCATION_NOTICE=""
           if [[ "$TRUNCATED" == "true" ]]; then
