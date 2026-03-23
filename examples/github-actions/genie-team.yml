@@ -75,7 +75,7 @@ on:
       max_turns:
         description: 'Max turns for claude invocation (default: 50)'
         required: false
-        default: '50'
+        default: '50'  # Keep in sync with MAX_TURNS fallback in env: block below
         type: string
 
 # Permissions needed for this workflow:
@@ -130,7 +130,8 @@ jobs:
       cancel-in-progress: true
 
     env:
-      # Default max-turns; override via workflow_dispatch input if needed
+      # Default max-turns; override via workflow_dispatch input if needed.
+      # '50' must match the default: value in the workflow_dispatch input definition above.
       MAX_TURNS: ${{ inputs.max_turns || '50' }}
 
     steps:
@@ -582,9 +583,11 @@ STATIC
           # would immediately terminate the script before EXIT_CODE=$? is reached.
           # set -e is restored immediately after so subsequent commands retain strict mode.
           # WebFetch,WebSearch are needed for Scout to research external references in issues.
-          # Trade-off: they are also the primary residual exfiltration vector — a crafted
-          # issue body that survives HTML-encoding could instruct Scout to fetch an attacker
-          # URL. HTML-encoding neutralises tag-based injection; natural-language instructions
+          # Trade-off: they are the primary residual exfiltration vectors —
+          #   WebFetch: a crafted issue body could instruct Scout to fetch an attacker URL.
+          #   WebSearch: partial issue content could appear in search queries sent to the
+          #     search engine (query terms are not secret once sent).
+          # HTML-encoding neutralises tag-based injection; natural-language instructions
           # in issue content remain a residual risk (see KNOWN LIMITATIONS in header).
           # Remove WebFetch,WebSearch if Scout's research capability is not needed.
           set +e
@@ -626,6 +629,16 @@ STATIC
 
           # Use step-specific filename — mirrors Scout's naming convention (see genie-scout-result.md).
           RESULT_FILE="$RUNNER_TEMP/genie-critic-result.md"
+
+          # Guard: if Step 5b failed with continue-on-error, DIFF_FILE will be unset or
+          # point to a non-existent file. cat on an empty path fails under set -euo pipefail,
+          # killing Critic before EXIT_CODE is written. Emit a distinct exit code (2) and
+          # let Step 7 post the error comment.
+          if [[ -z "$DIFF_FILE" ]] || [[ ! -f "$DIFF_FILE" ]]; then
+            echo "exit_code=2" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           DIFF_CONTENT=$(cat "$DIFF_FILE")
 
           # HTML-encode all angle brackets in untrusted content before embedding.
@@ -723,6 +736,10 @@ STATIC
           CRITIC_EXIT_CODE: ${{ steps.critic.outputs.exit_code }}
           SCOUT_RESULT_FILE: ${{ steps.scout.outputs.result_file }}
           CRITIC_RESULT_FILE: ${{ steps.critic.outputs.result_file }}
+          # Context fetch outcomes — used to distinguish "context fetch failed" from
+          # "genie step skipped for another reason" in the error message below.
+          ISSUE_CONTEXT_OUTCOME: ${{ steps.issue_context.outcome }}
+          PR_CONTEXT_OUTCOME: ${{ steps.pr_context.outcome }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MAX_TURNS: ${{ env.MAX_TURNS }}
         with:
@@ -743,6 +760,8 @@ STATIC
             const installOk = process.env.INSTALL_OK === 'true';
             const scoutExitCode = process.env.SCOUT_EXIT_CODE;
             const criticExitCode = process.env.CRITIC_EXIT_CODE;
+            const issueContextOutcome = process.env.ISSUE_CONTEXT_OUTCOME;
+            const prContextOutcome = process.env.PR_CONTEXT_OUTCOME;
             const resultFile = phase === 'discover'
               ? process.env.SCOUT_RESULT_FILE
               : process.env.CRITIC_RESULT_FILE;
@@ -774,10 +793,20 @@ STATIC
               // claude failed, hit max-turns, or the step was skipped entirely
               let errorNote = '';
               if (exitCode === '') {
-                // Empty exitCode means the genie step was skipped (e.g. install failed)
-                errorNote = 'The genie step did not run — check the workflow run for details.';
+                // Empty exitCode: the genie step was skipped. Distinguish context fetch
+                // failure (step 5a/5b) from other causes — install failure is already
+                // caught by the !installOk block above, so this branch means 5a/5b failed.
+                const contextFailed = phase === 'discover'
+                  ? issueContextOutcome === 'failure'
+                  : prContextOutcome === 'failure';
+                errorNote = contextFailed
+                  ? 'Could not fetch issue/PR content — check the workflow run for details.'
+                  : 'The genie step did not run — check the workflow run for details.';
               } else if (exitCode === '1') {
                 errorNote = 'The genie encountered an error during execution.';
+              } else if (exitCode === '2') {
+                // Emitted by the Critic DIFF_FILE guard — Step 5b failed with continue-on-error.
+                errorNote = 'Could not fetch PR diff — check the workflow run for details.';
               } else {
                 errorNote = `The genie exited with code \`${exitCode}\`. This may indicate the session hit the \`--max-turns\` limit (${maxTurns}).`;
               }
