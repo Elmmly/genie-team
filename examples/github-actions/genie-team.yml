@@ -366,6 +366,9 @@ jobs:
           # easy hardening for global CI installs. Omit only if claude requires a
           # postinstall step to function (it does not at the pinned version).
           npm install -g --ignore-scripts --no-fund --no-audit @anthropic-ai/claude-code@2.1.81
+          # Smoke-test: if --ignore-scripts ever breaks a required postinstall step on
+          # upgrade, this fails fast here rather than producing a confusing Step 6 error.
+          claude --version
 
           echo "--- Installing genie-team artifacts ---"
           # Resolve install.sh — two paths:
@@ -664,10 +667,12 @@ STATIC
           # Use step-specific filename — mirrors Scout's naming convention (see genie-scout-result.md).
           RESULT_FILE="$RUNNER_TEMP/genie-critic-result.md"
 
-          # Guard: if Step 5b failed with continue-on-error, DIFF_FILE will be unset or
-          # point to a non-existent file. cat on an empty path fails under set -euo pipefail,
-          # killing Critic before EXIT_CODE is written. Emit a distinct exit code (2) and
-          # let Step 7 post the error comment.
+          # Guard: DIFF_FILE is unset or points to a non-existent file. This cannot happen
+          # via Step 5b failure — if 5b failed (outcome=failure), Critic's if: condition
+          # (steps.pr_context.outcome == 'success') would be false and this step would be
+          # skipped entirely. This guard catches a narrower case: Step 5b succeeded (exit 0)
+          # but for some reason never wrote the diff_file output. Emit a distinct exit code
+          # (2) so Step 7 can post a specific error comment rather than a generic one.
           if [[ -z "$DIFF_FILE" ]] || [[ ! -f "$DIFF_FILE" ]]; then
             echo "exit_code=2" >> "$GITHUB_OUTPUT"
             # exit 0, not exit 1: under continue-on-error, exit 0 → outcome=success,
@@ -847,7 +852,8 @@ STATIC
               } else if (exitCode === '1') {
                 errorNote = 'The genie encountered an error during execution.';
               } else if (exitCode === '2') {
-                // Emitted by the Critic DIFF_FILE guard — Step 5b failed with continue-on-error.
+                // Emitted by the Critic DIFF_FILE guard — Step 5b succeeded but diff_file
+                // output was not written. (Step 5b failure skips Critic entirely via if:.)
                 errorNote = 'Could not fetch PR diff — check the workflow run for details.';
               } else {
                 // Non-zero, non-1, non-2: likely max-turns (claude exits non-zero when it hits the limit).
