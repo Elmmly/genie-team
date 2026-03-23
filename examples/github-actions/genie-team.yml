@@ -36,6 +36,9 @@
 #   - issue_comment event does not fire on inline PR review comments (only top-level).
 #   - Org membership check uses GITHUB_TOKEN (rate-limited at 1,000/hr per repo).
 #   - No support for forked repositories. Same-repo PRs and issues only.
+#   - cancel-in-progress: true: if a second /genie comment is posted while a run is
+#     already in flight on the same issue/PR, the first run is cancelled silently (Step 7
+#     never executes on the cancelled run, so no comment is posted about the cancellation).
 #   - workflow_dispatch discover path: passing a PR number with phase=discover runs
 #     discovery on it as an issue (no diff context). Low risk (write-access gate), but
 #     results will be based on PR description only, not the diff.
@@ -94,6 +97,10 @@ permissions:
   issues: write
   pull-requests: write
   contents: read
+  # members: read — required for accurate org membership checks on org repos (Step 2).
+  # Without it, non-member requesters produce a 302 redirect that the SDK surfaces as
+  # an unexpected error, causing setFailed rather than a silent deny. Add this permission
+  # if you see auth failures on org repos. Omitted by default — personal repos don't need it.
 
 jobs:
   genie:
@@ -101,13 +108,9 @@ jobs:
     #   1. Comment body starts with "/genie " (early filter — avoids runner cost)
     #   2. Actor is not a GitHub Actions bot (prevents feedback loops)
     #   3. Comment body does NOT start with the genie response HTML marker
-    #      (prevents the genie's own comment from re-triggering)
-    #      The <!-- genie-response --> marker is the stable filter — it is present
-    #      on all genie response comments regardless of header text format.
-    #      Note: this guard is logically redundant given guard #1 (a body can't
-    #      simultaneously start with '/genie ' AND '<!-- genie-response'), but it
-    #      is retained as defence-in-depth in case the '/genie ' prefix check is
-    #      ever widened.
+    #      (defence-in-depth — guard #1 already prevents feedback loops since a genie
+    #      response starts with '<!-- genie-response', not '/genie '; this guard is
+    #      retained in case the '/genie ' prefix check is ever widened)
     # workflow_dispatch bypasses the bot/genie-response filters intentionally —
     # only users with write access can trigger workflow_dispatch, so the filters
     # that guard against untrusted comment authors are not needed.
@@ -338,13 +341,19 @@ jobs:
 
           echo "--- Installing Claude Code CLI ---"
           # Version-pinned for supply-chain safety — update intentionally when upgrading.
+          # When upgrading, re-audit --dangerously-skip-permissions + --allowedTools
+          # behaviour: if new tool categories or tool name changes are introduced, the
+          # effective sandbox may silently widen. See Scout/Critic invocation steps.
           # npm install -g is intentional: claude-code is a global CLI tool, not a
           # project dependency. Global installs don't use a lockfile, so there is no
           # npm ci / lockfile-based integrity check available here. npm does verify
           # the tarball sha512 against the registry manifest at install time, which
           # provides integrity against CDN tampering. The pinned version is the
           # primary supply-chain control.
-          npm install -g @anthropic-ai/claude-code@2.1.81
+          # --ignore-scripts: prevents any install-time scripts from executing —
+          # easy hardening for global CI installs. Omit only if claude requires a
+          # postinstall step to function (it does not at the pinned version).
+          npm install -g --ignore-scripts @anthropic-ai/claude-code@2.1.81
 
           echo "--- Installing genie-team artifacts ---"
           # Resolve install.sh — two paths:
@@ -525,6 +534,9 @@ jobs:
           # Use step-specific filenames so future changes relaxing the mutual-exclusion
           # if: guards won't silently produce a corrupted result from a file collision.
           RESULT_FILE="$RUNNER_TEMP/genie-scout-result.md"
+          # Note: command substitution strips trailing newlines from the file.
+          # This is harmless for the markdown content Step 5a writes — the truncation
+          # logic produces clean content with no trailing-newline-delimited structure.
           ISSUE_CONTENT=$(cat "$CONTEXT_FILE")
 
           # HTML-encode all angle brackets in untrusted content before embedding.
@@ -636,6 +648,10 @@ STATIC
           # let Step 7 post the error comment.
           if [[ -z "$DIFF_FILE" ]] || [[ ! -f "$DIFF_FILE" ]]; then
             echo "exit_code=2" >> "$GITHUB_OUTPUT"
+            # exit 0, not exit 1: under continue-on-error, exit 0 → outcome=success,
+            # which ensures Step 7's if: condition passes and it can post the error comment.
+            # exit 1 would also pass continue-on-error but would record outcome=failure —
+            # either works, but exit 0 is explicit about "this is a handled, expected path".
             exit 0
           fi
 
