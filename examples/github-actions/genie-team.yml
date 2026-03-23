@@ -36,6 +36,10 @@
 #   - issue_comment event does not fire on inline PR review comments (only top-level).
 #   - Org membership check uses GITHUB_TOKEN (rate-limited at 1,000/hr per repo).
 #   - No support for forked repositories. Same-repo PRs and issues only.
+#   - Personal repos: only the repo owner can invoke /genie commands. Collaborators
+#     are silently denied regardless of their permission level (the personal-account
+#     path checks actor === owner; there is no "has write access" API equivalent).
+#     Org repos: all org members are authorized.
 #   - cancel-in-progress: true: if a second /genie comment is posted while a run is
 #     already in flight on the same issue/PR, the first run is cancelled silently (Step 7
 #     never executes on the cancelled run, so no comment is posted about the cancellation).
@@ -528,6 +532,10 @@ jobs:
           # Operators who configure both accept this: --allowedTools prevents Read of /proc/environ
           # or equivalent, and claude cannot run Bash/env. Known trade-off — no code change needed.
           CONTEXT_FILE: ${{ steps.issue_context.outputs.context_file }}
+          # Set GENIE_SCOUT_ALLOW_WEB=true in repo Settings → Variables to enable
+          # WebFetch/WebSearch for Scout. Disabled by default to minimise the
+          # exfiltration surface (see WebFetch/WebSearch comment near --allowedTools below).
+          SCOUT_ALLOW_WEB: ${{ vars.GENIE_SCOUT_ALLOW_WEB || 'false' }}
         run: |
           set -euo pipefail
 
@@ -594,18 +602,19 @@ STATIC
           # set +e before claude: under set -euo pipefail a non-zero exit from claude
           # would immediately terminate the script before EXIT_CODE=$? is reached.
           # set -e is restored immediately after so subsequent commands retain strict mode.
-          # WebFetch,WebSearch are needed for Scout to research external references in issues.
-          # Trade-off: they are the primary residual exfiltration vectors —
+          # WebFetch/WebSearch residual exfiltration risk:
           #   WebFetch: a crafted issue body could instruct Scout to fetch an attacker URL.
-          #   WebSearch: partial issue content could appear in search queries sent to the
-          #     search engine (query terms are not secret once sent).
+          #   WebSearch: partial issue content could appear in search queries.
           # HTML-encoding neutralises tag-based injection; natural-language instructions
           # in issue content remain a residual risk (see KNOWN LIMITATIONS in header).
-          # Remove WebFetch,WebSearch if Scout's research capability is not needed.
+          # Opt-in via GENIE_SCOUT_ALLOW_WEB repo variable (see env: block above).
+          # Default is read-only; set to 'true' to enable external research.
+          SCOUT_TOOLS="Read,Glob,Grep"
+          [[ "$SCOUT_ALLOW_WEB" == "true" ]] && SCOUT_TOOLS="WebFetch,WebSearch,$SCOUT_TOOLS"
           set +e
           claude \
             --dangerously-skip-permissions \
-            --allowedTools "WebFetch,WebSearch,Read,Glob,Grep" \
+            --allowedTools "$SCOUT_TOOLS" \
             --max-turns "$MAX_TURNS" \
             --output-format text \
             -p \
@@ -818,12 +827,17 @@ STATIC
                 errorNote = contextFailed
                   ? 'Could not fetch issue/PR content — check the workflow run for details.'
                   : 'The genie step did not run — check the workflow run for details.';
+              } else if (exitCode === '0') {
+                // Clean exit but no result file — claude produced no output (empty stdout).
+                // Not a max-turns hit (that's a non-zero exit). Rare but unambiguous.
+                errorNote = 'The genie exited successfully but produced no output. Check the workflow run for details.';
               } else if (exitCode === '1') {
                 errorNote = 'The genie encountered an error during execution.';
               } else if (exitCode === '2') {
                 // Emitted by the Critic DIFF_FILE guard — Step 5b failed with continue-on-error.
                 errorNote = 'Could not fetch PR diff — check the workflow run for details.';
               } else {
+                // Non-zero, non-1, non-2: likely max-turns (claude exits non-zero when it hits the limit).
                 errorNote = `The genie exited with code \`${exitCode}\`. This may indicate the session hit the \`--max-turns\` limit (${maxTurns}).`;
               }
 
