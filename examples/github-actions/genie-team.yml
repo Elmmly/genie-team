@@ -388,6 +388,10 @@ jobs:
           #   3. Update GENIE_COMMIT and TARBALL_SHA256 below
           #   4. Verify the new hash locally before merging
           if [[ -f "./install.sh" ]]; then
+            # Local path: running inside the genie-team repo itself (e.g. genie-team CI).
+            # Integrity is guaranteed by the actions/checkout step above — the file is
+            # sourced from the checked-out commit, not downloaded from an external URL,
+            # so an independent sha256sum check would add no security value here.
             INSTALL_SCRIPT="./install.sh"
           else
             GENIE_COMMIT="main"
@@ -396,8 +400,12 @@ jobs:
               --max-time 60 \
               "https://github.com/Elmmly/genie-team/archive/${GENIE_COMMIT}.tar.gz" \
               -o /tmp/genie-team.tar.gz
+            # Extract top-level directory name from the tarball before extracting.
+            # GitHub archive format is always genie-team-<ref>/ — this avoids hardcoding
+            # the directory name and fails explicitly if the tarball is empty or malformed.
             GENIE_DIR=$(tar -tzf /tmp/genie-team.tar.gz | head -1 | cut -d/ -f1)
-            tar -xzf /tmp/genie-team.tar.gz -C /tmp/
+            [[ -n "$GENIE_DIR" ]] || { echo "Could not determine genie-team directory from tarball" >&2; exit 1; }
+            tar -xzf /tmp/genie-team.tar.gz -C /tmp/ --no-same-owner
             INSTALL_SCRIPT="/tmp/${GENIE_DIR}/install.sh"
             chmod +x "$INSTALL_SCRIPT"
           fi
