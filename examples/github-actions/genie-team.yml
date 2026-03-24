@@ -955,7 +955,10 @@ jobs:
                 `> Triggered by @${actor} via \`/genie ${phase}\``,
               ].join('\n');
             } else {
-              const result = fs.readFileSync(resultFile, 'utf8').trim();
+              // Strip "Saved to: ..." lines — Claude CLI writes a document trail entry
+              // to disk and reports it in stdout, but the file is on the ephemeral runner
+              // and is never committed. The path is meaningless to end users.
+              const result = fs.readFileSync(resultFile, 'utf8').replace(/^Saved to:.*\n?/gm, '').trim();
 
               // GitHub comment limit is 65536 bytes (not chars).
               // Slice by bytes so multi-byte UTF-8 content (CJK, emoji) cannot push
@@ -964,13 +967,14 @@ jobs:
               // (U+FFFD) that Node produces for the partial sequence at the cut point.
               const MAX_COMMENT = 65000;
               const displayResult = Buffer.byteLength(result, 'utf8') > MAX_COMMENT
-                ? Buffer.from(result, 'utf8').subarray(0, MAX_COMMENT).toString('utf8').replace(/\uFFFD*$/, '') + '\n\n*[Output truncated — see workflow run for full output]*'
+                ? Buffer.from(result, 'utf8').subarray(0, MAX_COMMENT).toString('utf8').replace(/\uFFFD*$/, '') + `\n\n*[Output truncated — full output available in the [workflow run artifact](${runUrl})]*`
                 : result;
 
               // No heading added here — the genie output already contains it.
               // Error paths above add the heading explicitly since they produce no genie output.
               body = [
                 `<!-- genie-response phase="${phase}" status="ok" -->`,
+                '',
                 displayResult,
                 '',
                 '---',
