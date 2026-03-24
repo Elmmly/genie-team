@@ -822,6 +822,26 @@ jobs:
         continue-on-error: true # Must not fail the job — Step 7 posts the error comment
 
       # -----------------------------------------------------------------------
+      # STEP 6c: Upload genie output as artifact
+      # Preserves the full result, stderr log, and prompt for 90 days.
+      # Accessible from the workflow run page — useful when the posted comment
+      # is truncated (>65KB) or for debugging failures. The artifact name
+      # includes phase + issue number + run ID for easy identification.
+      # if-no-files-found: warn — non-fatal if both Scout and Critic were skipped.
+      # -----------------------------------------------------------------------
+      - name: Upload genie output
+        if: |
+          steps.parse.outputs.valid == 'true' &&
+          steps.auth.outputs.authorized == 'true' &&
+          steps.install.outputs.install_ok == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: genie-${{ steps.parse.outputs.phase }}-${{ steps.parse.outputs.issue_number }}-run${{ github.run_id }}
+          path: ${{ runner.temp }}/genie-*
+          if-no-files-found: warn
+          retention-days: 90
+
+      # -----------------------------------------------------------------------
       # STEP 7: Post result comment
       # Posts the genie output (or an error message) back to the issue/PR.
       # This step ALWAYS runs when the command was valid and authorized, so every
