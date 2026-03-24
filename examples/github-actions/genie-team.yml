@@ -937,27 +937,20 @@ jobs:
             } else {
               const result = fs.readFileSync(resultFile, 'utf8').trim();
 
-              // Strip a leading heading if the genie output already starts with it.
-              // Scout and Critic include "## Scout — Opportunity Snapshot" / "## Critic — Review Verdict"
-              // in their own output. The comment template below also adds that heading, so without
-              // this strip the heading appears twice in the posted comment.
-              const headingRe = new RegExp(`^##\\s+${genieName}\\s*[\\u2014\\u2013-]\\s*${phaseLabel}\\s*\\n+`, 'i');
-              const stripped = result.replace(headingRe, '');
-
               // GitHub comment limit is 65536 bytes (not chars).
               // Slice by bytes so multi-byte UTF-8 content (CJK, emoji) cannot push
               // the comment over the limit. Buffer.slice at the byte boundary can
               // split a multi-byte sequence; replace the trailing replacement character
               // (U+FFFD) that Node produces for the partial sequence at the cut point.
               const MAX_COMMENT = 65000;
-              const displayResult = Buffer.byteLength(stripped, 'utf8') > MAX_COMMENT
-                ? Buffer.from(stripped, 'utf8').subarray(0, MAX_COMMENT).toString('utf8').replace(/\uFFFD*$/, '') + '\n\n*[Output truncated — see workflow run for full output]*'
-                : stripped;
+              const displayResult = Buffer.byteLength(result, 'utf8') > MAX_COMMENT
+                ? Buffer.from(result, 'utf8').subarray(0, MAX_COMMENT).toString('utf8').replace(/\uFFFD*$/, '') + '\n\n*[Output truncated — see workflow run for full output]*'
+                : result;
 
+              // No heading added here — the genie output already contains it.
+              // Error paths above add the heading explicitly since they produce no genie output.
               body = [
                 `<!-- genie-response phase="${phase}" status="ok" -->`,
-                `## ${genieName} — ${phaseLabel}`,
-                '',
                 displayResult,
                 '',
                 '---',
