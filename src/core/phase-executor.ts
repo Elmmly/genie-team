@@ -1,4 +1,5 @@
-import { query } from "@anthropic-ai/claude-agent-sdk";
+import { query, type Options as SDKOptions } from "@anthropic-ai/claude-agent-sdk";
+import { buildAuthEnv } from "../environment/auth.js";
 import {
   type PhaseName,
   getMaxTurns,
@@ -63,49 +64,38 @@ export async function runPhase(
   const maxTurns = getMaxTurns(phase, options?.turnOverrides);
   const allowedTools = getPhaseTools(phase);
 
-  const queryOptions: Record<string, unknown> = {
+  const queryOptions: SDKOptions = {
     allowedTools,
     maxTurns,
     settingSources: ["project"],
     systemPrompt: { type: "preset", preset: "claude_code" },
+    model: options?.model,
+    cwd: options?.cwd,
+    resume: options?.resumeSessionId,
+    maxBudgetUsd: options?.maxBudgetUsd,
   };
-
-  if (options?.model) {
-    queryOptions.model = options.model;
-  }
-
-  if (options?.cwd) {
-    queryOptions.cwd = options.cwd;
-  }
 
   if (options?.skipPermissions) {
     queryOptions.permissionMode = "bypassPermissions";
     queryOptions.allowDangerouslySkipPermissions = true;
   }
 
-  if (options?.resumeSessionId) {
-    queryOptions.resume = options.resumeSessionId;
-  }
-
-  if (options?.maxBudgetUsd !== undefined) {
-    queryOptions.maxBudgetUsd = options.maxBudgetUsd;
-  }
-
-  if (options?.authMode === "oauth") {
-    const env = { ...process.env, ANTHROPIC_API_KEY: undefined };
-    queryOptions.env = env;
+  const authEnv = buildAuthEnv(options?.authMode);
+  if (authEnv) {
+    queryOptions.env = authEnv;
   }
 
   if (options?.hooks?.onToolUse) {
     const onToolUse = options.hooks.onToolUse;
     queryOptions.hooks = {
       PostToolUse: [{
-        hooks: [async (input: Record<string, unknown>) => {
+        hooks: [async (input) => {
+          const hookInput = input as { tool_name: string; tool_input: unknown };
           onToolUse({
-            toolName: input.tool_name as string,
-            toolInput: (input.tool_input ?? {}) as Record<string, unknown>,
+            toolName: hookInput.tool_name,
+            toolInput: (hookInput.tool_input ?? {}) as Record<string, unknown>,
           });
-          return { hookEventName: "PostToolUse" as const };
+          return {};
         }],
       }],
     };

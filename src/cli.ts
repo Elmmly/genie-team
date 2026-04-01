@@ -80,6 +80,22 @@ export function createCli(): Command {
     auth?: "oauth" | "apikey";
   }
 
+  function parsePositiveInt(value: string, name: string): number {
+    const n = parseInt(value, 10);
+    if (Number.isNaN(n) || n < 0) {
+      throw new InvalidArgumentError(`${name} must be a non-negative integer, got "${value}"`);
+    }
+    return n;
+  }
+
+  function parsePositiveFloat(value: string, name: string): number {
+    const n = parseFloat(value);
+    if (Number.isNaN(n) || n < 0) {
+      throw new InvalidArgumentError(`${name} must be a non-negative number, got "${value}"`);
+    }
+    return n;
+  }
+
   /** Convert raw CLI strings to typed ExecutionOptions. */
   function parseExecutionOpts(opts: SharedCliOpts): ExecutionOptions {
     if (opts.auth) resolveAuth(opts.auth);
@@ -87,11 +103,11 @@ export function createCli(): Command {
     const exec: ExecutionOptions = {};
     if (opts.auth) exec.authMode = opts.auth;
     if (opts.model) exec.model = opts.model;
-    if (opts.turns) exec.turnOverrides = { global: parseInt(opts.turns, 10) };
+    if (opts.turns) exec.turnOverrides = { global: parsePositiveInt(opts.turns, "--turns") };
     if (!opts.resume) exec.noResume = true;
     if (opts.trunk) exec.trunkMode = true;
-    if (opts.budget) exec.maxBudgetUsd = parseFloat(opts.budget);
-    if (opts.reviewCycles) exec.reviewCycles = parseInt(opts.reviewCycles, 10);
+    if (opts.budget) exec.maxBudgetUsd = parsePositiveFloat(opts.budget, "--budget");
+    if (opts.reviewCycles) exec.reviewCycles = parsePositiveInt(opts.reviewCycles, "--review-cycles");
     if (opts.skipPermissions) exec.skipPermissions = true;
     if (opts.logDir) exec.logDir = opts.logDir;
     return exec;
@@ -177,7 +193,7 @@ export function createCli(): Command {
         finishMode: opts.finish,
       };
 
-      if (opts.parallel) options.parallel = parseInt(opts.parallel, 10);
+      if (opts.parallel) options.parallel = parsePositiveInt(opts.parallel, "--parallel");
       if (opts.priority) options.priorities = [opts.priority];
 
       const result = await runDaemonCycle(options);

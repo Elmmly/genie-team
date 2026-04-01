@@ -120,7 +120,9 @@ async function executeParallel(
             outcomes.push({ item, outcome });
             totalCostUsd += outcome.costUsd;
           })
-          .catch(() => {
+          .catch((err) => {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[batch] ${item.slug} failed: ${message}`);
             outcomes.push({
               item,
               outcome: { slug: item.slug, input: item.input, exitCode: 1, costUsd: 0 },
@@ -188,6 +190,8 @@ async function executeOneItem(
       costUsd: result.totalCostUsd,
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[batch] ${item.slug} failed: ${message}`);
     return {
       slug: item.slug,
       input: item.input,
