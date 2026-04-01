@@ -332,12 +332,15 @@ describe("executeSingleItem artifact tracking", () => {
   });
 
   it("records Write tool_use file paths as artifacts", async () => {
-    // Arrange
+    // Arrange — SDKAssistantMessage shape with tool_use content block
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
-      // Simulate onMessage receiving a Write tool_use message
       opts?.hooks?.onMessage?.({
-        tool_name: "Write",
-        tool_input: { file_path: "src/index.ts", content: "..." },
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", name: "Write", input: { file_path: "src/index.ts", content: "..." } },
+          ],
+        },
       });
       return mockPhaseResult();
     });
@@ -356,8 +359,12 @@ describe("executeSingleItem artifact tracking", () => {
     // Arrange
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
       opts?.hooks?.onMessage?.({
-        tool_name: "Edit",
-        tool_input: { file_path: "src/cli.ts", old_string: "a", new_string: "b" },
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", name: "Edit", input: { file_path: "src/cli.ts", old_string: "a", new_string: "b" } },
+          ],
+        },
       });
       return mockPhaseResult();
     });
@@ -376,8 +383,12 @@ describe("executeSingleItem artifact tracking", () => {
     // Arrange
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
       opts?.hooks?.onMessage?.({
-        tool_name: "Write",
-        tool_input: { file_path: "src/index.ts", content: "..." },
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", name: "Write", input: { file_path: "src/index.ts", content: "..." } },
+          ],
+        },
       });
       return mockPhaseResult();
     });
@@ -393,12 +404,68 @@ describe("executeSingleItem artifact tracking", () => {
     expect(indexCount).toBe(1);
   });
 
+  it("extracts multiple tool_use blocks from a single message", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
+      opts?.hooks?.onMessage?.({
+        type: "assistant",
+        message: {
+          content: [
+            { type: "text", text: "Creating files..." },
+            { type: "tool_use", name: "Write", input: { file_path: "src/a.ts", content: "..." } },
+            { type: "tool_use", name: "Edit", input: { file_path: "src/b.ts", old_string: "x", new_string: "y" } },
+          ],
+        },
+      });
+      return mockPhaseResult();
+    });
+
+    // Act
+    const result = await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    expect(result.artifacts).toContain("src/a.ts");
+    expect(result.artifacts).toContain("src/b.ts");
+  });
+
+  it("ignores non-Write/Edit tool_use blocks", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
+      opts?.hooks?.onMessage?.({
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", name: "Bash", input: { command: "ls" } },
+            { type: "tool_use", name: "Read", input: { file_path: "src/index.ts" } },
+          ],
+        },
+      });
+      return mockPhaseResult();
+    });
+
+    // Act
+    const result = await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    expect(result.artifacts).toBeUndefined();
+  });
+
   it("coexists with cost logger hooks", async () => {
     // Arrange
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
       opts?.hooks?.onMessage?.({
-        tool_name: "Write",
-        tool_input: { file_path: "src/new.ts", content: "..." },
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", name: "Write", input: { file_path: "src/new.ts", content: "..." } },
+          ],
+        },
       });
       return mockPhaseResult();
     });

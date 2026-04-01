@@ -67,18 +67,33 @@ export async function executeSingleItem(
   const costLogger = options.logDir ? createCostLogger(options.logDir) : undefined;
   const artifactTracker = createArtifactTracker();
 
-  function extractArtifactPath(msg: Record<string, unknown>): string | undefined {
-    const toolName = msg.tool_name as string | undefined;
-    if (toolName !== "Write" && toolName !== "Edit") return undefined;
-    const input = msg.tool_input as Record<string, unknown> | undefined;
-    return input?.file_path as string | undefined;
+  function extractArtifactPaths(msg: Record<string, unknown>): string[] {
+    // SDKAssistantMessage: { type: "assistant", message: { content: [{ type: "tool_use", name, input }] } }
+    if (msg.type === "assistant") {
+      const message = msg.message as Record<string, unknown> | undefined;
+      const content = message?.content as Array<Record<string, unknown>> | undefined;
+      if (!Array.isArray(content)) return [];
+
+      const paths: string[] = [];
+      for (const block of content) {
+        if (block.type !== "tool_use") continue;
+        const name = block.name as string | undefined;
+        if (name !== "Write" && name !== "Edit") continue;
+        const input = block.input as Record<string, unknown> | undefined;
+        const filePath = input?.file_path as string | undefined;
+        if (filePath) paths.push(filePath);
+      }
+      return paths;
+    }
+    return [];
   }
 
   function buildHooks(phase: PhaseName, startTime: number): PhaseHooks {
     return {
       onMessage: (msg: Record<string, unknown>) => {
-        const path = extractArtifactPath(msg);
-        if (path) artifactTracker.recordWrite(path);
+        for (const path of extractArtifactPaths(msg)) {
+          artifactTracker.recordWrite(path);
+        }
       },
       onResult: costLogger
         ? (result: PhaseResult) => {

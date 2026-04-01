@@ -10,19 +10,9 @@ import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
 import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
 import { resolveAuth } from "./environment/auth.js";
 
-function resolveDir(): string {
-  // CJS bundle: __dirname is available
-  if (typeof __dirname !== "undefined") return __dirname;
-  // ESM: fall back to import.meta.url
-  const { fileURLToPath } = require("node:url");
-  const { dirname } = require("node:path");
-  return dirname(fileURLToPath(import.meta.url));
-}
-
 function loadVersion(): string {
   try {
-    const dir = resolveDir();
-    const pkgPath = join(dir, "..", "package.json");
+    const pkgPath = join(__dirname, "..", "package.json");
     const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
     return pkg.version ?? "0.0.0";
   } catch {
