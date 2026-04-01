@@ -1,5 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createCli } from "./cli.js";
+
+vi.mock("./execution/single-item.js", () => ({
+  executeSingleItem: vi.fn(),
+}));
+
+import { executeSingleItem } from "./execution/single-item.js";
+import type { SingleItemResult } from "./execution/single-item.js";
+
+function mockRunResult(overrides?: Partial<SingleItemResult>): SingleItemResult {
+  return {
+    exitCode: 0,
+    verdict: "APPROVED",
+    totalCostUsd: 0.05,
+    phaseResults: [
+      { phase: "deliver" as const, result: {} as never, durationMs: 1000 },
+    ],
+    ...overrides,
+  };
+}
 
 describe("CLI", () => {
   it("exits 127 for unknown subcommands", () => {
@@ -42,5 +61,143 @@ describe("CLI", () => {
 
     // Assert
     expect(modelsCmd).toBeDefined();
+  });
+
+  it("registers run subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const runCmd = cli.commands.find((c) => c.name() === "run");
+
+    // Assert
+    expect(runCmd).toBeDefined();
+  });
+});
+
+describe("run command", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("AC-1: calls executeSingleItem with item argument", async () => {
+    // Arrange
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult());
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "docs/backlog/P1-auth.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "docs/backlog/P1-auth.md",
+      expect.objectContaining({
+        fromPhase: "discover",
+        throughPhase: "done",
+      }),
+    );
+  });
+
+  it("AC-2: --from sets starting phase with default discover", async () => {
+    // Arrange
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult());
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--from", "design", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ fromPhase: "design" }),
+    );
+  });
+
+  it("AC-3: --through sets ending phase with default done", async () => {
+    // Arrange
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult());
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--through", "deliver", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ throughPhase: "deliver" }),
+    );
+  });
+
+  it("AC-4: rejects invalid --from phase with exit code 3", async () => {
+    // Arrange
+    const cli = createCli();
+    cli.exitOverride();
+    cli.configureOutput({ writeErr: () => {} });
+
+    // Act & Assert
+    await expect(
+      cli.parseAsync(["node", "genies-core", "run", "--from", "bogus", "item.md"]),
+    ).rejects.toThrow();
+  });
+
+  it("AC-4: rejects invalid --through phase with exit code 3", async () => {
+    // Arrange
+    const cli = createCli();
+    cli.exitOverride();
+    cli.configureOutput({ writeErr: () => {} });
+
+    // Act & Assert
+    await expect(
+      cli.parseAsync(["node", "genies-core", "run", "--through", "nope", "item.md"]),
+    ).rejects.toThrow();
+  });
+
+  it("AC-5: prints summary with phases, cost, and verdict", async () => {
+    // Arrange
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult({
+      totalCostUsd: 0.1234,
+      verdict: "APPROVED",
+      phaseResults: [
+        { phase: "design" as const, result: {} as never, durationMs: 500 },
+        { phase: "deliver" as const, result: {} as never, durationMs: 1000 },
+      ],
+    }));
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+
+    // Assert
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("design");
+    expect(output).toContain("deliver");
+    expect(output).toContain("0.1234");
+    expect(output).toContain("APPROVED");
+  });
+
+  it("AC-7: propagates exit code from executeSingleItem", async () => {
+    // Arrange
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult({ exitCode: 1 }));
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+
+    // Assert
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it("AC-7: propagates exit code 0 on success", async () => {
+    // Arrange
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult({ exitCode: 0 }));
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+
+    // Assert
+    expect(process.exit).toHaveBeenCalledWith(0);
   });
 });

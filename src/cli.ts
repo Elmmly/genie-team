@@ -1,10 +1,12 @@
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { loadGenieConfig } from "./config/genie-config.js";
 import { formatModelsTable } from "./environment/models.js";
 import { runChecks, formatCheckResult } from "./environment/check.js";
+import { isValidPhase, type PhaseName } from "./config/phase-config.js";
+import { executeSingleItem } from "./execution/single-item.js";
 
 function loadVersion(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -54,6 +56,40 @@ export function createCli(): Command {
     .action(() => {
       const config = loadGenieConfig();
       console.log(formatModelsTable(config));
+    });
+
+  function parsePhase(value: string): PhaseName {
+    if (!isValidPhase(value)) {
+      throw new InvalidArgumentError(
+        `Invalid phase "${value}". Valid phases: discover, define, design, deliver, discern, commit, done`,
+      );
+    }
+    return value;
+  }
+
+  program
+    .command("run")
+    .description("Run a backlog item through PDLC phases")
+    .argument("<item>", "Backlog item path or topic string")
+    .option("--from <phase>", "Starting phase", parsePhase, "discover" as PhaseName)
+    .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName)
+    .action(async (item: string, opts: { from: PhaseName; through: PhaseName }) => {
+      const result = await executeSingleItem(item, {
+        fromPhase: opts.from,
+        throughPhase: opts.through,
+      });
+
+      const phaseNames = result.phaseResults.map((r) => r.phase).join(" → ");
+      const summary = [
+        phaseNames ? `Phases: ${phaseNames}` : "No phases executed",
+        `Cost: $${result.totalCostUsd.toFixed(4)}`,
+        result.verdict ? `Verdict: ${result.verdict}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      console.log(summary);
+      process.exit(result.exitCode);
     });
 
   // Unknown commands exit 127 to signal shell fallback
