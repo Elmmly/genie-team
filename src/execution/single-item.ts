@@ -1,4 +1,4 @@
-import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks } from "../core/phase-executor.js";
+import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks, type ToolUseEvent } from "../core/phase-executor.js";
 import { SessionTracker } from "../core/session-tracker.js";
 import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js";
 import {
@@ -67,32 +67,12 @@ export async function executeSingleItem(
   const costLogger = options.logDir ? createCostLogger(options.logDir) : undefined;
   const artifactTracker = createArtifactTracker();
 
-  function extractArtifactPaths(msg: Record<string, unknown>): string[] {
-    // SDKAssistantMessage: { type: "assistant", message: { content: [{ type: "tool_use", name, input }] } }
-    if (msg.type === "assistant") {
-      const message = msg.message as Record<string, unknown> | undefined;
-      const content = message?.content as Array<Record<string, unknown>> | undefined;
-      if (!Array.isArray(content)) return [];
-
-      const paths: string[] = [];
-      for (const block of content) {
-        if (block.type !== "tool_use") continue;
-        const name = block.name as string | undefined;
-        if (name !== "Write" && name !== "Edit") continue;
-        const input = block.input as Record<string, unknown> | undefined;
-        const filePath = input?.file_path as string | undefined;
-        if (filePath) paths.push(filePath);
-      }
-      return paths;
-    }
-    return [];
-  }
-
   function buildHooks(phase: PhaseName, startTime: number): PhaseHooks {
     return {
-      onMessage: (msg: Record<string, unknown>) => {
-        for (const path of extractArtifactPaths(msg)) {
-          artifactTracker.recordWrite(path);
+      onToolUse: (event: ToolUseEvent) => {
+        if (event.toolName === "Write" || event.toolName === "Edit") {
+          const filePath = event.toolInput.file_path as string | undefined;
+          if (filePath) artifactTracker.recordWrite(filePath);
         }
       },
       onResult: costLogger

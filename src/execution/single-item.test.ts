@@ -231,7 +231,7 @@ describe("executeSingleItem cost logging", () => {
     expect(phaseOpts?.hooks?.onResult).toBeTypeOf("function");
   });
 
-  it("passes onMessage but not onResult when logDir is absent", async () => {
+  it("passes onToolUse but not onResult when logDir is absent", async () => {
     // Arrange
     vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
 
@@ -241,9 +241,9 @@ describe("executeSingleItem cost logging", () => {
       throughPhase: "deliver",
     });
 
-    // Assert — onMessage always present (artifact tracking), onResult absent
+    // Assert — onToolUse always present (artifact tracking), onResult absent
     const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
-    expect(phaseOpts?.hooks?.onMessage).toBeTypeOf("function");
+    expect(phaseOpts?.hooks?.onToolUse).toBeTypeOf("function");
     expect(phaseOpts?.hooks?.onResult).toBeUndefined();
   });
 
@@ -316,7 +316,7 @@ describe("executeSingleItem artifact tracking", () => {
     vi.resetAllMocks();
   });
 
-  it("passes onMessage hook to runPhase", async () => {
+  it("passes onToolUse hook to runPhase", async () => {
     // Arrange
     vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
 
@@ -328,19 +328,15 @@ describe("executeSingleItem artifact tracking", () => {
 
     // Assert
     const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
-    expect(phaseOpts?.hooks?.onMessage).toBeTypeOf("function");
+    expect(phaseOpts?.hooks?.onToolUse).toBeTypeOf("function");
   });
 
   it("records Write tool_use file paths as artifacts", async () => {
-    // Arrange — SDKAssistantMessage shape with tool_use content block
+    // Arrange — simulate SDK PostToolUse hook firing
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
-      opts?.hooks?.onMessage?.({
-        type: "assistant",
-        message: {
-          content: [
-            { type: "tool_use", name: "Write", input: { file_path: "src/index.ts", content: "..." } },
-          ],
-        },
+      opts?.hooks?.onToolUse?.({
+        toolName: "Write",
+        toolInput: { file_path: "src/index.ts", content: "..." },
       });
       return mockPhaseResult();
     });
@@ -358,13 +354,9 @@ describe("executeSingleItem artifact tracking", () => {
   it("records Edit tool_use file paths as artifacts", async () => {
     // Arrange
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
-      opts?.hooks?.onMessage?.({
-        type: "assistant",
-        message: {
-          content: [
-            { type: "tool_use", name: "Edit", input: { file_path: "src/cli.ts", old_string: "a", new_string: "b" } },
-          ],
-        },
+      opts?.hooks?.onToolUse?.({
+        toolName: "Edit",
+        toolInput: { file_path: "src/cli.ts", old_string: "a", new_string: "b" },
       });
       return mockPhaseResult();
     });
@@ -382,13 +374,9 @@ describe("executeSingleItem artifact tracking", () => {
   it("deduplicates artifacts across phases", async () => {
     // Arrange
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
-      opts?.hooks?.onMessage?.({
-        type: "assistant",
-        message: {
-          content: [
-            { type: "tool_use", name: "Write", input: { file_path: "src/index.ts", content: "..." } },
-          ],
-        },
+      opts?.hooks?.onToolUse?.({
+        toolName: "Write",
+        toolInput: { file_path: "src/index.ts", content: "..." },
       });
       return mockPhaseResult();
     });
@@ -404,44 +392,16 @@ describe("executeSingleItem artifact tracking", () => {
     expect(indexCount).toBe(1);
   });
 
-  it("extracts multiple tool_use blocks from a single message", async () => {
+  it("ignores non-Write/Edit tool uses", async () => {
     // Arrange
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
-      opts?.hooks?.onMessage?.({
-        type: "assistant",
-        message: {
-          content: [
-            { type: "text", text: "Creating files..." },
-            { type: "tool_use", name: "Write", input: { file_path: "src/a.ts", content: "..." } },
-            { type: "tool_use", name: "Edit", input: { file_path: "src/b.ts", old_string: "x", new_string: "y" } },
-          ],
-        },
+      opts?.hooks?.onToolUse?.({
+        toolName: "Bash",
+        toolInput: { command: "ls" },
       });
-      return mockPhaseResult();
-    });
-
-    // Act
-    const result = await executeSingleItem("item.md", {
-      fromPhase: "deliver",
-      throughPhase: "deliver",
-    });
-
-    // Assert
-    expect(result.artifacts).toContain("src/a.ts");
-    expect(result.artifacts).toContain("src/b.ts");
-  });
-
-  it("ignores non-Write/Edit tool_use blocks", async () => {
-    // Arrange
-    vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
-      opts?.hooks?.onMessage?.({
-        type: "assistant",
-        message: {
-          content: [
-            { type: "tool_use", name: "Bash", input: { command: "ls" } },
-            { type: "tool_use", name: "Read", input: { file_path: "src/index.ts" } },
-          ],
-        },
+      opts?.hooks?.onToolUse?.({
+        toolName: "Read",
+        toolInput: { file_path: "src/index.ts" },
       });
       return mockPhaseResult();
     });
@@ -459,13 +419,9 @@ describe("executeSingleItem artifact tracking", () => {
   it("coexists with cost logger hooks", async () => {
     // Arrange
     vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
-      opts?.hooks?.onMessage?.({
-        type: "assistant",
-        message: {
-          content: [
-            { type: "tool_use", name: "Write", input: { file_path: "src/new.ts", content: "..." } },
-          ],
-        },
+      opts?.hooks?.onToolUse?.({
+        toolName: "Write",
+        toolInput: { file_path: "src/new.ts", content: "..." },
       });
       return mockPhaseResult();
     });
@@ -481,6 +437,6 @@ describe("executeSingleItem artifact tracking", () => {
     expect(result.artifacts).toContain("src/new.ts");
     const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
     expect(phaseOpts?.hooks?.onResult).toBeTypeOf("function");
-    expect(phaseOpts?.hooks?.onMessage).toBeTypeOf("function");
+    expect(phaseOpts?.hooks?.onToolUse).toBeTypeOf("function");
   });
 });

@@ -313,3 +313,44 @@ describe("runPhase auth mode", () => {
     expect(opts.env).toBeUndefined();
   });
 });
+
+describe("runPhase SDK hooks wiring", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("wires onToolUse to SDK PostToolUse hook", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-hooks" },
+      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+    ]);
+    const onToolUse = vi.fn();
+
+    // Act
+    await runPhase("deliver", "item.md", { hooks: { onToolUse } });
+
+    // Assert
+    const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
+    const opts = callArgs.options as Record<string, unknown>;
+    const hooks = opts.hooks as Record<string, unknown[]>;
+    expect(hooks).toBeDefined();
+    expect(hooks.PostToolUse).toHaveLength(1);
+  });
+
+  it("does not set SDK hooks when no onToolUse provided", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-no-hooks" },
+      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+    ]);
+
+    // Act
+    await runPhase("deliver", "item.md", { hooks: { onResult: vi.fn() } });
+
+    // Assert
+    const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
+    const opts = callArgs.options as Record<string, unknown>;
+    expect(opts.hooks).toBeUndefined();
+  });
+});

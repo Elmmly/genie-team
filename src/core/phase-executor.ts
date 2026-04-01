@@ -7,8 +7,14 @@ import {
 } from "../config/phase-config.js";
 import { buildPhasePrompt } from "../config/prompt-builder.js";
 
+export interface ToolUseEvent {
+  toolName: string;
+  toolInput: Record<string, unknown>;
+}
+
 export interface PhaseHooks {
   onMessage?: (msg: Record<string, unknown>) => void;
+  onToolUse?: (event: ToolUseEvent) => void;
   onResult?: (result: PhaseResult) => void;
 }
 
@@ -89,6 +95,21 @@ export async function runPhase(
   if (options?.authMode === "oauth") {
     const env = { ...process.env, ANTHROPIC_API_KEY: undefined };
     queryOptions.env = env;
+  }
+
+  if (options?.hooks?.onToolUse) {
+    const onToolUse = options.hooks.onToolUse;
+    queryOptions.hooks = {
+      PostToolUse: [{
+        hooks: [async (input: Record<string, unknown>) => {
+          onToolUse({
+            toolName: input.tool_name as string,
+            toolInput: (input.tool_input ?? {}) as Record<string, unknown>,
+          });
+          return { hookEventName: "PostToolUse" as const };
+        }],
+      }],
+    };
   }
 
   let sessionId = "";
