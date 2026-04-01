@@ -1,4 +1,4 @@
-import { executeSingleItem, type SingleItemResult } from "./single-item.js";
+import { executeSingleItem, type ExecutionOptions } from "./single-item.js";
 import {
   sessionStart,
   sessionCleanup,
@@ -6,7 +6,7 @@ import {
   integrateTrunk,
   type FinishMode,
 } from "../git/worktree.js";
-import type { PhaseName, TurnOverrides } from "../config/phase-config.js";
+import type { PhaseName } from "../config/phase-config.js";
 
 export interface BatchItem {
   slug: string;
@@ -14,20 +14,11 @@ export interface BatchItem {
   phase: PhaseName;
 }
 
-export interface BatchOptions {
+export interface BatchOptions extends ExecutionOptions {
   throughPhase: PhaseName;
   finishMode: FinishMode;
   parallel?: number;
   continueOnFailure?: boolean;
-  trunkMode?: boolean;
-  model?: string;
-  skipPermissions?: boolean;
-  noResume?: boolean;
-  maxBudgetUsd?: number;
-  logDir?: string;
-  authMode?: "oauth" | "apikey";
-  reviewCycles?: number;
-  turnOverrides?: TurnOverrides;
 }
 
 interface ItemOutcome {
@@ -182,19 +173,12 @@ async function executeOneItem(
   try {
     const cwd = await sessionStart(item.slug, item.phase);
 
+    const { throughPhase, finishMode: _, parallel: _p, continueOnFailure: _c, ...executionOpts } = options;
     const result = await executeSingleItem(item.input, {
-      fromPhase: item.phase,
-      throughPhase: options.throughPhase,
+      ...executionOpts,
       cwd,
-      model: options.model,
-      skipPermissions: options.skipPermissions,
-      trunkMode: options.trunkMode,
-      noResume: options.noResume,
-      maxBudgetUsd: options.maxBudgetUsd,
-      logDir: options.logDir,
-      authMode: options.authMode,
-      reviewCycles: options.reviewCycles,
-      turnOverrides: options.turnOverrides,
+      fromPhase: item.phase,
+      throughPhase,
     });
 
     return {

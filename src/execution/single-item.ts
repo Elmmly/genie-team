@@ -10,9 +10,8 @@ import {
   type TurnOverrides,
 } from "../config/phase-config.js";
 
-export interface SingleItemOptions {
-  fromPhase: PhaseName;
-  throughPhase: PhaseName;
+/** Shared execution options threaded from CLI through daemon → batch → single-item → runPhase. */
+export interface ExecutionOptions {
   model?: string;
   cwd?: string;
   skipPermissions?: boolean;
@@ -23,6 +22,11 @@ export interface SingleItemOptions {
   maxBudgetUsd?: number;
   logDir?: string;
   authMode?: "oauth" | "apikey";
+}
+
+export interface SingleItemOptions extends ExecutionOptions {
+  fromPhase: PhaseName;
+  throughPhase: PhaseName;
 }
 
 export interface PhaseRecord {
@@ -75,7 +79,8 @@ export async function executeSingleItem(
   const costLogger = options.logDir ? createCostLogger(options.logDir) : undefined;
   const artifactTracker = createArtifactTracker();
 
-  function buildHooks(phase: PhaseName, startTime: number): PhaseHooks {
+  function buildHooks(phase: PhaseName): PhaseHooks {
+    const startTime = Date.now();
     return {
       onToolUse: (event: ToolUseEvent) => {
         if (event.toolName === "Write" || event.toolName === "Edit") {
@@ -99,42 +104,46 @@ export async function executeSingleItem(
     };
   }
 
+  const basePhaseOpts: Omit<PhaseOptions, "resumeSessionId" | "hooks"> = {
+    model: options.model,
+    cwd: options.cwd,
+    skipPermissions: options.skipPermissions,
+    trunkMode: options.trunkMode,
+    hasContextDir,
+    turnOverrides: options.turnOverrides,
+    maxBudgetUsd: options.maxBudgetUsd,
+    authMode: options.authMode,
+  };
+
   const phaseResults: PhaseRecord[] = [];
   let totalCostUsd = 0;
   let verdict: Verdict;
   let exitCode = 0;
 
-  for (let i = fromIdx; i <= throughIdx; i++) {
-    const phase = PHASES[i];
+  async function runAndRecord(phase: PhaseName): Promise<PhaseResult> {
     const start = Date.now();
-
-    const phaseOpts: PhaseOptions = {
-      model: options.model,
-      cwd: options.cwd,
-      skipPermissions: options.skipPermissions,
-      trunkMode: options.trunkMode,
-      hasContextDir,
-      turnOverrides: options.turnOverrides,
-      maxBudgetUsd: options.maxBudgetUsd,
-      authMode: options.authMode,
+    const result = await runPhase(phase, input, {
+      ...basePhaseOpts,
       resumeSessionId: tracker.getResumeId(),
-      hooks: buildHooks(phase, start),
-    };
-
-    const result = await runPhase(phase, input, phaseOpts);
+      hooks: buildHooks(phase),
+    });
     const durationMs = Date.now() - start;
 
     tracker.record(phase, result.sessionId);
     phaseResults.push({ phase, result, durationMs });
     totalCostUsd += result.costUsd;
+    return result;
+  }
 
-    // Turn exhaustion = failure
+  for (let i = fromIdx; i <= throughIdx; i++) {
+    const phase = PHASES[i];
+    const result = await runAndRecord(phase);
+
     if (result.exhausted) {
       exitCode = 1;
       break;
     }
 
-    // Verdict detection on discern phase
     if (phase === "discern") {
       verdict = detectVerdict(result.output);
 
@@ -143,49 +152,18 @@ export async function executeSingleItem(
         break;
       }
 
-      if (verdict === "CHANGES_REQUESTED") {
-        // Review cycle: deliver → discern loop
-        let cyclesUsed = 0;
-        while (verdict === "CHANGES_REQUESTED" && cyclesUsed < maxReviewCycles) {
-          cyclesUsed++;
+      // Review cycle: deliver → discern loop
+      let cyclesUsed = 0;
+      while (verdict === "CHANGES_REQUESTED" && cyclesUsed < maxReviewCycles) {
+        cyclesUsed++;
+        await runAndRecord("deliver");
+        const discernResult = await runAndRecord("discern");
+        verdict = detectVerdict(discernResult.output);
+      }
 
-          // Re-run deliver
-          const deliverStart = Date.now();
-          const deliverResult = await runPhase("deliver", input, {
-            ...phaseOpts,
-            resumeSessionId: tracker.getResumeId(),
-            hooks: buildHooks("deliver", deliverStart),
-          });
-          tracker.record("deliver", deliverResult.sessionId);
-          phaseResults.push({
-            phase: "deliver",
-            result: deliverResult,
-            durationMs: Date.now() - deliverStart,
-          });
-          totalCostUsd += deliverResult.costUsd;
-
-          // Re-run discern
-          const discernStart = Date.now();
-          const discernResult = await runPhase("discern", input, {
-            ...phaseOpts,
-            resumeSessionId: tracker.getResumeId(),
-            hooks: buildHooks("discern", discernStart),
-          });
-          tracker.record("discern", discernResult.sessionId);
-          phaseResults.push({
-            phase: "discern",
-            result: discernResult,
-            durationMs: Date.now() - discernStart,
-          });
-          totalCostUsd += discernResult.costUsd;
-
-          verdict = detectVerdict(discernResult.output);
-        }
-
-        if (verdict === "BLOCKED") {
-          exitCode = 1;
-          break;
-        }
+      if (verdict === "BLOCKED") {
+        exitCode = 1;
+        break;
       }
     }
   }

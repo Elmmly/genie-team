@@ -5,7 +5,7 @@ import { loadGenieConfig } from "./config/genie-config.js";
 import { formatModelsTable } from "./environment/models.js";
 import { runChecks, formatCheckResult } from "./environment/check.js";
 import { isValidPhase, type PhaseName } from "./config/phase-config.js";
-import { executeSingleItem, type SingleItemOptions } from "./execution/single-item.js";
+import { executeSingleItem, type ExecutionOptions, type SingleItemOptions } from "./execution/single-item.js";
 import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
 import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
 import { resolveAuth } from "./environment/auth.js";
@@ -67,9 +67,8 @@ export function createCli(): Command {
     return value;
   }
 
-  interface RunOpts {
-    from: PhaseName;
-    through: PhaseName;
+  /** Raw CLI flags shared by run and daemon commands. */
+  interface SharedCliOpts {
     model?: string;
     turns?: string;
     resume: boolean;
@@ -81,40 +80,55 @@ export function createCli(): Command {
     auth?: "oauth" | "apikey";
   }
 
-  program
-    .command("run")
-    .description("Run a backlog item through PDLC phases")
-    .argument("<item>", "Backlog item path or topic string")
-    .option("--from <phase>", "Starting phase", parsePhase, "discover" as PhaseName)
-    .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName)
-    .option("--model <model>", "Model override (e.g. claude-sonnet-4-5-20250514)")
-    .option("--turns <n>", "Global turn limit override")
-    .option("--no-resume", "Start fresh sessions (disable cross-phase resume)")
-    .option("--trunk", "Use trunk-based mode (commit to default branch)")
-    .option("--budget <usd>", "Max budget in USD per session")
-    .option("--review-cycles <n>", "Max deliver↔discern review cycles")
-    .option("--skip-permissions", "Bypass permission prompts")
-    .option("--log-dir <dir>", "Directory for structured JSON cost logs")
-    .option("--auth <mode>", "Auth mode (oauth|apikey)")
-    .action(async (item: string, opts: RunOpts) => {
-      if (opts.auth) {
-        resolveAuth(opts.auth);
-      }
+  /** Convert raw CLI strings to typed ExecutionOptions. */
+  function parseExecutionOpts(opts: SharedCliOpts): ExecutionOptions {
+    if (opts.auth) resolveAuth(opts.auth);
 
+    const exec: ExecutionOptions = {};
+    if (opts.auth) exec.authMode = opts.auth;
+    if (opts.model) exec.model = opts.model;
+    if (opts.turns) exec.turnOverrides = { global: parseInt(opts.turns, 10) };
+    if (!opts.resume) exec.noResume = true;
+    if (opts.trunk) exec.trunkMode = true;
+    if (opts.budget) exec.maxBudgetUsd = parseFloat(opts.budget);
+    if (opts.reviewCycles) exec.reviewCycles = parseInt(opts.reviewCycles, 10);
+    if (opts.skipPermissions) exec.skipPermissions = true;
+    if (opts.logDir) exec.logDir = opts.logDir;
+    return exec;
+  }
+
+  /** Add shared execution flags to a commander command. */
+  function addExecutionFlags(cmd: Command): Command {
+    return cmd
+      .option("--model <model>", "Model override (e.g. claude-sonnet-4-5-20250514)")
+      .option("--turns <n>", "Global turn limit override")
+      .option("--no-resume", "Start fresh sessions (disable cross-phase resume)")
+      .option("--trunk", "Use trunk-based mode (commit to default branch)")
+      .option("--budget <usd>", "Max budget in USD per session")
+      .option("--review-cycles <n>", "Max deliver↔discern review cycles")
+      .option("--skip-permissions", "Bypass permission prompts")
+      .option("--log-dir <dir>", "Directory for structured JSON cost logs")
+      .option("--auth <mode>", "Auth mode (oauth|apikey)");
+  }
+
+  interface RunOpts extends SharedCliOpts {
+    from: PhaseName;
+    through: PhaseName;
+  }
+
+  addExecutionFlags(
+    program
+      .command("run")
+      .description("Run a backlog item through PDLC phases")
+      .argument("<item>", "Backlog item path or topic string")
+      .option("--from <phase>", "Starting phase", parsePhase, "discover" as PhaseName)
+      .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName),
+  ).action(async (item: string, opts: RunOpts) => {
       const options: SingleItemOptions = {
+        ...parseExecutionOpts(opts),
         fromPhase: opts.from,
         throughPhase: opts.through,
       };
-
-      if (opts.auth) options.authMode = opts.auth;
-      if (opts.model) options.model = opts.model;
-      if (opts.turns) options.turnOverrides = { global: parseInt(opts.turns, 10) };
-      if (!opts.resume) options.noResume = true;
-      if (opts.trunk) options.trunkMode = true;
-      if (opts.budget) options.maxBudgetUsd = parseFloat(opts.budget);
-      if (opts.reviewCycles) options.reviewCycles = parseInt(opts.reviewCycles, 10);
-      if (opts.skipPermissions) options.skipPermissions = true;
-      if (opts.logDir) options.logDir = opts.logDir;
 
       const result = await executeSingleItem(item, options);
 
@@ -141,50 +155,30 @@ export function createCli(): Command {
     return value as FinishMode;
   }
 
-  interface DaemonOpts {
+  interface DaemonOpts extends SharedCliOpts {
     through: PhaseName;
     finish: FinishMode;
     parallel?: string;
     priority?: string;
-    model?: string;
-    trunk?: true;
-    skipPermissions?: true;
-    budget?: string;
-    logDir?: string;
-    auth?: "oauth" | "apikey";
   }
 
-  program
-    .command("daemon")
-    .description("Run one daemon cycle: resolve backlog items and execute batch")
-    .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName)
-    .option("--finish <mode>", "Post-execution integration (pr|merge|leave-branch)", parseFinishMode, "pr" as FinishMode)
-    .option("--parallel <n>", "Concurrency limit")
-    .option("--priority <level>", "Filter items by priority (e.g. P0)")
-    .option("--model <model>", "Model override")
-    .option("--trunk", "Use trunk-based mode")
-    .option("--skip-permissions", "Bypass permission prompts")
-    .option("--budget <usd>", "Max budget in USD per session")
-    .option("--log-dir <dir>", "Directory for structured JSON cost logs")
-    .option("--auth <mode>", "Auth mode (oauth|apikey)")
-    .action(async (opts: DaemonOpts) => {
-      if (opts.auth) {
-        resolveAuth(opts.auth);
-      }
-
+  addExecutionFlags(
+    program
+      .command("daemon")
+      .description("Run one daemon cycle: resolve backlog items and execute batch")
+      .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName)
+      .option("--finish <mode>", "Post-execution integration (pr|merge|leave-branch)", parseFinishMode, "pr" as FinishMode)
+      .option("--parallel <n>", "Concurrency limit")
+      .option("--priority <level>", "Filter items by priority (e.g. P0)"),
+  ).action(async (opts: DaemonOpts) => {
       const options: DaemonOptions = {
+        ...parseExecutionOpts(opts),
         throughPhase: opts.through,
         finishMode: opts.finish,
       };
 
       if (opts.parallel) options.parallel = parseInt(opts.parallel, 10);
       if (opts.priority) options.priorities = [opts.priority];
-      if (opts.model) options.model = opts.model;
-      if (opts.trunk) options.trunkMode = true;
-      if (opts.skipPermissions) options.skipPermissions = true;
-      if (opts.budget) options.maxBudgetUsd = parseFloat(opts.budget);
-      if (opts.logDir) options.logDir = opts.logDir;
-      if (opts.auth) options.authMode = opts.auth;
 
       const result = await runDaemonCycle(options);
 

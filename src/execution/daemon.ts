@@ -1,20 +1,14 @@
-import { executeBatch, type BatchOptions, type BatchResult } from "./batch-executor.js";
+import { executeBatch, type BatchOptions } from "./batch-executor.js";
 import { resolveItems, type ResolveOptions } from "./item-resolver.js";
+import type { ExecutionOptions } from "./single-item.js";
 import type { PhaseName } from "../config/phase-config.js";
 import type { FinishMode } from "../git/worktree.js";
 
-export interface DaemonOptions {
+export interface DaemonOptions extends ExecutionOptions {
   throughPhase: PhaseName;
   finishMode: FinishMode;
   parallel?: number;
   priorities?: string[];
-  trunkMode?: boolean;
-  model?: string;
-  skipPermissions?: boolean;
-  maxBudgetUsd?: number;
-  logDir?: string;
-  cwd?: string;
-  authMode?: "oauth" | "apikey";
 }
 
 export interface DaemonCycleResult {
@@ -46,16 +40,9 @@ export async function runDaemonCycle(
     return { itemsCompleted: 0, itemsFailed: 0, costUsd: 0, exitCode: 0 };
   }
 
+  const { priorities: _, ...rest } = options;
   const batchOpts: BatchOptions = {
-    throughPhase: options.throughPhase,
-    finishMode: options.finishMode,
-    parallel: options.parallel,
-    trunkMode: options.trunkMode,
-    model: options.model,
-    skipPermissions: options.skipPermissions,
-    maxBudgetUsd: options.maxBudgetUsd,
-    logDir: options.logDir,
-    authMode: options.authMode,
+    ...rest,
     continueOnFailure: true, // daemon always continues
   };
 
