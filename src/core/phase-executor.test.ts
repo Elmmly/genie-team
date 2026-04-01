@@ -187,26 +187,6 @@ describe("runPhase hooks", () => {
     vi.resetAllMocks();
   });
 
-  it("calls onMessage for every stream message", async () => {
-    // Arrange
-    const messages = [
-      { type: "system", subtype: "init", session_id: "sess-hook" },
-      { type: "assistant", content: "working..." },
-      { result: "Done", stop_reason: "end_turn", usage: { input_tokens: 100, output_tokens: 50 }, cost_usd: 0.01, num_turns: 2 },
-    ];
-    mockQueryMessages(messages);
-    const onMessage = vi.fn();
-
-    // Act
-    await runPhase("discover", "topic", { hooks: { onMessage } });
-
-    // Assert
-    expect(onMessage).toHaveBeenCalledTimes(3);
-    expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "system" }));
-    expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "assistant" }));
-    expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ result: "Done" }));
-  });
-
   it("calls onResult with final PhaseResult", async () => {
     // Arrange
     mockQueryMessages([
@@ -242,20 +222,6 @@ describe("runPhase hooks", () => {
     expect(result.output).toBe("Ok");
   });
 
-  it("calls onMessage even when onResult is not provided", async () => {
-    // Arrange
-    mockQueryMessages([
-      { type: "system", subtype: "init", session_id: "sess-partial" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
-    ]);
-    const onMessage = vi.fn();
-
-    // Act
-    await runPhase("discover", "topic", { hooks: { onMessage } });
-
-    // Assert
-    expect(onMessage).toHaveBeenCalledTimes(2);
-  });
 });
 
 describe("runPhase auth mode", () => {

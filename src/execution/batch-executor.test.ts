@@ -199,4 +199,22 @@ describe("executeBatch", () => {
     // Assert
     expect(sessionCleanup).toHaveBeenCalledWith("P1-fail");
   });
+
+  it("threads authMode to executeSingleItem", async () => {
+    // Arrange
+    const items = [makeItem("P1-auth")];
+
+    // Act
+    await executeBatch(items, {
+      throughPhase: "discern",
+      finishMode: "pr",
+      authMode: "oauth",
+    });
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ authMode: "oauth" }),
+    );
+  });
 });

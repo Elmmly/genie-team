@@ -83,4 +83,31 @@ describe("runDaemonCycle", () => {
     expect(result.itemsFailed).toBe(1);
     expect(result.exitCode).toBe(1);
   });
+
+  it("threads authMode to batch options", async () => {
+    // Arrange
+    vi.mocked(resolveItems).mockResolvedValue([
+      { slug: "P1-auth", input: "docs/backlog/P1-auth.md", phase: "deliver" as const },
+    ]);
+    vi.mocked(executeBatch).mockResolvedValue({
+      succeeded: [{ slug: "P1-auth", input: "docs/backlog/P1-auth.md", exitCode: 0, costUsd: 0.05 }],
+      failed: [],
+      conflicts: [],
+      totalCostUsd: 0.05,
+      exitCode: 0,
+    });
+
+    // Act
+    await runDaemonCycle({
+      throughPhase: "discern",
+      finishMode: "pr",
+      authMode: "oauth",
+    });
+
+    // Assert
+    expect(executeBatch).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ authMode: "oauth" }),
+    );
+  });
 });

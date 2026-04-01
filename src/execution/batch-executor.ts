@@ -25,6 +25,7 @@ export interface BatchOptions {
   noResume?: boolean;
   maxBudgetUsd?: number;
   logDir?: string;
+  authMode?: "oauth" | "apikey";
 }
 
 interface ItemOutcome {
@@ -188,6 +189,7 @@ async function executeOneItem(
       noResume: options.noResume,
       maxBudgetUsd: options.maxBudgetUsd,
       logDir: options.logDir,
+      authMode: options.authMode,
     });
 
     return {

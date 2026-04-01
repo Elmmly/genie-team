@@ -13,7 +13,6 @@ export interface ToolUseEvent {
 }
 
 export interface PhaseHooks {
-  onMessage?: (msg: Record<string, unknown>) => void;
   onToolUse?: (event: ToolUseEvent) => void;
   onResult?: (result: PhaseResult) => void;
 }
@@ -120,12 +119,8 @@ export async function runPhase(
   let numTurns = 0;
   let exhausted = false;
 
-  const hooks = options?.hooks;
-
   for await (const message of query({ prompt, options: queryOptions })) {
     const msg = message as Record<string, unknown>;
-
-    hooks?.onMessage?.(msg);
 
     // Capture session ID from init message
     if (msg.type === "system" && msg.subtype === "init") {
@@ -160,7 +155,7 @@ export async function runPhase(
     exhausted,
   };
 
-  hooks?.onResult?.(result);
+  options?.hooks?.onResult?.(result);
 
   return result;
 }

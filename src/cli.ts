@@ -184,6 +184,7 @@ export function createCli(): Command {
       if (opts.skipPermissions) options.skipPermissions = true;
       if (opts.budget) options.maxBudgetUsd = parseFloat(opts.budget);
       if (opts.logDir) options.logDir = opts.logDir;
+      if (opts.auth) options.authMode = opts.auth;
 
       const result = await runDaemonCycle(options);
 

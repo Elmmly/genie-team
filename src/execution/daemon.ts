@@ -14,6 +14,7 @@ export interface DaemonOptions {
   maxBudgetUsd?: number;
   logDir?: string;
   cwd?: string;
+  authMode?: "oauth" | "apikey";
 }
 
 export interface DaemonCycleResult {
@@ -54,6 +55,7 @@ export async function runDaemonCycle(
     skipPermissions: options.skipPermissions,
     maxBudgetUsd: options.maxBudgetUsd,
     logDir: options.logDir,
+    authMode: options.authMode,
     continueOnFailure: true, // daemon always continues
   };
 
