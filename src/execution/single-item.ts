@@ -1,6 +1,6 @@
 import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks } from "../core/phase-executor.js";
 import { SessionTracker } from "../core/session-tracker.js";
-import { createCostLogger } from "../hooks/phase-hooks.js";
+import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js";
 import {
   PHASES,
   phaseIndex,
@@ -35,6 +35,7 @@ export interface SingleItemResult {
   verdict?: string;
   totalCostUsd: number;
   phaseResults: PhaseRecord[];
+  artifacts?: string[];
 }
 
 type Verdict = "APPROVED" | "BLOCKED" | "CHANGES_REQUESTED" | undefined;
@@ -64,21 +65,34 @@ export async function executeSingleItem(
   const maxReviewCycles = options.reviewCycles ?? 1;
 
   const costLogger = options.logDir ? createCostLogger(options.logDir) : undefined;
+  const artifactTracker = createArtifactTracker();
 
-  function buildHooks(phase: PhaseName, startTime: number): PhaseHooks | undefined {
-    if (!costLogger) return undefined;
+  function extractArtifactPath(msg: Record<string, unknown>): string | undefined {
+    const toolName = msg.tool_name as string | undefined;
+    if (toolName !== "Write" && toolName !== "Edit") return undefined;
+    const input = msg.tool_input as Record<string, unknown> | undefined;
+    return input?.file_path as string | undefined;
+  }
+
+  function buildHooks(phase: PhaseName, startTime: number): PhaseHooks {
     return {
-      onResult: (result: PhaseResult) => {
-        costLogger.log({
-          phase,
-          genie: phase,
-          turns: result.numTurns,
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
-          costUsd: result.costUsd,
-          durationMs: Date.now() - startTime,
-        });
+      onMessage: (msg: Record<string, unknown>) => {
+        const path = extractArtifactPath(msg);
+        if (path) artifactTracker.recordWrite(path);
       },
+      onResult: costLogger
+        ? (result: PhaseResult) => {
+            costLogger.log({
+              phase,
+              genie: phase,
+              turns: result.numTurns,
+              inputTokens: result.inputTokens,
+              outputTokens: result.outputTokens,
+              costUsd: result.costUsd,
+              durationMs: Date.now() - startTime,
+            });
+          }
+        : undefined,
     };
   }
 
@@ -173,10 +187,13 @@ export async function executeSingleItem(
     }
   }
 
+  const tracked = artifactTracker.getArtifacts();
+
   return {
     exitCode,
     verdict,
     totalCostUsd,
     phaseResults,
+    artifacts: tracked.length > 0 ? tracked.map((a) => a.path) : undefined,
   };
 }

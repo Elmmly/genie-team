@@ -231,7 +231,7 @@ describe("executeSingleItem cost logging", () => {
     expect(phaseOpts?.hooks?.onResult).toBeTypeOf("function");
   });
 
-  it("does not pass hooks when logDir is absent", async () => {
+  it("passes onMessage but not onResult when logDir is absent", async () => {
     // Arrange
     vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
 
@@ -241,9 +241,10 @@ describe("executeSingleItem cost logging", () => {
       throughPhase: "deliver",
     });
 
-    // Assert
+    // Assert — onMessage always present (artifact tracking), onResult absent
     const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
-    expect(phaseOpts?.hooks).toBeUndefined();
+    expect(phaseOpts?.hooks?.onMessage).toBeTypeOf("function");
+    expect(phaseOpts?.hooks?.onResult).toBeUndefined();
   });
 
   it("passes hooks to review-cycle runPhase calls too", async () => {
@@ -307,5 +308,112 @@ describe("executeSingleItem auth mode", () => {
     // Assert
     const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
     expect(phaseOpts?.authMode).toBeUndefined();
+  });
+});
+
+describe("executeSingleItem artifact tracking", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("passes onMessage hook to runPhase", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
+    expect(phaseOpts?.hooks?.onMessage).toBeTypeOf("function");
+  });
+
+  it("records Write tool_use file paths as artifacts", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
+      // Simulate onMessage receiving a Write tool_use message
+      opts?.hooks?.onMessage?.({
+        tool_name: "Write",
+        tool_input: { file_path: "src/index.ts", content: "..." },
+      });
+      return mockPhaseResult();
+    });
+
+    // Act
+    const result = await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    expect(result.artifacts).toContain("src/index.ts");
+  });
+
+  it("records Edit tool_use file paths as artifacts", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
+      opts?.hooks?.onMessage?.({
+        tool_name: "Edit",
+        tool_input: { file_path: "src/cli.ts", old_string: "a", new_string: "b" },
+      });
+      return mockPhaseResult();
+    });
+
+    // Act
+    const result = await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    expect(result.artifacts).toContain("src/cli.ts");
+  });
+
+  it("deduplicates artifacts across phases", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
+      opts?.hooks?.onMessage?.({
+        tool_name: "Write",
+        tool_input: { file_path: "src/index.ts", content: "..." },
+      });
+      return mockPhaseResult();
+    });
+
+    // Act
+    const result = await executeSingleItem("item.md", {
+      fromPhase: "design",
+      throughPhase: "deliver",
+    });
+
+    // Assert — both phases write same file, should be deduplicated
+    const indexCount = result.artifacts?.filter((a) => a === "src/index.ts").length;
+    expect(indexCount).toBe(1);
+  });
+
+  it("coexists with cost logger hooks", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockImplementation(async (_phase, _input, opts) => {
+      opts?.hooks?.onMessage?.({
+        tool_name: "Write",
+        tool_input: { file_path: "src/new.ts", content: "..." },
+      });
+      return mockPhaseResult();
+    });
+
+    // Act
+    const result = await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+      logDir: "/tmp/logs",
+    });
+
+    // Assert — both hooks should fire: artifacts tracked AND cost logger wired
+    expect(result.artifacts).toContain("src/new.ts");
+    const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
+    expect(phaseOpts?.hooks?.onResult).toBeTypeOf("function");
+    expect(phaseOpts?.hooks?.onMessage).toBeTypeOf("function");
   });
 });
