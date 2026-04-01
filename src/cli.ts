@@ -1,7 +1,6 @@
 import { Command, InvalidArgumentError } from "commander";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { loadGenieConfig } from "./config/genie-config.js";
 import { formatModelsTable } from "./environment/models.js";
 import { runChecks, formatCheckResult } from "./environment/check.js";
@@ -11,11 +10,19 @@ import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
 import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
 import { resolveAuth } from "./environment/auth.js";
 
+function resolveDir(): string {
+  // CJS bundle: __dirname is available
+  if (typeof __dirname !== "undefined") return __dirname;
+  // ESM: fall back to import.meta.url
+  const { fileURLToPath } = require("node:url");
+  const { dirname } = require("node:path");
+  return dirname(fileURLToPath(import.meta.url));
+}
+
 function loadVersion(): string {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  const pkgPath = join(__dirname, "..", "package.json");
   try {
+    const dir = resolveDir();
+    const pkgPath = join(dir, "..", "package.json");
     const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
     return pkg.version ?? "0.0.0";
   } catch {
