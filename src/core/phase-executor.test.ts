@@ -257,3 +257,59 @@ describe("runPhase hooks", () => {
     expect(onMessage).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("runPhase auth mode", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("passes env without ANTHROPIC_API_KEY when authMode is oauth", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-oauth" },
+      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+    ]);
+
+    // Act
+    await runPhase("deliver", "item.md", { authMode: "oauth" });
+
+    // Assert
+    const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
+    const opts = callArgs.options as Record<string, unknown>;
+    const env = opts.env as Record<string, string | undefined>;
+    expect(env).toBeDefined();
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+  });
+
+  it("does not set env override when authMode is apikey", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-apikey" },
+      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+    ]);
+
+    // Act
+    await runPhase("deliver", "item.md", { authMode: "apikey" });
+
+    // Assert
+    const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
+    const opts = callArgs.options as Record<string, unknown>;
+    expect(opts.env).toBeUndefined();
+  });
+
+  it("does not set env override when no authMode", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-default" },
+      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+    ]);
+
+    // Act
+    await runPhase("deliver", "item.md");
+
+    // Assert
+    const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
+    const opts = callArgs.options as Record<string, unknown>;
+    expect(opts.env).toBeUndefined();
+  });
+});

@@ -21,6 +21,7 @@ export interface SingleItemOptions {
   reviewCycles?: number;
   maxBudgetUsd?: number;
   logDir?: string;
+  authMode?: "oauth" | "apikey";
 }
 
 export interface PhaseRecord {
@@ -98,6 +99,7 @@ export async function executeSingleItem(
       hasContextDir: options.hasContextDir,
       turnOverrides: options.turnOverrides,
       maxBudgetUsd: options.maxBudgetUsd,
+      authMode: options.authMode,
       resumeSessionId: tracker.getResumeId(),
       hooks: buildHooks(phase, start),
     };

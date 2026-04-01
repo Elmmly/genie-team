@@ -272,3 +272,40 @@ describe("executeSingleItem cost logging", () => {
     }
   });
 });
+
+describe("executeSingleItem auth mode", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("passes authMode to runPhase when set", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+      authMode: "oauth",
+    });
+
+    // Assert
+    const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
+    expect(phaseOpts?.authMode).toBe("oauth");
+  });
+
+  it("does not pass authMode when not set", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    await executeSingleItem("item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
+    expect(phaseOpts?.authMode).toBeUndefined();
+  });
+});

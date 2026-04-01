@@ -14,12 +14,17 @@ vi.mock("./git/worktree.js", () => ({
   sessionCleanup: vi.fn(),
 }));
 
+vi.mock("./environment/auth.js", () => ({
+  resolveAuth: vi.fn(),
+}));
+
 import { executeSingleItem } from "./execution/single-item.js";
 import type { SingleItemResult } from "./execution/single-item.js";
 import { runDaemonCycle } from "./execution/daemon.js";
 import type { DaemonCycleResult } from "./execution/daemon.js";
 import { listSessions, sessionCleanup } from "./git/worktree.js";
 import type { SessionInfo } from "./git/worktree.js";
+import { resolveAuth } from "./environment/auth.js";
 
 function mockRunResult(overrides?: Partial<SingleItemResult>): SingleItemResult {
   return {
@@ -337,6 +342,47 @@ describe("run command extended flags", () => {
     expect(opts.maxBudgetUsd).toBeUndefined();
     expect(opts.reviewCycles).toBeUndefined();
     expect(opts.skipPermissions).toBeUndefined();
+    expect(opts.authMode).toBeUndefined();
+  });
+
+  it("--auth oauth passes authMode and calls resolveAuth", async () => {
+    // Arrange
+    vi.mocked(resolveAuth).mockReturnValue({
+      mode: "oauth",
+      hasApiKey: false,
+      billingNote: "OAuth billing",
+    });
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--auth", "oauth", "item.md"]);
+
+    // Assert
+    expect(resolveAuth).toHaveBeenCalledWith("oauth");
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ authMode: "oauth" }),
+    );
+  });
+
+  it("--auth apikey passes authMode and calls resolveAuth", async () => {
+    // Arrange
+    vi.mocked(resolveAuth).mockReturnValue({
+      mode: "apikey",
+      hasApiKey: true,
+      billingNote: "API key billing",
+    });
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--auth", "apikey", "item.md"]);
+
+    // Assert
+    expect(resolveAuth).toHaveBeenCalledWith("apikey");
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ authMode: "apikey" }),
+    );
   });
 });
 

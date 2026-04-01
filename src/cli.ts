@@ -9,6 +9,7 @@ import { isValidPhase, type PhaseName } from "./config/phase-config.js";
 import { executeSingleItem, type SingleItemOptions } from "./execution/single-item.js";
 import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
 import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
+import { resolveAuth } from "./environment/auth.js";
 
 function loadVersion(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -80,6 +81,7 @@ export function createCli(): Command {
     reviewCycles?: string;
     skipPermissions?: true;
     logDir?: string;
+    auth?: "oauth" | "apikey";
   }
 
   program
@@ -96,12 +98,18 @@ export function createCli(): Command {
     .option("--review-cycles <n>", "Max deliver↔discern review cycles")
     .option("--skip-permissions", "Bypass permission prompts")
     .option("--log-dir <dir>", "Directory for structured JSON cost logs")
+    .option("--auth <mode>", "Auth mode (oauth|apikey)")
     .action(async (item: string, opts: RunOpts) => {
+      if (opts.auth) {
+        resolveAuth(opts.auth);
+      }
+
       const options: SingleItemOptions = {
         fromPhase: opts.from,
         throughPhase: opts.through,
       };
 
+      if (opts.auth) options.authMode = opts.auth;
       if (opts.model) options.model = opts.model;
       if (opts.turns) options.turnOverrides = { global: parseInt(opts.turns, 10) };
       if (!opts.resume) options.noResume = true;
@@ -146,6 +154,7 @@ export function createCli(): Command {
     skipPermissions?: true;
     budget?: string;
     logDir?: string;
+    auth?: "oauth" | "apikey";
   }
 
   program
@@ -160,7 +169,12 @@ export function createCli(): Command {
     .option("--skip-permissions", "Bypass permission prompts")
     .option("--budget <usd>", "Max budget in USD per session")
     .option("--log-dir <dir>", "Directory for structured JSON cost logs")
+    .option("--auth <mode>", "Auth mode (oauth|apikey)")
     .action(async (opts: DaemonOpts) => {
+      if (opts.auth) {
+        resolveAuth(opts.auth);
+      }
+
       const options: DaemonOptions = {
         throughPhase: opts.through,
         finishMode: opts.finish,

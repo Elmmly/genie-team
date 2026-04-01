@@ -22,6 +22,7 @@ export interface PhaseOptions {
   resumeSessionId?: string;
   maxBudgetUsd?: number;
   hooks?: PhaseHooks;
+  authMode?: "oauth" | "apikey";
 }
 
 export interface PhaseResult {
@@ -83,6 +84,11 @@ export async function runPhase(
 
   if (options?.maxBudgetUsd !== undefined) {
     queryOptions.maxBudgetUsd = options.maxBudgetUsd;
+  }
+
+  if (options?.authMode === "oauth") {
+    const env = { ...process.env, ANTHROPIC_API_KEY: undefined };
+    queryOptions.env = env;
   }
 
   let sessionId = "";
