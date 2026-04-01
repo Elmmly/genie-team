@@ -11,18 +11,8 @@ vi.mock("../core/phase-executor.js", () => ({
   runPhase: vi.fn(),
 }));
 
-// Mock fs for hasContextDir detection
-vi.mock("node:fs", () => ({
-  existsSync: vi.fn(),
-}));
 
 import { runPhase } from "../core/phase-executor.js";
-import { existsSync } from "node:fs";
-
-// Default: no docs/context/ directory (avoid affecting existing tests)
-beforeEach(() => {
-  vi.mocked(existsSync).mockReturnValue(false);
-});
 
 function mockPhaseResult(overrides?: Partial<PhaseResult>): PhaseResult {
   return {
@@ -452,21 +442,20 @@ describe("executeSingleItem artifact tracking", () => {
   });
 });
 
-describe("executeSingleItem hasContextDir auto-detection", () => {
+describe("executeSingleItem hasContextDir", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(existsSync).mockReturnValue(false);
   });
 
-  it("sets hasContextDir when docs/context/ exists", async () => {
+  it("passes hasContextDir to runPhase when set", async () => {
     // Arrange
-    vi.mocked(existsSync).mockReturnValue(true);
     vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
 
     // Act
     await executeSingleItem("item.md", {
       fromPhase: "deliver",
       throughPhase: "deliver",
+      hasContextDir: true,
     });
 
     // Assert
@@ -474,9 +463,8 @@ describe("executeSingleItem hasContextDir auto-detection", () => {
     expect(phaseOpts?.hasContextDir).toBe(true);
   });
 
-  it("does not set hasContextDir when docs/context/ is absent", async () => {
+  it("does not set hasContextDir when not provided", async () => {
     // Arrange
-    vi.mocked(existsSync).mockReturnValue(false);
     vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
 
     // Act

@@ -1,5 +1,3 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks, type ToolUseEvent } from "../core/phase-executor.js";
 import { SessionTracker } from "../core/session-tracker.js";
 import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js";
@@ -22,6 +20,7 @@ export interface ExecutionOptions {
   maxBudgetUsd?: number;
   logDir?: string;
   authMode?: "oauth" | "apikey";
+  hasContextDir?: boolean;
 }
 
 export interface SingleItemOptions extends ExecutionOptions {
@@ -69,13 +68,6 @@ export async function executeSingleItem(
   const tracker = new SessionTracker({ noResume: options.noResume });
   const maxReviewCycles = options.reviewCycles ?? 1;
 
-  // Auto-detect strategic context directory from process cwd (repo root),
-  // not options.cwd (which may be a worktree). docs/context/ is a
-  // project-level concern, not per-worktree.
-  const hasContextDir = existsSync(join(process.cwd(), "docs", "context"))
-    ? true
-    : undefined;
-
   const costLogger = options.logDir ? createCostLogger(options.logDir) : undefined;
   const artifactTracker = createArtifactTracker();
 
@@ -109,7 +101,7 @@ export async function executeSingleItem(
     cwd: options.cwd,
     skipPermissions: options.skipPermissions,
     trunkMode: options.trunkMode,
-    hasContextDir,
+    hasContextDir: options.hasContextDir,
     turnOverrides: options.turnOverrides,
     maxBudgetUsd: options.maxBudgetUsd,
     authMode: options.authMode,

@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { writeFileSync, readFileSync, chmodSync } from "node:fs";
+import { chmodSync } from "node:fs";
 
 await build({
   entryPoints: ["src/index.ts"],
@@ -8,12 +8,9 @@ await build({
   target: "node20",
   format: "cjs",
   outfile: "dist/cli.cjs",
+  banner: { js: "#!/usr/bin/env node" },
   logOverride: { "empty-import-meta": "silent" },
 });
 
-// Prepend shebang (esbuild banner + CJS can double-emit)
-const code = readFileSync("dist/cli.cjs", "utf-8");
-writeFileSync("dist/cli.cjs", `#!/usr/bin/env node\n${code}`);
 chmodSync("dist/cli.cjs", 0o755);
-
 console.log("Built dist/cli.cjs");

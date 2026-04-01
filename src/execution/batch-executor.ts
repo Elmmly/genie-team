@@ -1,3 +1,4 @@
+import pLimit from "p-limit";
 import { executeSingleItem, type ExecutionOptions } from "./single-item.js";
 import {
   sessionStart,
@@ -104,43 +105,16 @@ async function executeParallel(
   const conflicts: ItemOutcome[] = [];
   let totalCostUsd = 0;
 
-  // Concurrency semaphore
-  let running = 0;
-  let idx = 0;
-  const outcomes: Array<{ item: BatchItem; outcome: ItemOutcome }> = [];
-
-  await new Promise<void>((resolve) => {
-    function launch() {
-      while (running < concurrency && idx < items.length) {
-        const item = items[idx++];
-        running++;
-
-        executeOneItem(item, options)
-          .then((outcome) => {
-            outcomes.push({ item, outcome });
-            totalCostUsd += outcome.costUsd;
-          })
-          .catch((err) => {
-            const message = err instanceof Error ? err.message : String(err);
-            console.error(`[batch] ${item.slug} failed: ${message}`);
-            outcomes.push({
-              item,
-              outcome: { slug: item.slug, input: item.input, exitCode: 1, costUsd: 0 },
-            });
-          })
-          .finally(() => {
-            running--;
-            if (running === 0 && idx >= items.length) {
-              resolve();
-            } else {
-              launch();
-            }
-          });
-      }
-      if (items.length === 0) resolve();
-    }
-    launch();
-  });
+  const limit = pLimit(concurrency);
+  const outcomes = await Promise.all(
+    items.map((item) =>
+      limit(async () => {
+        const outcome = await executeOneItem(item, options);
+        totalCostUsd += outcome.costUsd;
+        return { item, outcome };
+      }),
+    ),
+  );
 
   // Serialize integration
   for (const { item, outcome } of outcomes) {

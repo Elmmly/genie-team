@@ -1,5 +1,5 @@
 import { Command, InvalidArgumentError } from "commander";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadGenieConfig } from "./config/genie-config.js";
 import { formatModelsTable } from "./environment/models.js";
@@ -100,7 +100,9 @@ export function createCli(): Command {
   function parseExecutionOpts(opts: SharedCliOpts): ExecutionOptions {
     if (opts.auth) resolveAuth(opts.auth);
 
-    const exec: ExecutionOptions = {};
+    const exec: ExecutionOptions = {
+      hasContextDir: existsSync(join(process.cwd(), "docs", "context")) || undefined,
+    };
     if (opts.auth) exec.authMode = opts.auth;
     if (opts.model) exec.model = opts.model;
     if (opts.turns) exec.turnOverrides = { global: parsePositiveInt(opts.turns, "--turns") };
