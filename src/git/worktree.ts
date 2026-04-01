@@ -86,6 +86,36 @@ export async function findBranch(item: string): Promise<string | undefined> {
   return first || undefined;
 }
 
+// ── Session listing ──
+
+export interface SessionInfo {
+  path: string;
+  branch: string;
+  slug: string;
+}
+
+export async function listSessions(): Promise<SessionInfo[]> {
+  const { stdout } = await execa("git", ["worktree", "list", "--porcelain"]);
+  const sessions: SessionInfo[] = [];
+  const blocks = stdout.split("\n\n");
+
+  for (const block of blocks) {
+    const lines = block.trim().split("\n");
+    const pathLine = lines.find((l) => l.startsWith("worktree "));
+    const branchLine = lines.find((l) => l.startsWith("branch refs/heads/genie/"));
+    if (!pathLine || !branchLine) continue;
+
+    const path = pathLine.replace("worktree ", "");
+    const branch = branchLine.replace("branch refs/heads/", "");
+    // slug: strip "genie/" prefix and trailing "-phase"
+    const slug = branch.replace("genie/", "").replace(/-[^-]+$/, "");
+
+    sessions.push({ path, branch, slug });
+  }
+
+  return sessions;
+}
+
 // ── Session lifecycle ──
 
 export type FinishMode = "pr" | "merge" | "force" | "leave-branch";

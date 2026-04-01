@@ -9,10 +9,17 @@ vi.mock("./execution/daemon.js", () => ({
   runDaemonCycle: vi.fn(),
 }));
 
+vi.mock("./git/worktree.js", () => ({
+  listSessions: vi.fn(),
+  sessionCleanup: vi.fn(),
+}));
+
 import { executeSingleItem } from "./execution/single-item.js";
 import type { SingleItemResult } from "./execution/single-item.js";
 import { runDaemonCycle } from "./execution/daemon.js";
 import type { DaemonCycleResult } from "./execution/daemon.js";
+import { listSessions, sessionCleanup } from "./git/worktree.js";
+import type { SessionInfo } from "./git/worktree.js";
 
 function mockRunResult(overrides?: Partial<SingleItemResult>): SingleItemResult {
   return {
@@ -483,5 +490,84 @@ describe("daemon command", () => {
     expect(output).toContain("1");
     expect(output).toContain("0.25");
     expect(process.exit).toHaveBeenCalledWith(1);
+  });
+});
+
+describe("session command", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("registers session subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const cmd = cli.commands.find((c) => c.name() === "session");
+
+    // Assert
+    expect(cmd).toBeDefined();
+  });
+
+  it("session list calls listSessions and prints results", async () => {
+    // Arrange
+    vi.mocked(listSessions).mockResolvedValue([
+      { path: "/tmp/project--P0-auth", branch: "genie/P0-auth-deliver", slug: "P0-auth" },
+    ]);
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "session", "list"]);
+
+    // Assert
+    expect(listSessions).toHaveBeenCalled();
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("P0-auth");
+    expect(output).toContain("genie/P0-auth-deliver");
+  });
+
+  it("session list prints message when no sessions", async () => {
+    // Arrange
+    vi.mocked(listSessions).mockResolvedValue([]);
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "session", "list"]);
+
+    // Assert
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("No active");
+  });
+
+  it("session cleanup calls sessionCleanup with item slug", async () => {
+    // Arrange
+    vi.mocked(sessionCleanup).mockResolvedValue();
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "session", "cleanup", "P0-auth"]);
+
+    // Assert
+    expect(sessionCleanup).toHaveBeenCalledWith("P0-auth");
+  });
+
+  it("session cleanup --all cleans up all sessions", async () => {
+    // Arrange
+    vi.mocked(listSessions).mockResolvedValue([
+      { path: "/tmp/p--P0-auth", branch: "genie/P0-auth-deliver", slug: "P0-auth" },
+      { path: "/tmp/p--P1-search", branch: "genie/P1-search-design", slug: "P1-search" },
+    ]);
+    vi.mocked(sessionCleanup).mockResolvedValue();
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "session", "cleanup", "--all"]);
+
+    // Assert
+    expect(sessionCleanup).toHaveBeenCalledWith("P0-auth");
+    expect(sessionCleanup).toHaveBeenCalledWith("P1-search");
+    expect(sessionCleanup).toHaveBeenCalledTimes(2);
   });
 });

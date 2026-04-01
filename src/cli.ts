@@ -8,7 +8,7 @@ import { runChecks, formatCheckResult } from "./environment/check.js";
 import { isValidPhase, type PhaseName } from "./config/phase-config.js";
 import { executeSingleItem, type SingleItemOptions } from "./execution/single-item.js";
 import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
-import type { FinishMode } from "./git/worktree.js";
+import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
 
 function loadVersion(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -184,6 +184,46 @@ export function createCli(): Command {
 
       console.log(summary);
       process.exit(result.exitCode);
+    });
+
+  const session = program
+    .command("session")
+    .description("Manage git worktree sessions");
+
+  session
+    .command("list")
+    .description("Show active genie worktree sessions")
+    .action(async () => {
+      const sessions = await listSessions();
+      if (sessions.length === 0) {
+        console.log("No active genie sessions.");
+        return;
+      }
+      for (const s of sessions) {
+        console.log(`${s.slug}\t${s.branch}\t${s.path}`);
+      }
+    });
+
+  session
+    .command("cleanup [item]")
+    .description("Remove stale worktree session(s)")
+    .option("--all", "Clean up all genie worktree sessions")
+    .action(async (item: string | undefined, opts: { all?: true }) => {
+      if (opts.all) {
+        const sessions = await listSessions();
+        for (const s of sessions) {
+          await sessionCleanup(s.slug);
+          console.log(`Cleaned up: ${s.slug}`);
+        }
+        return;
+      }
+      if (!item) {
+        console.error("Provide an item slug or use --all");
+        process.exit(3);
+        return;
+      }
+      await sessionCleanup(item);
+      console.log(`Cleaned up: ${item}`);
     });
 
   // Unknown commands exit 127 to signal shell fallback
