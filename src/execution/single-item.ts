@@ -65,9 +65,10 @@ export async function executeSingleItem(
   const tracker = new SessionTracker({ noResume: options.noResume });
   const maxReviewCycles = options.reviewCycles ?? 1;
 
-  // Auto-detect strategic context directory
-  const projectRoot = options.cwd ?? process.cwd();
-  const hasContextDir = existsSync(join(projectRoot, "docs", "context"))
+  // Auto-detect strategic context directory from process cwd (repo root),
+  // not options.cwd (which may be a worktree). docs/context/ is a
+  // project-level concern, not per-worktree.
+  const hasContextDir = existsSync(join(process.cwd(), "docs", "context"))
     ? true
     : undefined;
 
