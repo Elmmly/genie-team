@@ -201,3 +201,128 @@ describe("run command", () => {
     expect(process.exit).toHaveBeenCalledWith(0);
   });
 });
+
+describe("run command extended flags", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult());
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("--model passes model override", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--model", "claude-sonnet-4-5-20250514", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ model: "claude-sonnet-4-5-20250514" }),
+    );
+  });
+
+  it("--turns sets global turn override", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--turns", "200", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ turnOverrides: { global: 200 } }),
+    );
+  });
+
+  it("--no-resume sets noResume true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--no-resume", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ noResume: true }),
+    );
+  });
+
+  it("--trunk sets trunkMode true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--trunk", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ trunkMode: true }),
+    );
+  });
+
+  it("--budget sets maxBudgetUsd", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--budget", "5.00", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ maxBudgetUsd: 5.0 }),
+    );
+  });
+
+  it("--review-cycles sets reviewCycles", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--review-cycles", "3", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ reviewCycles: 3 }),
+    );
+  });
+
+  it("--skip-permissions sets skipPermissions true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--skip-permissions", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ skipPermissions: true }),
+    );
+  });
+
+  it("defaults: no extended flags yields minimal options", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+
+    // Assert
+    const opts = vi.mocked(executeSingleItem).mock.calls[0][1];
+    expect(opts.model).toBeUndefined();
+    expect(opts.trunkMode).toBeUndefined();
+    expect(opts.noResume).toBeUndefined();
+    expect(opts.turnOverrides).toBeUndefined();
+    expect(opts.maxBudgetUsd).toBeUndefined();
+    expect(opts.reviewCycles).toBeUndefined();
+    expect(opts.skipPermissions).toBeUndefined();
+  });
+});

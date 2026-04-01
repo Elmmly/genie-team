@@ -6,7 +6,7 @@ import { loadGenieConfig } from "./config/genie-config.js";
 import { formatModelsTable } from "./environment/models.js";
 import { runChecks, formatCheckResult } from "./environment/check.js";
 import { isValidPhase, type PhaseName } from "./config/phase-config.js";
-import { executeSingleItem } from "./execution/single-item.js";
+import { executeSingleItem, type SingleItemOptions } from "./execution/single-item.js";
 
 function loadVersion(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -67,17 +67,46 @@ export function createCli(): Command {
     return value;
   }
 
+  interface RunOpts {
+    from: PhaseName;
+    through: PhaseName;
+    model?: string;
+    turns?: string;
+    resume: boolean;
+    trunk?: true;
+    budget?: string;
+    reviewCycles?: string;
+    skipPermissions?: true;
+  }
+
   program
     .command("run")
     .description("Run a backlog item through PDLC phases")
     .argument("<item>", "Backlog item path or topic string")
     .option("--from <phase>", "Starting phase", parsePhase, "discover" as PhaseName)
     .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName)
-    .action(async (item: string, opts: { from: PhaseName; through: PhaseName }) => {
-      const result = await executeSingleItem(item, {
+    .option("--model <model>", "Model override (e.g. claude-sonnet-4-5-20250514)")
+    .option("--turns <n>", "Global turn limit override")
+    .option("--no-resume", "Start fresh sessions (disable cross-phase resume)")
+    .option("--trunk", "Use trunk-based mode (commit to default branch)")
+    .option("--budget <usd>", "Max budget in USD per session")
+    .option("--review-cycles <n>", "Max deliver↔discern review cycles")
+    .option("--skip-permissions", "Bypass permission prompts")
+    .action(async (item: string, opts: RunOpts) => {
+      const options: SingleItemOptions = {
         fromPhase: opts.from,
         throughPhase: opts.through,
-      });
+      };
+
+      if (opts.model) options.model = opts.model;
+      if (opts.turns) options.turnOverrides = { global: parseInt(opts.turns, 10) };
+      if (!opts.resume) options.noResume = true;
+      if (opts.trunk) options.trunkMode = true;
+      if (opts.budget) options.maxBudgetUsd = parseFloat(opts.budget);
+      if (opts.reviewCycles) options.reviewCycles = parseInt(opts.reviewCycles, 10);
+      if (opts.skipPermissions) options.skipPermissions = true;
+
+      const result = await executeSingleItem(item, options);
 
       const phaseNames = result.phaseResults.map((r) => r.phase).join(" → ");
       const summary = [
