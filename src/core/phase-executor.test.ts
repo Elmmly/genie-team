@@ -181,3 +181,79 @@ describe("runPhase", () => {
     expect(callArgs.prompt).toContain("git-mode: trunk");
   });
 });
+
+describe("runPhase hooks", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("calls onMessage for every stream message", async () => {
+    // Arrange
+    const messages = [
+      { type: "system", subtype: "init", session_id: "sess-hook" },
+      { type: "assistant", content: "working..." },
+      { result: "Done", stop_reason: "end_turn", usage: { input_tokens: 100, output_tokens: 50 }, cost_usd: 0.01, num_turns: 2 },
+    ];
+    mockQueryMessages(messages);
+    const onMessage = vi.fn();
+
+    // Act
+    await runPhase("discover", "topic", { hooks: { onMessage } });
+
+    // Assert
+    expect(onMessage).toHaveBeenCalledTimes(3);
+    expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "system" }));
+    expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "assistant" }));
+    expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ result: "Done" }));
+  });
+
+  it("calls onResult with final PhaseResult", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-result-hook" },
+      { result: "Phase done", stop_reason: "end_turn", usage: { input_tokens: 500, output_tokens: 200 }, cost_usd: 0.03, num_turns: 5 },
+    ]);
+    const onResult = vi.fn();
+
+    // Act
+    await runPhase("deliver", "docs/backlog/P0-item.md", { hooks: { onResult } });
+
+    // Assert
+    expect(onResult).toHaveBeenCalledTimes(1);
+    expect(onResult).toHaveBeenCalledWith(expect.objectContaining({
+      output: "Phase done",
+      sessionId: "sess-result-hook",
+      costUsd: 0.03,
+      numTurns: 5,
+    }));
+  });
+
+  it("works with no hooks provided (backward compatible)", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-no-hooks" },
+      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+    ]);
+
+    // Act
+    const result = await runPhase("discover", "topic");
+
+    // Assert
+    expect(result.output).toBe("Ok");
+  });
+
+  it("calls onMessage even when onResult is not provided", async () => {
+    // Arrange
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-partial" },
+      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+    ]);
+    const onMessage = vi.fn();
+
+    // Act
+    await runPhase("discover", "topic", { hooks: { onMessage } });
+
+    // Assert
+    expect(onMessage).toHaveBeenCalledTimes(2);
+  });
+});

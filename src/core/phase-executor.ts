@@ -7,6 +7,11 @@ import {
 } from "../config/phase-config.js";
 import { buildPhasePrompt } from "../config/prompt-builder.js";
 
+export interface PhaseHooks {
+  onMessage?: (msg: Record<string, unknown>) => void;
+  onResult?: (result: PhaseResult) => void;
+}
+
 export interface PhaseOptions {
   model?: string;
   cwd?: string;
@@ -16,6 +21,7 @@ export interface PhaseOptions {
   turnOverrides?: TurnOverrides;
   resumeSessionId?: string;
   maxBudgetUsd?: number;
+  hooks?: PhaseHooks;
 }
 
 export interface PhaseResult {
@@ -87,8 +93,12 @@ export async function runPhase(
   let numTurns = 0;
   let exhausted = false;
 
+  const hooks = options?.hooks;
+
   for await (const message of query({ prompt, options: queryOptions })) {
     const msg = message as Record<string, unknown>;
+
+    hooks?.onMessage?.(msg);
 
     // Capture session ID from init message
     if (msg.type === "system" && msg.subtype === "init") {
@@ -113,7 +123,7 @@ export async function runPhase(
     }
   }
 
-  return {
+  const result: PhaseResult = {
     output,
     sessionId,
     inputTokens,
@@ -122,4 +132,8 @@ export async function runPhase(
     numTurns,
     exhausted,
   };
+
+  hooks?.onResult?.(result);
+
+  return result;
 }

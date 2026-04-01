@@ -77,6 +77,7 @@ export function createCli(): Command {
     budget?: string;
     reviewCycles?: string;
     skipPermissions?: true;
+    logDir?: string;
   }
 
   program
@@ -92,6 +93,7 @@ export function createCli(): Command {
     .option("--budget <usd>", "Max budget in USD per session")
     .option("--review-cycles <n>", "Max deliver↔discern review cycles")
     .option("--skip-permissions", "Bypass permission prompts")
+    .option("--log-dir <dir>", "Directory for structured JSON cost logs")
     .action(async (item: string, opts: RunOpts) => {
       const options: SingleItemOptions = {
         fromPhase: opts.from,
@@ -105,6 +107,7 @@ export function createCli(): Command {
       if (opts.budget) options.maxBudgetUsd = parseFloat(opts.budget);
       if (opts.reviewCycles) options.reviewCycles = parseInt(opts.reviewCycles, 10);
       if (opts.skipPermissions) options.skipPermissions = true;
+      if (opts.logDir) options.logDir = opts.logDir;
 
       const result = await executeSingleItem(item, options);
 
