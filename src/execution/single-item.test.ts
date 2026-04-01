@@ -208,3 +208,67 @@ describe("executeSingleItem", () => {
     expect(result.phaseResults[1].phase).toBe("deliver");
   });
 });
+
+describe("executeSingleItem cost logging", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("passes hooks to runPhase when logDir is set", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+      logDir: "/tmp/test-logs",
+    });
+
+    // Assert
+    const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
+    expect(phaseOpts?.hooks).toBeDefined();
+    expect(phaseOpts?.hooks?.onResult).toBeTypeOf("function");
+  });
+
+  it("does not pass hooks when logDir is absent", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "deliver",
+      throughPhase: "deliver",
+    });
+
+    // Assert
+    const phaseOpts = vi.mocked(runPhase).mock.calls[0][2];
+    expect(phaseOpts?.hooks).toBeUndefined();
+  });
+
+  it("passes hooks to review-cycle runPhase calls too", async () => {
+    // Arrange — discern returns CHANGES_REQUESTED, then APPROVED
+    vi.mocked(runPhase)
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Verdict: CHANGES REQUESTED." }),
+      )
+      .mockResolvedValueOnce(mockPhaseResult({ output: "Fixed." }))
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Verdict: APPROVED." }),
+      );
+
+    // Act
+    await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "discern",
+      throughPhase: "discern",
+      reviewCycles: 2,
+      logDir: "/tmp/test-logs",
+    });
+
+    // Assert — all 3 calls (discern, deliver, discern) should have hooks
+    for (const call of vi.mocked(runPhase).mock.calls) {
+      const phaseOpts = call[2];
+      expect(phaseOpts?.hooks?.onResult).toBeTypeOf("function");
+    }
+  });
+});

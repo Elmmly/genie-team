@@ -1,5 +1,6 @@
-import { runPhase, type PhaseOptions, type PhaseResult } from "../core/phase-executor.js";
+import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks } from "../core/phase-executor.js";
 import { SessionTracker } from "../core/session-tracker.js";
+import { createCostLogger } from "../hooks/phase-hooks.js";
 import {
   PHASES,
   phaseIndex,
@@ -61,6 +62,25 @@ export async function executeSingleItem(
   const tracker = new SessionTracker({ noResume: options.noResume });
   const maxReviewCycles = options.reviewCycles ?? 1;
 
+  const costLogger = options.logDir ? createCostLogger(options.logDir) : undefined;
+
+  function buildHooks(phase: PhaseName, startTime: number): PhaseHooks | undefined {
+    if (!costLogger) return undefined;
+    return {
+      onResult: (result: PhaseResult) => {
+        costLogger.log({
+          phase,
+          genie: phase,
+          turns: result.numTurns,
+          inputTokens: result.inputTokens,
+          outputTokens: result.outputTokens,
+          costUsd: result.costUsd,
+          durationMs: Date.now() - startTime,
+        });
+      },
+    };
+  }
+
   const phaseResults: PhaseRecord[] = [];
   let totalCostUsd = 0;
   let verdict: Verdict;
@@ -79,6 +99,7 @@ export async function executeSingleItem(
       turnOverrides: options.turnOverrides,
       maxBudgetUsd: options.maxBudgetUsd,
       resumeSessionId: tracker.getResumeId(),
+      hooks: buildHooks(phase, start),
     };
 
     const result = await runPhase(phase, input, phaseOpts);
@@ -114,6 +135,7 @@ export async function executeSingleItem(
           const deliverResult = await runPhase("deliver", input, {
             ...phaseOpts,
             resumeSessionId: tracker.getResumeId(),
+            hooks: buildHooks("deliver", deliverStart),
           });
           tracker.record("deliver", deliverResult.sessionId);
           phaseResults.push({
@@ -128,6 +150,7 @@ export async function executeSingleItem(
           const discernResult = await runPhase("discern", input, {
             ...phaseOpts,
             resumeSessionId: tracker.getResumeId(),
+            hooks: buildHooks("discern", discernStart),
           });
           tracker.record("discern", discernResult.sessionId);
           phaseResults.push({
