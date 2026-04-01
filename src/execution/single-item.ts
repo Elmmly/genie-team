@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks, type ToolUseEvent } from "../core/phase-executor.js";
 import { SessionTracker } from "../core/session-tracker.js";
 import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js";
@@ -15,7 +17,6 @@ export interface SingleItemOptions {
   cwd?: string;
   skipPermissions?: boolean;
   trunkMode?: boolean;
-  hasContextDir?: boolean;
   noResume?: boolean;
   turnOverrides?: TurnOverrides;
   reviewCycles?: number;
@@ -64,6 +65,12 @@ export async function executeSingleItem(
   const tracker = new SessionTracker({ noResume: options.noResume });
   const maxReviewCycles = options.reviewCycles ?? 1;
 
+  // Auto-detect strategic context directory
+  const projectRoot = options.cwd ?? process.cwd();
+  const hasContextDir = existsSync(join(projectRoot, "docs", "context"))
+    ? true
+    : undefined;
+
   const costLogger = options.logDir ? createCostLogger(options.logDir) : undefined;
   const artifactTracker = createArtifactTracker();
 
@@ -105,7 +112,7 @@ export async function executeSingleItem(
       cwd: options.cwd,
       skipPermissions: options.skipPermissions,
       trunkMode: options.trunkMode,
-      hasContextDir: options.hasContextDir,
+      hasContextDir,
       turnOverrides: options.turnOverrides,
       maxBudgetUsd: options.maxBudgetUsd,
       authMode: options.authMode,

@@ -217,4 +217,58 @@ describe("executeBatch", () => {
       expect.objectContaining({ authMode: "oauth" }),
     );
   });
+
+  it("passes worktree path as cwd to executeSingleItem", async () => {
+    // Arrange
+    vi.mocked(sessionStart).mockResolvedValue("/tmp/worktree--P1-auth");
+    const items = [makeItem("P1-auth")];
+
+    // Act
+    await executeBatch(items, {
+      throughPhase: "discern",
+      finishMode: "pr",
+    });
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ cwd: "/tmp/worktree--P1-auth" }),
+    );
+  });
+
+  it("threads reviewCycles to executeSingleItem", async () => {
+    // Arrange
+    const items = [makeItem("P1-item")];
+
+    // Act
+    await executeBatch(items, {
+      throughPhase: "discern",
+      finishMode: "pr",
+      reviewCycles: 3,
+    });
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ reviewCycles: 3 }),
+    );
+  });
+
+  it("threads turnOverrides to executeSingleItem", async () => {
+    // Arrange
+    const items = [makeItem("P1-item")];
+
+    // Act
+    await executeBatch(items, {
+      throughPhase: "discern",
+      finishMode: "pr",
+      turnOverrides: { global: 200 },
+    });
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ turnOverrides: { global: 200 } }),
+    );
+  });
 });

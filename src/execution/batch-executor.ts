@@ -6,7 +6,7 @@ import {
   integrateTrunk,
   type FinishMode,
 } from "../git/worktree.js";
-import type { PhaseName } from "../config/phase-config.js";
+import type { PhaseName, TurnOverrides } from "../config/phase-config.js";
 
 export interface BatchItem {
   slug: string;
@@ -26,6 +26,8 @@ export interface BatchOptions {
   maxBudgetUsd?: number;
   logDir?: string;
   authMode?: "oauth" | "apikey";
+  reviewCycles?: number;
+  turnOverrides?: TurnOverrides;
 }
 
 interface ItemOutcome {
@@ -178,11 +180,12 @@ async function executeOneItem(
   options: BatchOptions,
 ): Promise<ItemOutcome> {
   try {
-    await sessionStart(item.slug, item.phase);
+    const cwd = await sessionStart(item.slug, item.phase);
 
     const result = await executeSingleItem(item.input, {
       fromPhase: item.phase,
       throughPhase: options.throughPhase,
+      cwd,
       model: options.model,
       skipPermissions: options.skipPermissions,
       trunkMode: options.trunkMode,
@@ -190,6 +193,8 @@ async function executeOneItem(
       maxBudgetUsd: options.maxBudgetUsd,
       logDir: options.logDir,
       authMode: options.authMode,
+      reviewCycles: options.reviewCycles,
+      turnOverrides: options.turnOverrides,
     });
 
     return {
