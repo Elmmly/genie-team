@@ -7,6 +7,8 @@ import { formatModelsTable } from "./environment/models.js";
 import { runChecks, formatCheckResult } from "./environment/check.js";
 import { isValidPhase, type PhaseName } from "./config/phase-config.js";
 import { executeSingleItem, type SingleItemOptions } from "./execution/single-item.js";
+import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
+import type { FinishMode } from "./git/worktree.js";
 
 function loadVersion(): string {
   const __filename = fileURLToPath(import.meta.url);
@@ -119,6 +121,66 @@ export function createCli(): Command {
       ]
         .filter(Boolean)
         .join(" | ");
+
+      console.log(summary);
+      process.exit(result.exitCode);
+    });
+
+  function parseFinishMode(value: string): FinishMode {
+    const valid: FinishMode[] = ["pr", "merge", "leave-branch"];
+    if (!valid.includes(value as FinishMode)) {
+      throw new InvalidArgumentError(
+        `Invalid finish mode "${value}". Valid modes: ${valid.join(", ")}`,
+      );
+    }
+    return value as FinishMode;
+  }
+
+  interface DaemonOpts {
+    through: PhaseName;
+    finish: FinishMode;
+    parallel?: string;
+    priority?: string;
+    model?: string;
+    trunk?: true;
+    skipPermissions?: true;
+    budget?: string;
+    logDir?: string;
+  }
+
+  program
+    .command("daemon")
+    .description("Run one daemon cycle: resolve backlog items and execute batch")
+    .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName)
+    .option("--finish <mode>", "Post-execution integration (pr|merge|leave-branch)", parseFinishMode, "pr" as FinishMode)
+    .option("--parallel <n>", "Concurrency limit")
+    .option("--priority <level>", "Filter items by priority (e.g. P0)")
+    .option("--model <model>", "Model override")
+    .option("--trunk", "Use trunk-based mode")
+    .option("--skip-permissions", "Bypass permission prompts")
+    .option("--budget <usd>", "Max budget in USD per session")
+    .option("--log-dir <dir>", "Directory for structured JSON cost logs")
+    .action(async (opts: DaemonOpts) => {
+      const options: DaemonOptions = {
+        throughPhase: opts.through,
+        finishMode: opts.finish,
+      };
+
+      if (opts.parallel) options.parallel = parseInt(opts.parallel, 10);
+      if (opts.priority) options.priorities = [opts.priority];
+      if (opts.model) options.model = opts.model;
+      if (opts.trunk) options.trunkMode = true;
+      if (opts.skipPermissions) options.skipPermissions = true;
+      if (opts.budget) options.maxBudgetUsd = parseFloat(opts.budget);
+      if (opts.logDir) options.logDir = opts.logDir;
+
+      const result = await runDaemonCycle(options);
+
+      const summary = [
+        `Completed: ${result.itemsCompleted}`,
+        `Failed: ${result.itemsFailed}`,
+        `Cost: $${result.costUsd.toFixed(4)}`,
+      ].join(" | ");
 
       console.log(summary);
       process.exit(result.exitCode);

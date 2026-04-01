@@ -5,8 +5,14 @@ vi.mock("./execution/single-item.js", () => ({
   executeSingleItem: vi.fn(),
 }));
 
+vi.mock("./execution/daemon.js", () => ({
+  runDaemonCycle: vi.fn(),
+}));
+
 import { executeSingleItem } from "./execution/single-item.js";
 import type { SingleItemResult } from "./execution/single-item.js";
+import { runDaemonCycle } from "./execution/daemon.js";
+import type { DaemonCycleResult } from "./execution/daemon.js";
 
 function mockRunResult(overrides?: Partial<SingleItemResult>): SingleItemResult {
   return {
@@ -324,5 +330,158 @@ describe("run command extended flags", () => {
     expect(opts.maxBudgetUsd).toBeUndefined();
     expect(opts.reviewCycles).toBeUndefined();
     expect(opts.skipPermissions).toBeUndefined();
+  });
+});
+
+function mockDaemonResult(overrides?: Partial<DaemonCycleResult>): DaemonCycleResult {
+  return {
+    itemsCompleted: 2,
+    itemsFailed: 0,
+    costUsd: 0.10,
+    exitCode: 0,
+    ...overrides,
+  };
+}
+
+describe("daemon command", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(runDaemonCycle).mockResolvedValue(mockDaemonResult());
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("registers daemon subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const cmd = cli.commands.find((c) => c.name() === "daemon");
+
+    // Assert
+    expect(cmd).toBeDefined();
+  });
+
+  it("calls runDaemonCycle with defaults", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "daemon"]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        throughPhase: "done",
+        finishMode: "pr",
+      }),
+    );
+  });
+
+  it("--through sets ending phase", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "daemon", "--through", "deliver"]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.objectContaining({ throughPhase: "deliver" }),
+    );
+  });
+
+  it("--finish sets finish mode", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "daemon", "--finish", "merge"]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.objectContaining({ finishMode: "merge" }),
+    );
+  });
+
+  it("--parallel sets concurrency", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "daemon", "--parallel", "4"]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.objectContaining({ parallel: 4 }),
+    );
+  });
+
+  it("--priority filters by priority", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "daemon", "--priority", "P0"]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.objectContaining({ priorities: ["P0"] }),
+    );
+  });
+
+  it("--model passes through", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "daemon", "--model", "claude-opus-4-6"]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "claude-opus-4-6" }),
+    );
+  });
+
+  it("--trunk, --skip-permissions, --budget, --log-dir pass through", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync([
+      "node", "genies-core", "daemon",
+      "--trunk", "--skip-permissions", "--budget", "10", "--log-dir", "/tmp/logs",
+    ]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.objectContaining({
+        trunkMode: true,
+        skipPermissions: true,
+        maxBudgetUsd: 10,
+        logDir: "/tmp/logs",
+      }),
+    );
+  });
+
+  it("prints summary and propagates exit code", async () => {
+    // Arrange
+    vi.mocked(runDaemonCycle).mockResolvedValue(mockDaemonResult({
+      itemsCompleted: 3,
+      itemsFailed: 1,
+      costUsd: 0.25,
+      exitCode: 1,
+    }));
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "daemon"]);
+
+    // Assert
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("3");
+    expect(output).toContain("1");
+    expect(output).toContain("0.25");
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 });
