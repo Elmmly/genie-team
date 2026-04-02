@@ -5,6 +5,7 @@ import os from "node:os";
 import {
   loadGenieConfig,
   getModelForGenie,
+  resolveGenieConfig,
   DEFAULT_CONFIG,
   type GenieConfig,
 } from "./genie-config.js";
@@ -225,6 +226,7 @@ describe("getModelForGenie", () => {
   it("returns model for known genie", () => {
     // Arrange
     const config: GenieConfig = {
+      provider: "claude",
       tiers: {
         reasoning: { model: "claude-opus-4-6", description: "Deep analysis" },
         default: { model: "claude-sonnet-4-6", description: "Standard" },
@@ -245,6 +247,7 @@ describe("getModelForGenie", () => {
   it("returns default tier model for unknown genie", () => {
     // Arrange
     const config: GenieConfig = {
+      provider: "claude",
       tiers: {
         default: { model: "claude-sonnet-4-6", description: "Standard" },
       },
@@ -261,6 +264,7 @@ describe("getModelForGenie", () => {
   it("returns undefined when genie has no assignment and no default tier", () => {
     // Arrange
     const config: GenieConfig = {
+      provider: "claude",
       tiers: {
         reasoning: { model: "claude-opus-4-6", description: "Deep analysis" },
       },
@@ -277,6 +281,7 @@ describe("getModelForGenie", () => {
   it("returns undefined when genie references a non-existent tier", () => {
     // Arrange
     const config: GenieConfig = {
+      provider: "claude",
       tiers: {
         default: { model: "claude-sonnet-4-6", description: "Standard" },
       },
@@ -332,5 +337,170 @@ describe("DEFAULT_CONFIG", () => {
     for (const [, tierName] of Object.entries(DEFAULT_CONFIG.assignments)) {
       expect(DEFAULT_CONFIG.tiers).toHaveProperty(tierName);
     }
+  });
+
+  it("has provider defaulting to claude", () => {
+    expect(DEFAULT_CONFIG.provider).toBe("claude");
+  });
+});
+
+describe("provider configuration", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("parses top-level provider from config", () => {
+    // Arrange
+    const projectRoot = "/my/project";
+    const configPath = path.join(projectRoot, ".claude", "genie-config.yaml");
+    const yamlContent = `
+provider: openai
+tiers:
+  default:
+    model: gpt-4o
+    description: Standard
+assignments:
+  crafter: default
+`;
+    vi.mocked(fs.existsSync).mockImplementation((p) => p === configPath);
+    vi.mocked(fs.readFileSync).mockImplementation((p) => {
+      if (p === configPath) return yamlContent;
+      throw new Error(`Unexpected read: ${p}`);
+    });
+
+    // Act
+    const config = loadGenieConfig(projectRoot);
+
+    // Assert
+    expect(config.provider).toBe("openai");
+  });
+
+  it("defaults provider to claude when not specified", () => {
+    // Arrange
+    const projectRoot = "/my/project";
+    const configPath = path.join(projectRoot, ".claude", "genie-config.yaml");
+    const yamlContent = `
+tiers:
+  default:
+    model: claude-sonnet-4-6
+    description: Standard
+assignments:
+  crafter: default
+`;
+    vi.mocked(fs.existsSync).mockImplementation((p) => p === configPath);
+    vi.mocked(fs.readFileSync).mockImplementation((p) => {
+      if (p === configPath) return yamlContent;
+      throw new Error(`Unexpected read: ${p}`);
+    });
+
+    // Act
+    const config = loadGenieConfig(projectRoot);
+
+    // Assert
+    expect(config.provider).toBe("claude");
+  });
+
+  it("parses per-tier provider override", () => {
+    // Arrange
+    const projectRoot = "/my/project";
+    const configPath = path.join(projectRoot, ".claude", "genie-config.yaml");
+    const yamlContent = `
+provider: openai
+tiers:
+  default:
+    model: gpt-4o
+    description: Standard
+  fast:
+    provider: google
+    model: gemini-2.0-flash
+    description: Quick
+assignments:
+  crafter: default
+  critic: fast
+`;
+    vi.mocked(fs.existsSync).mockImplementation((p) => p === configPath);
+    vi.mocked(fs.readFileSync).mockImplementation((p) => {
+      if (p === configPath) return yamlContent;
+      throw new Error(`Unexpected read: ${p}`);
+    });
+
+    // Act
+    const config = loadGenieConfig(projectRoot);
+
+    // Assert
+    expect(config.tiers.fast.provider).toBe("google");
+    expect(config.tiers.default.provider).toBeUndefined();
+  });
+});
+
+describe("resolveGenieConfig", () => {
+  it("returns model and provider for a genie", () => {
+    // Arrange
+    const config: GenieConfig = {
+      provider: "openai",
+      tiers: {
+        reasoning: { model: "gpt-4o", description: "Deep" },
+      },
+      assignments: { scout: "reasoning" },
+    };
+
+    // Act
+    const resolved = resolveGenieConfig(config, "scout");
+
+    // Assert
+    expect(resolved.model).toBe("gpt-4o");
+    expect(resolved.provider).toBe("openai");
+  });
+
+  it("uses per-tier provider when set", () => {
+    // Arrange
+    const config: GenieConfig = {
+      provider: "openai",
+      tiers: {
+        fast: { model: "gemini-2.0-flash", description: "Quick", provider: "google" },
+      },
+      assignments: { critic: "fast" },
+    };
+
+    // Act
+    const resolved = resolveGenieConfig(config, "critic");
+
+    // Assert
+    expect(resolved.model).toBe("gemini-2.0-flash");
+    expect(resolved.provider).toBe("google");
+  });
+
+  it("falls back to top-level provider when tier has no provider", () => {
+    // Arrange
+    const config: GenieConfig = {
+      provider: "anthropic",
+      tiers: {
+        default: { model: "claude-sonnet-4-6", description: "Standard" },
+      },
+      assignments: { crafter: "default" },
+    };
+
+    // Act
+    const resolved = resolveGenieConfig(config, "crafter");
+
+    // Assert
+    expect(resolved.provider).toBe("anthropic");
+  });
+
+  it("defaults to claude when no provider anywhere", () => {
+    // Arrange
+    const config: GenieConfig = {
+      provider: "claude",
+      tiers: {
+        default: { model: "claude-sonnet-4-6", description: "Standard" },
+      },
+      assignments: {},
+    };
+
+    // Act
+    const resolved = resolveGenieConfig(config, "unknown-genie");
+
+    // Assert
+    expect(resolved.provider).toBe("claude");
   });
 });

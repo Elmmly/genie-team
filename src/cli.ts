@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { loadGenieConfig } from "./config/genie-config.js";
+import type { GenieConfig } from "./config/genie-config.js";
 import { formatModelsTable } from "./environment/models.js";
 import { runChecks, formatCheckResult } from "./environment/check.js";
 import { isValidPhase, type PhaseName } from "./config/phase-config.js";
@@ -113,9 +114,11 @@ export function createCli(): Command {
     return value;
   }
 
+  const config = loadGenieConfig();
+
   /** Raw CLI flags shared by run and daemon commands. */
   interface SharedCliOpts {
-    provider: string;
+    provider?: string;
     model?: string;
     turns?: string;
     resume: boolean;
@@ -168,7 +171,7 @@ export function createCli(): Command {
   /** Add shared execution flags to a commander command. */
   function addExecutionFlags(cmd: Command): Command {
     return cmd
-      .option("--provider <name>", "AI provider (claude|anthropic|openai|google)", "claude")
+      .option("--provider <name>", `AI provider (claude|anthropic|openai|google, default: ${config.provider})`)
       .option("--model <model>", "Model override (e.g. gpt-4o, claude-sonnet-4-5-20250514)")
       .option("--turns <n>", "Global turn limit override")
       .option("--no-resume", "Start fresh sessions (disable cross-phase resume)")
@@ -194,7 +197,7 @@ export function createCli(): Command {
       .option("--from <phase>", "Starting phase", parsePhase, "discover" as PhaseName)
       .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName),
   ).action(async (item: string, opts: RunOpts) => {
-      const executor = createExecutor(opts.provider);
+      const executor = createExecutor(opts.provider ?? config.provider);
       const options: SingleItemOptions = {
         ...parseExecutionOpts(opts),
         fromPhase: opts.from,
@@ -242,7 +245,7 @@ export function createCli(): Command {
       .option("--parallel <n>", "Concurrency limit")
       .option("--priority <level>", "Filter items by priority (e.g. P0)"),
   ).action(async (opts: DaemonOpts) => {
-      const executor = createExecutor(opts.provider);
+      const executor = createExecutor(opts.provider ?? config.provider);
       const options: DaemonOptions = {
         ...parseExecutionOpts(opts),
         throughPhase: opts.through,

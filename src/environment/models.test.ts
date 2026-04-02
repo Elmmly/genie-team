@@ -38,6 +38,7 @@ describe("formatModelsTable", () => {
   it("groups genies by tier", () => {
     // Arrange
     const config: GenieConfig = {
+      provider: "claude",
       tiers: {
         reasoning: { model: "claude-opus-4-6", description: "Deep" },
         default: { model: "claude-sonnet-4-6", description: "Standard" },
@@ -62,6 +63,7 @@ describe("formatModelsTable", () => {
   it("handles config with no assignments", () => {
     // Arrange
     const config: GenieConfig = {
+      provider: "claude",
       tiers: {
         default: { model: "claude-sonnet-4-6", description: "Standard" },
       },

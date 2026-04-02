@@ -7,16 +7,25 @@ import yaml from "js-yaml";
 export interface ModelTier {
   model: string;
   description: string;
+  provider?: string;
 }
 
 /** Genie configuration — defines model tiers and per-genie tier assignments. */
 export interface GenieConfig {
+  provider: string;
   tiers: Record<string, ModelTier>;
   assignments: Record<string, string>;
 }
 
+/** Resolved model and provider for a specific genie. */
+export interface ResolvedGenie {
+  model: string | undefined;
+  provider: string;
+}
+
 /** Sensible defaults matching the standard genie-config.yaml example. */
 export const DEFAULT_CONFIG: GenieConfig = {
+  provider: "claude",
   tiers: {
     reasoning: {
       model: "claude-opus-4-6",
@@ -43,7 +52,8 @@ export const DEFAULT_CONFIG: GenieConfig = {
 };
 
 interface RawGenieConfig {
-  tiers?: Record<string, { model?: string; description?: string }>;
+  provider?: string;
+  tiers?: Record<string, { model?: string; description?: string; provider?: string }>;
   assignments?: Record<string, string>;
 }
 
@@ -89,6 +99,23 @@ export function getModelForGenie(
   return config.tiers[tierName]?.model;
 }
 
+/**
+ * Resolves both model and provider for a given genie.
+ * Priority: tier.provider > config.provider > "claude"
+ */
+export function resolveGenieConfig(
+  config: GenieConfig,
+  genieName: string,
+): ResolvedGenie {
+  const tierName = config.assignments[genieName] ?? "default";
+  const tier = config.tiers[tierName];
+
+  return {
+    model: tier?.model,
+    provider: tier?.provider ?? config.provider,
+  };
+}
+
 function parseConfigFile(filePath: string): GenieConfig {
   const content = fs.readFileSync(filePath, "utf-8");
   const raw = yaml.load(content) as RawGenieConfig;
@@ -99,13 +126,19 @@ function parseConfigFile(filePath: string): GenieConfig {
     );
   }
 
+  const provider = raw.provider ?? "claude";
+
   const tiers: Record<string, ModelTier> = {};
   if (raw.tiers && typeof raw.tiers === "object") {
     for (const [name, tier] of Object.entries(raw.tiers)) {
-      tiers[name] = {
+      const entry: ModelTier = {
         model: tier.model ?? "",
         description: tier.description ?? "",
       };
+      if (tier.provider) {
+        entry.provider = tier.provider;
+      }
+      tiers[name] = entry;
     }
   }
 
@@ -121,5 +154,5 @@ function parseConfigFile(filePath: string): GenieConfig {
     }
   }
 
-  return { tiers, assignments };
+  return { provider, tiers, assignments };
 }
