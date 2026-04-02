@@ -125,6 +125,10 @@ export async function listSessions(): Promise<SessionInfo[]> {
 
 // ── Session lifecycle ──
 
+/**
+ * How to integrate a worktree session after execution.
+ * "force" is internal-only (used by sessionFinish for cleanup) — not exposed in CLI.
+ */
 export type FinishMode = "pr" | "merge" | "force" | "leave-branch";
 
 export async function sessionStart(
@@ -136,7 +140,11 @@ export async function sessionStart(
   const branch = branchName(item, phase);
   const baseBranch = await defaultBranch();
 
-  // Reuse: worktree and branch both exist
+  // Reuse: worktree and branch both exist.
+  // Note: TOCTOU race exists between branchExists check and worktree add.
+  // In parallel daemon runs, two workers could race on the same branch.
+  // A proper fix requires file locking (e.g., proper-lockfile). Acceptable
+  // risk for single-genie mode; revisit if parallel conflicts are observed.
   if (await branchExists(branch)) {
     // Check if worktree exists by trying to resolve it
     try {
@@ -271,11 +279,14 @@ export async function integratePr(
     // PR creation failed — branch is pushed, user can create manually
   }
 
-  // Delete local branch
-  try {
-    await execa("git", ["-C", root, "branch", "-D", branch]);
-  } catch {
-    // May already be deleted
+  // Only delete local branch if PR was created successfully.
+  // If PR creation failed, keep the local branch so the user has a reference.
+  if (prUrl) {
+    try {
+      await execa("git", ["-C", root, "branch", "-D", branch]);
+    } catch {
+      // May already be deleted
+    }
   }
 
   return { prUrl, exitCode: 0 };
