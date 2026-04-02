@@ -67,7 +67,7 @@ export async function runPhase(
   const queryOptions: SDKOptions = {
     allowedTools,
     maxTurns,
-    settingSources: ["project"],
+    settingSources: ["user", "project"],
     systemPrompt: { type: "preset", preset: "claude_code" },
     model: options?.model,
     cwd: options?.cwd,

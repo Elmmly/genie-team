@@ -106,6 +106,7 @@ describe("runPhase", () => {
     // Assert
     const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
     const opts = callArgs.options as Record<string, unknown>;
+    expect(opts.settingSources).toContain("user");
     expect(opts.settingSources).toContain("project");
   });
 
