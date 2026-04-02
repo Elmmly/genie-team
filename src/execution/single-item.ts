@@ -21,6 +21,7 @@ export interface ExecutionOptions {
   logDir?: string;
   authMode?: "oauth" | "apikey";
   hasContextDir?: boolean;
+  verbose?: boolean;
 }
 
 export interface SingleItemOptions extends ExecutionOptions {
@@ -105,6 +106,7 @@ export async function executeSingleItem(
     turnOverrides: options.turnOverrides,
     maxBudgetUsd: options.maxBudgetUsd,
     authMode: options.authMode,
+    verbose: options.verbose,
   };
 
   const phaseResults: PhaseRecord[] = [];
@@ -129,6 +131,9 @@ export async function executeSingleItem(
 
   for (let i = fromIdx; i <= throughIdx; i++) {
     const phase = PHASES[i];
+    if (options.verbose) {
+      console.error(`\n=== Phase: ${phase} ===`);
+    }
     const result = await runAndRecord(phase);
 
     if (result.exhausted) {

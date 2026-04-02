@@ -29,6 +29,7 @@ export interface PhaseOptions {
   maxBudgetUsd?: number;
   hooks?: PhaseHooks;
   authMode?: "oauth" | "apikey";
+  verbose?: boolean;
 }
 
 export interface PhaseResult {
@@ -39,6 +40,46 @@ export interface PhaseResult {
   costUsd: number;
   numTurns: number;
   exhausted: boolean;
+}
+
+function formatVerboseMessage(msg: Record<string, unknown>): void {
+  switch (msg.type) {
+    case "assistant": {
+      // Extract tool use from assistant message content blocks
+      const message = msg.message as Record<string, unknown> | undefined;
+      const content = message?.content as Array<Record<string, unknown>> | undefined;
+      if (!Array.isArray(content)) return;
+      for (const block of content) {
+        if (block.type === "tool_use") {
+          const name = block.name as string;
+          const input = block.input as Record<string, unknown> | undefined;
+          if (name === "Write" || name === "Edit") {
+            console.error(`  ${name}: ${input?.file_path ?? "unknown"}`);
+          } else if (name === "Bash") {
+            const cmd = (input?.command as string ?? "").split("\n")[0].slice(0, 60);
+            console.error(`  Bash: ${cmd}`);
+          } else if (name === "Read") {
+            console.error(`  Read: ${input?.file_path ?? "unknown"}`);
+          } else {
+            console.error(`  ${name}`);
+          }
+        }
+      }
+      break;
+    }
+    case "result": {
+      const turns = msg.num_turns as number;
+      const cost = msg.total_cost_usd as number;
+      console.error(`  Done (${turns} turns, $${cost.toFixed(4)})`);
+      break;
+    }
+    case "system":
+      if (msg.subtype === "task_notification") {
+        const title = (msg as Record<string, unknown>).title as string | undefined;
+        if (title) console.error(`  ${title}`);
+      }
+      break;
+  }
 }
 
 /**
@@ -109,8 +150,14 @@ export async function runPhase(
   let numTurns = 0;
   let exhausted = false;
 
+  const verbose = options?.verbose ?? false;
+
   for await (const message of query({ prompt, options: queryOptions })) {
     const msg = message as Record<string, unknown>;
+
+    if (verbose) {
+      formatVerboseMessage(msg);
+    }
 
     // Capture session ID from init message
     if (msg.type === "system" && msg.subtype === "init") {

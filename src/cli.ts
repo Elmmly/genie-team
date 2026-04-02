@@ -81,6 +81,7 @@ export function createCli(): Command {
     skipPermissions?: true;
     logDir?: string;
     auth?: "oauth" | "apikey";
+    verbose?: true;
   }
 
   function parsePositiveInt(value: string, name: string): number {
@@ -115,6 +116,7 @@ export function createCli(): Command {
     if (opts.reviewCycles) exec.reviewCycles = parsePositiveInt(opts.reviewCycles, "--review-cycles");
     if (opts.skipPermissions) exec.skipPermissions = true;
     if (opts.logDir) exec.logDir = opts.logDir;
+    if (opts.verbose) exec.verbose = true;
     return exec;
   }
 
@@ -129,7 +131,8 @@ export function createCli(): Command {
       .option("--review-cycles <n>", "Max deliver↔discern review cycles")
       .option("--skip-permissions", "Bypass permission prompts")
       .option("--log-dir <dir>", "Directory for structured JSON cost logs")
-      .option("--auth <mode>", "Auth mode (oauth|apikey)");
+      .option("--auth <mode>", "Auth mode (oauth|apikey)")
+      .option("--verbose", "Show phase progress on stderr");
   }
 
   interface RunOpts extends SharedCliOpts {
