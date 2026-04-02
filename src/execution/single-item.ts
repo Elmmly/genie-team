@@ -4,6 +4,7 @@ import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js
 import {
   PHASES,
   phaseIndex,
+  getGenieName,
   type PhaseName,
   type TurnOverrides,
 } from "../config/phase-config.js";
@@ -85,7 +86,7 @@ export async function executeSingleItem(
         ? (result: PhaseResult) => {
             costLogger.log({
               phase,
-              genie: phase, // TODO: resolve actual genie name from phase-to-genie mapping
+              genie: getGenieName(phase),
               turns: result.numTurns,
               inputTokens: result.inputTokens,
               outputTokens: result.outputTokens,

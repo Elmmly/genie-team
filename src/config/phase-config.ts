@@ -45,6 +45,17 @@ const PHASE_TOOLS: Record<PhaseName, string[]> = {
   done: ["Read", "Grep", "Glob", "Write", "Edit", "Bash"],
 };
 
+/** Which genie handles each phase of the PDLC lifecycle. */
+const PHASE_GENIE: Record<PhaseName, string> = {
+  discover: "scout",
+  define: "shaper",
+  design: "architect",
+  deliver: "crafter",
+  discern: "critic",
+  commit: "crafter",
+  done: "crafter",
+};
+
 export type TurnOverrides = Partial<Record<PhaseName | "global", number>>;
 
 export function isValidPhase(name: string): name is PhaseName {
@@ -77,4 +88,8 @@ export function getMinTurns(phase: PhaseName): number {
 
 export function getPhaseTools(phase: PhaseName): string[] {
   return PHASE_TOOLS[phase];
+}
+
+export function getGenieName(phase: PhaseName): string {
+  return PHASE_GENIE[phase];
 }
