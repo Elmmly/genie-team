@@ -15,6 +15,7 @@ import { LLMApiExecutor } from "./core/llm-api-executor.js";
 import { LocalToolExecutor } from "./core/tool-executor.js";
 import { OpenAILLMClient } from "./providers/openai-client.js";
 import { GoogleLLMClient } from "./providers/google-client.js";
+import { AnthropicLLMClient } from "./providers/anthropic-client.js";
 import type { PhaseExecutor } from "./core/phase-executor.js";
 
 function loadVersion(): string {
@@ -51,8 +52,17 @@ function createExecutor(provider: string): PhaseExecutor {
       const tools = new LocalToolExecutor(process.cwd());
       return new LLMApiExecutor(client, tools);
     }
+    case "anthropic": {
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) {
+        throw new Error("--provider anthropic requires ANTHROPIC_API_KEY environment variable");
+      }
+      const client = new AnthropicLLMClient(apiKey);
+      const tools = new LocalToolExecutor(process.cwd());
+      return new LLMApiExecutor(client, tools);
+    }
     default:
-      throw new InvalidArgumentError(`Unknown provider "${provider}". Valid providers: claude, openai, google`);
+      throw new InvalidArgumentError(`Unknown provider "${provider}". Valid providers: claude, anthropic, openai, google`);
   }
 }
 
@@ -158,7 +168,7 @@ export function createCli(): Command {
   /** Add shared execution flags to a commander command. */
   function addExecutionFlags(cmd: Command): Command {
     return cmd
-      .option("--provider <name>", "AI provider (claude|openai|google)", "claude")
+      .option("--provider <name>", "AI provider (claude|anthropic|openai|google)", "claude")
       .option("--model <model>", "Model override (e.g. gpt-4o, claude-sonnet-4-5-20250514)")
       .option("--turns <n>", "Global turn limit override")
       .option("--no-resume", "Start fresh sessions (disable cross-phase resume)")
