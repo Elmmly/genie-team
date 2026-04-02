@@ -447,8 +447,6 @@ install_genies() {
 
 # Build and globally install genies-core (TypeScript SDK orchestrator)
 install_genies_core() {
-    local dry_run="$1"
-
     if [[ ! -f "$SCRIPT_DIR/package.json" ]]; then
         log_warn "No package.json found — skipping genies-core build"
         return 0
@@ -456,11 +454,6 @@ install_genies_core() {
 
     if ! command -v node &>/dev/null; then
         log_warn "Node.js not found — skipping genies-core build (genies will use bash fallback)"
-        return 0
-    fi
-
-    if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY RUN] Would build and npm link genies-core"
         return 0
     fi
 
