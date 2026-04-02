@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { runPhase, type PhaseResult, type PhaseOptions } from "./phase-executor.js";
+import { ClaudeAgentExecutor } from "./claude-agent-executor.js";
+import type { PhaseResult, PhaseOptions } from "./phase-executor.js";
 
 // Mock the SDK
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
@@ -7,6 +8,8 @@ vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
 }));
 
 import { query } from "@anthropic-ai/claude-agent-sdk";
+
+const executor = new ClaudeAgentExecutor();
 
 function mockQueryMessages(messages: Array<Record<string, unknown>>) {
   vi.mocked(query).mockImplementation(async function* () {
@@ -16,7 +19,7 @@ function mockQueryMessages(messages: Array<Record<string, unknown>>) {
   } as never);
 }
 
-describe("runPhase", () => {
+describe("ClaudeAgentExecutor.runPhase", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -36,7 +39,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    const result = await runPhase("discover", "user authentication");
+    const result = await executor.runPhase("discover", "user authentication");
 
     // Assert
     expect(result.output).toBe("Discovery complete. Found 3 opportunities.");
@@ -58,7 +61,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    const result = await runPhase("deliver", "docs/backlog/P0-item.md");
+    const result = await executor.runPhase("deliver", "docs/backlog/P0-item.md");
 
     // Assert
     expect(result.inputTokens).toBe(1000);
@@ -75,7 +78,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "docs/backlog/P0-item.md", {
+    await executor.runPhase("deliver", "docs/backlog/P0-item.md", {
       model: "claude-sonnet-4-6",
       skipPermissions: true,
     });
@@ -101,7 +104,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    await runPhase("design", "docs/backlog/P0-item.md");
+    await executor.runPhase("design", "docs/backlog/P0-item.md");
 
     // Assert
     const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
@@ -118,7 +121,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "docs/backlog/P0-item.md", {
+    await executor.runPhase("deliver", "docs/backlog/P0-item.md", {
       resumeSessionId: "sess-previous",
     });
 
@@ -143,7 +146,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    const result = await runPhase("deliver", "docs/backlog/P0-item.md");
+    const result = await executor.runPhase("deliver", "docs/backlog/P0-item.md");
 
     // Assert
     expect(result.exhausted).toBe(true);
@@ -158,7 +161,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "docs/backlog/P0-item.md", {
+    await executor.runPhase("deliver", "docs/backlog/P0-item.md", {
       turnOverrides: { deliver: 200 },
     });
 
@@ -176,7 +179,7 @@ describe("runPhase", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "docs/backlog/P0-item.md", {
+    await executor.runPhase("deliver", "docs/backlog/P0-item.md", {
       trunkMode: true,
     });
 
@@ -186,7 +189,7 @@ describe("runPhase", () => {
   });
 });
 
-describe("runPhase hooks", () => {
+describe("ClaudeAgentExecutor.runPhase hooks", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -200,7 +203,7 @@ describe("runPhase hooks", () => {
     const onResult = vi.fn();
 
     // Act
-    await runPhase("deliver", "docs/backlog/P0-item.md", { hooks: { onResult } });
+    await executor.runPhase("deliver", "docs/backlog/P0-item.md", { hooks: { onResult } });
 
     // Assert
     expect(onResult).toHaveBeenCalledTimes(1);
@@ -220,7 +223,7 @@ describe("runPhase hooks", () => {
     ]);
 
     // Act
-    const result = await runPhase("discover", "topic");
+    const result = await executor.runPhase("discover", "topic");
 
     // Assert
     expect(result.output).toBe("Ok");
@@ -228,7 +231,7 @@ describe("runPhase hooks", () => {
 
 });
 
-describe("runPhase auth mode", () => {
+describe("ClaudeAgentExecutor.runPhase auth mode", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -241,7 +244,7 @@ describe("runPhase auth mode", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "item.md", { authMode: "oauth" });
+    await executor.runPhase("deliver", "item.md", { authMode: "oauth" });
 
     // Assert
     const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
@@ -259,7 +262,7 @@ describe("runPhase auth mode", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "item.md", { authMode: "apikey" });
+    await executor.runPhase("deliver", "item.md", { authMode: "apikey" });
 
     // Assert
     const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
@@ -275,7 +278,7 @@ describe("runPhase auth mode", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "item.md");
+    await executor.runPhase("deliver", "item.md");
 
     // Assert
     const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
@@ -284,7 +287,7 @@ describe("runPhase auth mode", () => {
   });
 });
 
-describe("runPhase SDK hooks wiring", () => {
+describe("ClaudeAgentExecutor.runPhase SDK hooks wiring", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -298,7 +301,7 @@ describe("runPhase SDK hooks wiring", () => {
     const onToolUse = vi.fn();
 
     // Act
-    await runPhase("deliver", "item.md", { hooks: { onToolUse } });
+    await executor.runPhase("deliver", "item.md", { hooks: { onToolUse } });
 
     // Assert
     const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
@@ -316,7 +319,7 @@ describe("runPhase SDK hooks wiring", () => {
     ]);
 
     // Act
-    await runPhase("deliver", "item.md", { hooks: { onResult: vi.fn() } });
+    await executor.runPhase("deliver", "item.md", { hooks: { onResult: vi.fn() } });
 
     // Assert
     const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;

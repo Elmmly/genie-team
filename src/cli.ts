@@ -10,6 +10,7 @@ import { executeSingleItem, type ExecutionOptions, type SingleItemOptions } from
 import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
 import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
 import { resolveAuth } from "./environment/auth.js";
+import { ClaudeAgentExecutor } from "./core/claude-agent-executor.js";
 
 function loadVersion(): string {
   try {
@@ -25,6 +26,7 @@ function loadVersion(): string {
 
 export function createCli(): Command {
   const program = new Command();
+  const executor = new ClaudeAgentExecutor();
 
   program
     .name("genies-core")
@@ -155,7 +157,7 @@ export function createCli(): Command {
         throughPhase: opts.through,
       };
 
-      const result = await executeSingleItem(item, options);
+      const result = await executeSingleItem(executor, item, options);
 
       const phaseNames = result.phaseResults.map((r) => r.phase).join(" → ");
       const summary = [
@@ -205,7 +207,7 @@ export function createCli(): Command {
       if (opts.parallel) options.parallel = parseIntArg(opts.parallel, "--parallel");
       if (opts.priority) options.priorities = [opts.priority];
 
-      const result = await runDaemonCycle(options);
+      const result = await runDaemonCycle(executor, options);
 
       const summary = [
         `Completed: ${result.itemsCompleted}`,

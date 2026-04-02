@@ -4,6 +4,7 @@ import {
   type DaemonOptions,
   type DaemonCycleResult,
 } from "./daemon.js";
+import type { PhaseExecutor } from "../core/phase-executor.js";
 
 vi.mock("./batch-executor.js", () => ({
   executeBatch: vi.fn(),
@@ -15,6 +16,12 @@ vi.mock("./item-resolver.js", () => ({
 
 import { executeBatch } from "./batch-executor.js";
 import { resolveItems } from "./item-resolver.js";
+
+const mockExecutor: PhaseExecutor = {
+  name: "mock",
+  tier: 1,
+  runPhase: vi.fn(),
+};
 
 describe("runDaemonCycle", () => {
   beforeEach(() => {
@@ -35,7 +42,7 @@ describe("runDaemonCycle", () => {
     });
 
     // Act
-    const result = await runDaemonCycle({
+    const result = await runDaemonCycle(mockExecutor, {
       throughPhase: "discern",
       finishMode: "pr",
     });
@@ -50,7 +57,7 @@ describe("runDaemonCycle", () => {
     vi.mocked(resolveItems).mockResolvedValue([]);
 
     // Act
-    const result = await runDaemonCycle({
+    const result = await runDaemonCycle(mockExecutor, {
       throughPhase: "discern",
       finishMode: "pr",
     });
@@ -74,7 +81,7 @@ describe("runDaemonCycle", () => {
     });
 
     // Act
-    const result = await runDaemonCycle({
+    const result = await runDaemonCycle(mockExecutor, {
       throughPhase: "discern",
       finishMode: "pr",
     });
@@ -98,7 +105,7 @@ describe("runDaemonCycle", () => {
     });
 
     // Act
-    await runDaemonCycle({
+    await runDaemonCycle(mockExecutor, {
       throughPhase: "discern",
       finishMode: "pr",
       authMode: "oauth",
@@ -106,6 +113,7 @@ describe("runDaemonCycle", () => {
 
     // Assert
     expect(executeBatch).toHaveBeenCalledWith(
+      expect.anything(),
       expect.any(Array),
       expect.objectContaining({ authMode: "oauth" }),
     );

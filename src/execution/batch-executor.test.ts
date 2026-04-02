@@ -5,11 +5,18 @@ import {
   type BatchOptions,
   type BatchResult,
 } from "./batch-executor.js";
+import type { PhaseExecutor } from "../core/phase-executor.js";
 
 // Mock dependencies
 vi.mock("./single-item.js", () => ({
   executeSingleItem: vi.fn(),
 }));
+
+const mockExecutor: PhaseExecutor = {
+  name: "mock",
+  tier: 1,
+  runPhase: vi.fn(),
+};
 vi.mock("../git/worktree.js", () => ({
   sessionStart: vi.fn(),
   sessionCleanup: vi.fn(),
@@ -48,7 +55,7 @@ describe("executeBatch", () => {
     const items: BatchItem[] = [makeItem("P1-auth"), makeItem("P2-search")];
 
     // Act
-    const result = await executeBatch(items, {
+    const result = await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
     });
@@ -69,7 +76,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-a"), makeItem("P1-b"), makeItem("P1-c")];
 
     // Act
-    const result = await executeBatch(items, {
+    const result = await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
       continueOnFailure: true,
@@ -92,7 +99,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-a"), makeItem("P1-b"), makeItem("P1-c")];
 
     // Act
-    const result = await executeBatch(items, {
+    const result = await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
       continueOnFailure: false,
@@ -120,7 +127,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-a"), makeItem("P1-b"), makeItem("P1-c"), makeItem("P1-d")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
       parallel: 2,
@@ -139,7 +146,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-a"), makeItem("P1-b")];
 
     // Act
-    const result = await executeBatch(items, {
+    const result = await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
     });
@@ -153,7 +160,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-a")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "merge",
       trunkMode: true,
@@ -168,7 +175,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-a")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "leave-branch",
     });
@@ -189,7 +196,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-fail")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
     });
@@ -203,7 +210,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-auth")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
       authMode: "oauth",
@@ -211,6 +218,7 @@ describe("executeBatch", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       expect.any(String),
       expect.objectContaining({ authMode: "oauth" }),
     );
@@ -222,13 +230,14 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-auth")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
     });
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       expect.any(String),
       expect.objectContaining({ cwd: "/tmp/worktree--P1-auth" }),
     );
@@ -239,7 +248,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-item")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
       reviewCycles: 3,
@@ -247,6 +256,7 @@ describe("executeBatch", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       expect.any(String),
       expect.objectContaining({ reviewCycles: 3 }),
     );
@@ -257,7 +267,7 @@ describe("executeBatch", () => {
     const items = [makeItem("P1-item")];
 
     // Act
-    await executeBatch(items, {
+    await executeBatch(mockExecutor, items, {
       throughPhase: "discern",
       finishMode: "pr",
       turnOverrides: { global: 200 },
@@ -265,6 +275,7 @@ describe("executeBatch", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       expect.any(String),
       expect.objectContaining({ turnOverrides: { global: 200 } }),
     );

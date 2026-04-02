@@ -1,6 +1,7 @@
 import { executeBatch, type BatchOptions } from "./batch-executor.js";
 import { resolveItems, type ResolveOptions } from "./item-resolver.js";
 import type { ExecutionOptions } from "./single-item.js";
+import type { PhaseExecutor } from "../core/phase-executor.js";
 import type { PhaseName } from "../config/phase-config.js";
 import type { FinishMode } from "../git/worktree.js";
 
@@ -25,6 +26,7 @@ export interface DaemonCycleResult {
  * the caller — this function is a single cycle.
  */
 export async function runDaemonCycle(
+  executor: PhaseExecutor,
   options: DaemonOptions,
 ): Promise<DaemonCycleResult> {
   const projectRoot = options.cwd ?? process.cwd();
@@ -46,7 +48,7 @@ export async function runDaemonCycle(
     continueOnFailure: true, // daemon always continues
   };
 
-  const result = await executeBatch(items, batchOpts);
+  const result = await executeBatch(executor, items, batchOpts);
 
   return {
     itemsCompleted: result.succeeded.length,

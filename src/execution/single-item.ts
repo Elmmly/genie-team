@@ -1,4 +1,4 @@
-import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks, type ToolUseEvent } from "../core/phase-executor.js";
+import type { PhaseExecutor, PhaseOptions, PhaseResult, PhaseHooks, ToolUseEvent } from "../core/phase-executor.js";
 import { SessionTracker } from "../core/session-tracker.js";
 import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js";
 import {
@@ -62,6 +62,7 @@ function detectVerdict(output: string): Verdict | undefined {
  * detection → review cycles (deliver ↔ discern).
  */
 export async function executeSingleItem(
+  executor: PhaseExecutor,
   input: string,
   options: SingleItemOptions,
 ): Promise<SingleItemResult> {
@@ -112,12 +113,12 @@ export async function executeSingleItem(
 
   const phaseResults: PhaseRecord[] = [];
   let totalCostUsd = 0;
-  let verdict: Verdict;
+  let verdict: Verdict | undefined;
   let exitCode = 0;
 
   async function runAndRecord(phase: PhaseName): Promise<PhaseResult> {
     const start = Date.now();
-    const result = await runPhase(phase, input, {
+    const result = await executor.runPhase(phase, input, {
       ...basePhaseOpts,
       resumeSessionId: tracker.getResumeId(),
       hooks: buildHooks(phase),

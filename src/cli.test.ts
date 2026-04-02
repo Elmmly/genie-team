@@ -18,6 +18,16 @@ vi.mock("./environment/auth.js", () => ({
   resolveAuth: vi.fn(),
 }));
 
+vi.mock("./core/claude-agent-executor.js", () => {
+  return {
+    ClaudeAgentExecutor: class {
+      name = "claude";
+      tier = 1;
+      runPhase = vi.fn();
+    },
+  };
+});
+
 import { executeSingleItem } from "./execution/single-item.js";
 import type { SingleItemResult } from "./execution/single-item.js";
 import { runDaemonCycle } from "./execution/daemon.js";
@@ -110,6 +120,7 @@ describe("run command", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "docs/backlog/P1-auth.md",
       expect.objectContaining({
         fromPhase: "discover",
@@ -128,6 +139,7 @@ describe("run command", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ fromPhase: "design" }),
     );
@@ -143,6 +155,7 @@ describe("run command", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ throughPhase: "deliver" }),
     );
@@ -237,6 +250,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ model: "claude-sonnet-4-5-20250514" }),
     );
@@ -251,6 +265,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ turnOverrides: { global: 200 } }),
     );
@@ -265,6 +280,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ noResume: true }),
     );
@@ -279,6 +295,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ trunkMode: true }),
     );
@@ -293,6 +310,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ maxBudgetUsd: 5.0 }),
     );
@@ -307,6 +325,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ reviewCycles: 3 }),
     );
@@ -321,6 +340,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ skipPermissions: true }),
     );
@@ -334,7 +354,7 @@ describe("run command extended flags", () => {
     await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
 
     // Assert
-    const opts = vi.mocked(executeSingleItem).mock.calls[0][1];
+    const opts = vi.mocked(executeSingleItem).mock.calls[0][2];
     expect(opts.model).toBeUndefined();
     expect(opts.trunkMode).toBeUndefined();
     expect(opts.noResume).toBeUndefined();
@@ -355,6 +375,7 @@ describe("run command extended flags", () => {
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ verbose: true }),
     );
@@ -375,6 +396,7 @@ describe("run command extended flags", () => {
     // Assert
     expect(resolveAuth).toHaveBeenCalledWith("oauth");
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ authMode: "oauth" }),
     );
@@ -395,6 +417,7 @@ describe("run command extended flags", () => {
     // Assert
     expect(resolveAuth).toHaveBeenCalledWith("apikey");
     expect(executeSingleItem).toHaveBeenCalledWith(
+      expect.anything(),
       "item.md",
       expect.objectContaining({ authMode: "apikey" }),
     );
@@ -439,6 +462,7 @@ describe("daemon command", () => {
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         throughPhase: "done",
         finishMode: "pr",
@@ -455,6 +479,7 @@ describe("daemon command", () => {
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ throughPhase: "deliver" }),
     );
   });
@@ -468,6 +493,7 @@ describe("daemon command", () => {
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ finishMode: "merge" }),
     );
   });
@@ -481,6 +507,7 @@ describe("daemon command", () => {
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ parallel: 4 }),
     );
   });
@@ -494,6 +521,7 @@ describe("daemon command", () => {
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ priorities: ["P0"] }),
     );
   });
@@ -507,6 +535,7 @@ describe("daemon command", () => {
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ model: "claude-opus-4-6" }),
     );
   });
@@ -523,6 +552,7 @@ describe("daemon command", () => {
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
         trunkMode: true,
         skipPermissions: true,

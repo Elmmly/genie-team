@@ -1,5 +1,6 @@
 import pLimit from "p-limit";
 import { executeSingleItem, type ExecutionOptions } from "./single-item.js";
+import type { PhaseExecutor } from "../core/phase-executor.js";
 import {
   sessionStart,
   sessionCleanup,
@@ -46,15 +47,16 @@ export interface BatchResult {
  * leave-branch for deferred integration).
  */
 export async function executeBatch(
+  executor: PhaseExecutor,
   items: BatchItem[],
   options: BatchOptions,
 ): Promise<BatchResult> {
   const parallel = options.parallel ?? 1;
 
   if (parallel <= 1) {
-    return executeSequential(items, options);
+    return executeSequential(executor, items, options);
   }
-  return executeParallel(items, options, parallel);
+  return executeParallel(executor, items, options, parallel);
 }
 
 /** Integrate outcomes and sort into succeeded/failed/conflicts buckets. */
@@ -86,6 +88,7 @@ async function integrateOutcomes(
 }
 
 async function executeSequential(
+  executor: PhaseExecutor,
   items: BatchItem[],
   options: BatchOptions,
 ): Promise<BatchResult> {
@@ -93,7 +96,7 @@ async function executeSequential(
   let totalCostUsd = 0;
 
   for (const item of items) {
-    const outcome = await executeOneItem(item, options);
+    const outcome = await executeOneItem(executor, item, options);
     totalCostUsd += outcome.costUsd;
     outcomes.push({ item, outcome });
 
@@ -112,6 +115,7 @@ async function executeSequential(
 }
 
 async function executeParallel(
+  executor: PhaseExecutor,
   items: BatchItem[],
   options: BatchOptions,
   concurrency: number,
@@ -122,7 +126,7 @@ async function executeParallel(
   const outcomes = await Promise.all(
     items.map((item) =>
       limit(async () => {
-        const outcome = await executeOneItem(item, options);
+        const outcome = await executeOneItem(executor, item, options);
         return { item, outcome };
       }),
     ),
@@ -144,6 +148,7 @@ async function executeParallel(
 }
 
 async function executeOneItem(
+  executor: PhaseExecutor,
   item: BatchItem,
   options: BatchOptions,
 ): Promise<ItemOutcome> {
@@ -151,7 +156,7 @@ async function executeOneItem(
     const cwd = await sessionStart(item.slug, item.phase);
 
     const { throughPhase, finishMode: _, parallel: _p, continueOnFailure: _c, ...executionOpts } = options;
-    const result = await executeSingleItem(item.input, {
+    const result = await executeSingleItem(executor, item.input, {
       ...executionOpts,
       cwd,
       fromPhase: item.phase,
