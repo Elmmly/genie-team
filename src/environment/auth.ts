@@ -1,4 +1,4 @@
-export type AuthMode = "oauth" | "apikey" | "unknown";
+export type AuthMode = "oauth" | "apikey";
 
 export interface AuthInfo {
   mode: AuthMode;

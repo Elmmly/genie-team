@@ -13,7 +13,6 @@ vi.mock("./single-item.js", () => ({
 vi.mock("../git/worktree.js", () => ({
   sessionStart: vi.fn(),
   sessionCleanup: vi.fn(),
-  sessionFinish: vi.fn(),
   integratePr: vi.fn(),
   integrateTrunk: vi.fn(),
 }));
@@ -22,7 +21,6 @@ import { executeSingleItem } from "./single-item.js";
 import {
   sessionStart,
   sessionCleanup,
-  sessionFinish,
   integratePr,
   integrateTrunk,
 } from "../git/worktree.js";

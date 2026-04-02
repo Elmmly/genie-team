@@ -57,66 +57,15 @@ export async function executeBatch(
   return executeParallel(items, options, parallel);
 }
 
-async function executeSequential(
-  items: BatchItem[],
+/** Integrate outcomes and sort into succeeded/failed/conflicts buckets. */
+async function integrateOutcomes(
+  outcomes: Array<{ item: BatchItem; outcome: ItemOutcome }>,
   options: BatchOptions,
-): Promise<BatchResult> {
+): Promise<{ succeeded: ItemOutcome[]; failed: ItemOutcome[]; conflicts: ItemOutcome[] }> {
   const succeeded: ItemOutcome[] = [];
   const failed: ItemOutcome[] = [];
   const conflicts: ItemOutcome[] = [];
-  let totalCostUsd = 0;
 
-  for (const item of items) {
-    const outcome = await executeOneItem(item, options);
-    totalCostUsd += outcome.costUsd;
-
-    if (outcome.exitCode === 0) {
-      const integration = await integrateItem(item.slug, options);
-      if (integration.exitCode === 2) {
-        conflicts.push({ ...outcome, exitCode: 2 });
-      } else if (integration.exitCode !== 0) {
-        failed.push({ ...outcome, exitCode: integration.exitCode });
-      } else {
-        succeeded.push({ ...outcome, prUrl: integration.prUrl });
-      }
-    } else {
-      failed.push(outcome);
-      await sessionCleanup(item.slug);
-      if (!options.continueOnFailure) break;
-    }
-  }
-
-  return {
-    succeeded,
-    failed,
-    conflicts,
-    totalCostUsd,
-    exitCode: failed.length > 0 || conflicts.length > 0 ? 1 : 0,
-  };
-}
-
-async function executeParallel(
-  items: BatchItem[],
-  options: BatchOptions,
-  concurrency: number,
-): Promise<BatchResult> {
-  const succeeded: ItemOutcome[] = [];
-  const failed: ItemOutcome[] = [];
-  const conflicts: ItemOutcome[] = [];
-  let totalCostUsd = 0;
-
-  const limit = pLimit(concurrency);
-  const outcomes = await Promise.all(
-    items.map((item) =>
-      limit(async () => {
-        const outcome = await executeOneItem(item, options);
-        totalCostUsd += outcome.costUsd;
-        return { item, outcome };
-      }),
-    ),
-  );
-
-  // Serialize integration
   for (const { item, outcome } of outcomes) {
     if (outcome.exitCode === 0) {
       const integration = await integrateItem(item.slug, options);
@@ -132,6 +81,58 @@ async function executeParallel(
       await sessionCleanup(item.slug);
     }
   }
+
+  return { succeeded, failed, conflicts };
+}
+
+async function executeSequential(
+  items: BatchItem[],
+  options: BatchOptions,
+): Promise<BatchResult> {
+  const outcomes: Array<{ item: BatchItem; outcome: ItemOutcome }> = [];
+  let totalCostUsd = 0;
+
+  for (const item of items) {
+    const outcome = await executeOneItem(item, options);
+    totalCostUsd += outcome.costUsd;
+    outcomes.push({ item, outcome });
+
+    if (outcome.exitCode !== 0 && !options.continueOnFailure) break;
+  }
+
+  const { succeeded, failed, conflicts } = await integrateOutcomes(outcomes, options);
+
+  return {
+    succeeded,
+    failed,
+    conflicts,
+    totalCostUsd,
+    exitCode: failed.length > 0 || conflicts.length > 0 ? 1 : 0,
+  };
+}
+
+async function executeParallel(
+  items: BatchItem[],
+  options: BatchOptions,
+  concurrency: number,
+): Promise<BatchResult> {
+  let totalCostUsd = 0;
+
+  const limit = pLimit(concurrency);
+  const outcomes = await Promise.all(
+    items.map((item) =>
+      limit(async () => {
+        const outcome = await executeOneItem(item, options);
+        return { item, outcome };
+      }),
+    ),
+  );
+
+  for (const { outcome } of outcomes) {
+    totalCostUsd += outcome.costUsd;
+  }
+
+  const { succeeded, failed, conflicts } = await integrateOutcomes(outcomes, options);
 
   return {
     succeeded,
