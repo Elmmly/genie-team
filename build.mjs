@@ -9,6 +9,7 @@ await build({
   format: "cjs",
   outfile: "dist/cli.cjs",
   banner: { js: "#!/usr/bin/env node" },
+  external: ["@anthropic-ai/claude-agent-sdk"],
   logOverride: { "empty-import-meta": "silent" },
 });
 
