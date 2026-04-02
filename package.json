@@ -29,6 +29,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.2.76",
     "commander": "^14.0.3",
     "execa": "^9.6.1",
+    "glob": "^13.0.6",
     "js-yaml": "^4.1.1",
     "p-limit": "^7.3.0"
   }
