@@ -29,6 +29,8 @@ Commands:
   uninstall           Remove genie-team installation
 
 Options:
+  --provider <name>   AI provider to install (claude|anthropic|openai|google)
+                      Required for global install. Can be specified multiple times.
   --commands          Install commands only
   --skills            Install skills only
   --rules             Install rules only
@@ -46,7 +48,8 @@ Options:
   --dry-run           Show what would be done
 
 Examples:
-  $0 global                      # Full global install (includes MCP)
+  $0 global --provider claude    # Install with Claude provider
+  $0 global --provider claude --provider openai  # Install with multiple providers
   $0 global --commands           # Commands only (for slash commands)
   $0 global --skills             # Skills only (for automatic behaviors)
   $0 global --mcp                # Install/configure MCP server only
@@ -445,9 +448,18 @@ install_genies() {
     fi
 }
 
+# Provider name → npm package mapping
+declare -A PROVIDER_PKGS=(
+    [claude]="@anthropic-ai/claude-agent-sdk"
+    [anthropic]="@anthropic-ai/sdk"
+    [openai]="openai"
+    [google]="@google/genai"
+)
+
 # Build and globally install genies-core (TypeScript SDK orchestrator)
+# Args: provider names (e.g., "claude" "openai")
 install_genies_core() {
-    local dry_run="$1"
+    local -a selected_providers=("$@")
 
     if [[ ! -f "$SCRIPT_DIR/package.json" ]]; then
         log_warn "No package.json found — skipping genies-core build"
@@ -459,17 +471,26 @@ install_genies_core() {
         return 0
     fi
 
-    if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY RUN] Would build and npm link genies-core"
-        return 0
-    fi
-
     log_info "Building genies-core (TypeScript SDK orchestrator)..."
 
+    # Install core dependencies (provider SDKs are peer deps, not auto-installed)
     (cd "$SCRIPT_DIR" && npm install --ignore-scripts 2>&1 | tail -1) || {
         log_warn "npm install failed — skipping genies-core build"
         return 0
     }
+
+    # Install selected provider SDKs
+    for provider in "${selected_providers[@]}"; do
+        local pkg="${PROVIDER_PKGS[$provider]}"
+        if [[ -z "$pkg" ]]; then
+            log_warn "Unknown provider: $provider (skipping)"
+            continue
+        fi
+        log_info "Installing provider: $provider ($pkg)"
+        (cd "$SCRIPT_DIR" && npm install "$pkg" 2>&1 | tail -1) || {
+            log_warn "Failed to install $pkg"
+        }
+    done
 
     (cd "$SCRIPT_DIR" && npm run build 2>&1) || {
         log_warn "npm run build failed — skipping genies-core build"
@@ -484,6 +505,7 @@ install_genies_core() {
 
     if command -v genies-core &>/dev/null; then
         log_success "genies-core built and linked globally ($(genies-core --version 2>/dev/null || echo 'unknown'))"
+        log_success "Providers installed: ${selected_providers[*]}"
     else
         log_warn "genies-core linked but not found on PATH — check your npm prefix"
     fi
@@ -678,6 +700,7 @@ cmd_global() {
     local skip_mcp="false"
     local install_all="true"
     local dry_run="false"
+    local -a providers=()
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -695,9 +718,21 @@ cmd_global() {
             --skip-mcp) skip_mcp="true" ;;
             --all) install_all="true" ;;
             --dry-run) dry_run="true" ;;
+            --provider) shift; providers+=("$1") ;;
         esac
         shift
     done
+
+    # Require --provider when installing scripts/genies-core
+    if [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]]; then
+        if [[ ${#providers[@]} -eq 0 ]]; then
+            log_error "Choose a provider with --provider flag."
+            log_info "Available providers: claude, anthropic, openai, google"
+            log_info "Example: $0 global --provider claude"
+            log_info "Multiple: $0 global --provider claude --provider openai"
+            return 1
+        fi
+    fi
 
     log_info "Installing Genie Team globally to $GLOBAL_CLAUDE_DIR/"
     [[ "$sync" == "true" ]] && log_info "Sync mode: will remove obsolete files"
@@ -776,7 +811,7 @@ cmd_global() {
 
     # Build and globally link genies-core (TypeScript SDK orchestrator)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
-        install_genies_core
+        install_genies_core "${providers[@]}"
 
     # Hooks installation (scripts + settings merge)
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \

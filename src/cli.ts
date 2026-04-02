@@ -11,12 +11,9 @@ import { executeSingleItem, type ExecutionOptions, type SingleItemOptions } from
 import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
 import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
 import { resolveAuth } from "./environment/auth.js";
-import { ClaudeAgentExecutor } from "./core/claude-agent-executor.js";
+import { PROVIDER_PACKAGES, getProviderStatuses } from "./environment/provider-status.js";
 import { LLMApiExecutor } from "./core/llm-api-executor.js";
 import { LocalToolExecutor } from "./core/tool-executor.js";
-import { OpenAILLMClient } from "./providers/openai-client.js";
-import { GoogleLLMClient } from "./providers/google-client.js";
-import { AnthropicLLMClient } from "./providers/anthropic-client.js";
 import type { PhaseExecutor } from "./core/phase-executor.js";
 
 function loadVersion(): string {
@@ -31,39 +28,75 @@ function loadVersion(): string {
   }
 }
 
-function createExecutor(provider: string): PhaseExecutor {
+
+async function createExecutor(provider: string): Promise<PhaseExecutor> {
+  if (!PROVIDER_PACKAGES[provider]) {
+    throw new InvalidArgumentError(
+      `Unknown provider "${provider}". Valid providers: ${Object.keys(PROVIDER_PACKAGES).join(", ")}`,
+    );
+  }
+
+  const tools = new LocalToolExecutor(process.cwd());
+
   switch (provider) {
-    case "claude":
-      return new ClaudeAgentExecutor();
+    case "claude": {
+      try {
+        const { ClaudeAgentExecutor } = await import("./core/claude-agent-executor.js");
+        return new ClaudeAgentExecutor();
+      } catch {
+        throw new Error(
+          `Provider 'claude' is not installed.\n` +
+          `Install with: genies-core install claude`,
+        );
+      }
+    }
     case "openai": {
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
         throw new Error("--provider openai requires OPENAI_API_KEY environment variable");
       }
-      const client = new OpenAILLMClient(apiKey);
-      const tools = new LocalToolExecutor(process.cwd());
-      return new LLMApiExecutor(client, tools);
+      try {
+        const { OpenAILLMClient } = await import("./providers/openai-client.js");
+        return new LLMApiExecutor(new OpenAILLMClient(apiKey), tools);
+      } catch {
+        throw new Error(
+          `Provider 'openai' is not installed.\n` +
+          `Install with: genies-core install openai`,
+        );
+      }
     }
     case "google": {
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         throw new Error("--provider google requires GEMINI_API_KEY environment variable");
       }
-      const client = new GoogleLLMClient(apiKey);
-      const tools = new LocalToolExecutor(process.cwd());
-      return new LLMApiExecutor(client, tools);
+      try {
+        const { GoogleLLMClient } = await import("./providers/google-client.js");
+        return new LLMApiExecutor(new GoogleLLMClient(apiKey), tools);
+      } catch {
+        throw new Error(
+          `Provider 'google' is not installed.\n` +
+          `Install with: genies-core install google`,
+        );
+      }
     }
     case "anthropic": {
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
         throw new Error("--provider anthropic requires ANTHROPIC_API_KEY environment variable");
       }
-      const client = new AnthropicLLMClient(apiKey);
-      const tools = new LocalToolExecutor(process.cwd());
-      return new LLMApiExecutor(client, tools);
+      try {
+        const { AnthropicLLMClient } = await import("./providers/anthropic-client.js");
+        return new LLMApiExecutor(new AnthropicLLMClient(apiKey), tools);
+      } catch {
+        throw new Error(
+          `Provider 'anthropic' is not installed.\n` +
+          `Install with: genies-core install anthropic`,
+        );
+      }
     }
     default:
-      throw new InvalidArgumentError(`Unknown provider "${provider}". Valid providers: claude, anthropic, openai, google`);
+      throw new Error(`Unhandled provider: ${provider}`);
   }
 }
 
@@ -108,32 +141,63 @@ export function createCli(): Command {
     .command("providers")
     .description("List available AI providers and credential status")
     .action(() => {
-      const providers = [
-        { name: "claude", tier: 1, envKey: "N/A (OAuth or ANTHROPIC_API_KEY)", description: "Claude Agent SDK (full fidelity)" },
-        { name: "anthropic", tier: 2, envKey: "ANTHROPIC_API_KEY", description: "Anthropic Messages API" },
-        { name: "openai", tier: 2, envKey: "OPENAI_API_KEY", description: "OpenAI Chat Completions" },
-        { name: "google", tier: 2, envKey: "GEMINI_API_KEY", description: "Google Gemini GenerateContent" },
-      ];
+      const statuses = getProviderStatuses();
 
       console.log("Available Providers");
       console.log("─".repeat(60));
 
-      for (const p of providers) {
+      const STATUS_LABELS: Record<string, string> = {
+        ready: "ready",
+        installed_no_key: "installed, no key",
+        not_installed: "not installed",
+      };
+
+      for (const p of statuses) {
         const isDefault = p.name === config.provider ? " (default)" : "";
-        const hasKey = p.name === "claude"
-          ? true
-          : !!process.env[p.envKey];
-        const status = hasKey ? "ready" : "no key";
+        const label = STATUS_LABELS[p.status];
+        const hint = p.status === "not_installed"
+          ? `  genies-core install ${p.name}`
+          : p.status === "installed_no_key"
+            ? `  Set ${p.envKey}`
+            : "";
         console.log(
-          `  ${p.name.padEnd(12)} Tier ${p.tier}  [${status}]${isDefault}`,
+          `  ${p.name.padEnd(12)} Tier ${p.tier}  [${label}]${isDefault}`,
         );
-        console.log(`${"".padEnd(14)} ${p.description}`);
+        console.log(`${"".padEnd(14)} ${p.description}${hint}`);
       }
 
       console.log("");
       console.log(`Configured default: ${config.provider}`);
       console.log("Set with: genie-config.yaml → provider: <name>");
       console.log("Override: --provider <name>");
+    });
+
+  program
+    .command("install <provider>")
+    .description("Install a provider SDK (e.g., genies-core install openai)")
+    .action(async (provider: string) => {
+      const pkg = PROVIDER_PACKAGES[provider];
+      if (!pkg) {
+        console.error(`Unknown provider "${provider}". Valid providers: ${Object.keys(PROVIDER_PACKAGES).join(", ")}`);
+        process.exit(3);
+        return;
+      }
+
+      // Resolve genie-team repo root from this binary's location
+      const __filename = fileURLToPath(import.meta.url);
+      const repoRoot = join(dirname(__filename), "..");
+
+      console.log(`Installing ${provider} provider (${pkg})...`);
+
+      try {
+        const { execa } = await import("execa");
+        await execa("npm", ["install", pkg], { cwd: repoRoot, stdio: "inherit" });
+        console.log(`\nInstalled provider: ${provider}`);
+        console.log(`Use with: --provider ${provider}`);
+      } catch {
+        console.error(`Failed to install ${pkg}. Run manually: cd ${repoRoot} && npm install ${pkg}`);
+        process.exit(1);
+      }
     });
 
   function parsePhase(value: string): PhaseName {
@@ -228,7 +292,7 @@ export function createCli(): Command {
       .option("--from <phase>", "Starting phase", parsePhase, "discover" as PhaseName)
       .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName),
   ).action(async (item: string, opts: RunOpts) => {
-      const executor = createExecutor(opts.provider ?? config.provider);
+      const executor = await createExecutor(opts.provider ?? config.provider);
       const options: SingleItemOptions = {
         ...parseExecutionOpts(opts),
         fromPhase: opts.from,
@@ -276,7 +340,7 @@ export function createCli(): Command {
       .option("--parallel <n>", "Concurrency limit")
       .option("--priority <level>", "Filter items by priority (e.g. P0)"),
   ).action(async (opts: DaemonOpts) => {
-      const executor = createExecutor(opts.provider ?? config.provider);
+      const executor = await createExecutor(opts.provider ?? config.provider);
       const options: DaemonOptions = {
         ...parseExecutionOpts(opts),
         throughPhase: opts.through,

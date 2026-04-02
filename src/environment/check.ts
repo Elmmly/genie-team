@@ -1,6 +1,7 @@
 import { execa } from "execa";
 import { detectAuth } from "./auth.js";
 import { loadGenieConfig } from "../config/genie-config.js";
+import { getProviderStatuses } from "./provider-status.js";
 
 export type CheckStatus = "pass" | "warn" | "fail";
 
@@ -91,42 +92,39 @@ export function checkAuth(): CheckResult {
   };
 }
 
-const PROVIDER_ENV_KEYS: Record<string, string> = {
-  claude: "ANTHROPIC_API_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
-  openai: "OPENAI_API_KEY",
-  google: "GEMINI_API_KEY",
-};
-
 export function checkProvider(): CheckResult {
   const config = loadGenieConfig();
-  const provider = config.provider;
-  const envKey = PROVIDER_ENV_KEYS[provider];
+  const statuses = getProviderStatuses();
+  const active = statuses.find((s) => s.name === config.provider);
 
-  if (!envKey) {
+  if (!active) {
+    return {
+      name: "Provider",
+      status: "fail",
+      detail: `Unknown provider "${config.provider}" in config`,
+    };
+  }
+
+  if (!active.installed) {
+    return {
+      name: "Provider",
+      status: "fail",
+      detail: `${active.name} not installed — run: genies-core install ${active.name}`,
+    };
+  }
+
+  if (active.status === "installed_no_key") {
     return {
       name: "Provider",
       status: "warn",
-      detail: `Unknown provider "${provider}" in config`,
+      detail: `${active.name} (Tier ${active.tier}) — ${active.envKey} not set`,
     };
   }
 
-  // Claude Tier 1 can use OAuth — API key is optional
-  if (provider === "claude") {
-    return {
-      name: "Provider",
-      status: "pass",
-      detail: `claude (Tier 1 — Claude Agent SDK)`,
-    };
-  }
-
-  const hasKey = !!process.env[envKey];
   return {
     name: "Provider",
-    status: hasKey ? "pass" : "warn",
-    detail: hasKey
-      ? `${provider} (Tier 2 — ${envKey} set)`
-      : `${provider} (Tier 2 — ${envKey} not set)`,
+    status: "pass",
+    detail: `${active.name} (Tier ${active.tier} — ready)`,
   };
 }
 
@@ -168,6 +166,8 @@ export async function runChecks(): Promise<{
 }> {
   const results: CheckResult[] = [];
 
+  const config = loadGenieConfig();
+
   // Run async checks concurrently
   const [claudeCli, gitRepo, ghAuth] = await Promise.all([
     checkClaudeCli(),
@@ -175,10 +175,16 @@ export async function runChecks(): Promise<{
     checkGhAuth(),
   ]);
 
-  results.push(claudeCli, gitRepo, ghAuth);
+  // Only show Claude CLI check if using claude provider
+  if (config.provider === "claude") {
+    results.push(claudeCli);
+  }
+  results.push(gitRepo, ghAuth);
 
   // Sync checks
-  results.push(checkAuth());
+  if (config.provider === "claude") {
+    results.push(checkAuth());
+  }
   results.push(checkProvider());
   results.push(checkGenieConfig());
 
