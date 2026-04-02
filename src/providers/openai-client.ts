@@ -1,5 +1,11 @@
 import OpenAI from "openai";
 import type {
+  ChatCompletionMessageParam,
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionTool,
+  ChatCompletionMessageFunctionToolCall,
+} from "openai/resources/chat/completions/completions.js";
+import type {
   LLMClient,
   Message,
   CompletionOptions,
@@ -11,7 +17,6 @@ import type {
  * LLMClient implementation for OpenAI (GPT-4o, o3, etc.).
  *
  * Maps between our unified types and OpenAI's chat completion API.
- * Used by LLMApiExecutor for Tier 2 multi-provider execution.
  */
 export class OpenAILLMClient implements LLMClient {
   readonly name = "openai";
@@ -25,16 +30,14 @@ export class OpenAILLMClient implements LLMClient {
     messages: Message[],
     options: CompletionOptions,
   ): Promise<CompletionResponse> {
-    const openaiMessages = this.toOpenAIMessages(messages, options.system);
-
-    const request: Record<string, unknown> = {
+    const params: ChatCompletionCreateParamsNonStreaming = {
       model: options.model,
-      messages: openaiMessages,
+      messages: this.toMessageParams(messages, options.system),
     };
 
     if (options.tools && options.tools.length > 0) {
-      request.tools = options.tools.map((tool) => ({
-        type: "function" as const,
+      params.tools = options.tools.map((tool): ChatCompletionTool => ({
+        type: "function",
         function: {
           name: tool.name,
           description: tool.description,
@@ -44,17 +47,19 @@ export class OpenAILLMClient implements LLMClient {
     }
 
     if (options.maxTokens) {
-      request.max_tokens = options.maxTokens;
+      params.max_tokens = options.maxTokens;
     }
 
     if (options.temperature !== undefined) {
-      request.temperature = options.temperature;
+      params.temperature = options.temperature;
     }
 
-    const response = await this.openai.chat.completions.create(request as unknown as OpenAI.ChatCompletionCreateParamsNonStreaming);
+    const response = await this.openai.chat.completions.create(params);
 
     const choice = response.choices[0];
-    const toolCalls = this.parseToolCalls(choice?.message?.tool_calls as unknown as Array<{ id: string; type: string; function: { name: string; arguments: string } }> | undefined);
+    const functionCalls = (choice?.message?.tool_calls ?? [])
+      .filter((tc): tc is ChatCompletionMessageFunctionToolCall => tc.type === "function");
+    const toolCalls = this.parseToolCalls(functionCalls);
 
     return {
       content: choice?.message?.content ?? "",
@@ -67,11 +72,11 @@ export class OpenAILLMClient implements LLMClient {
     };
   }
 
-  private toOpenAIMessages(
+  private toMessageParams(
     messages: Message[],
     system?: string,
-  ): Array<Record<string, unknown>> {
-    const result: Array<Record<string, unknown>> = [];
+  ): ChatCompletionMessageParam[] {
+    const result: ChatCompletionMessageParam[] = [];
 
     if (system) {
       result.push({ role: "system", content: system });
@@ -82,9 +87,9 @@ export class OpenAILLMClient implements LLMClient {
         result.push({
           role: "assistant",
           content: msg.content || null,
-          tool_calls: msg.toolCalls.map((tc) => ({
+          tool_calls: msg.toolCalls.map((tc): ChatCompletionMessageFunctionToolCall => ({
             id: tc.id,
-            type: "function" as const,
+            type: "function",
             function: {
               name: tc.name,
               arguments: JSON.stringify(tc.input),
@@ -99,7 +104,7 @@ export class OpenAILLMClient implements LLMClient {
         });
       } else {
         result.push({
-          role: msg.role,
+          role: msg.role as "user" | "assistant",
           content: msg.content,
         });
       }
@@ -109,7 +114,7 @@ export class OpenAILLMClient implements LLMClient {
   }
 
   private parseToolCalls(
-    toolCalls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }>,
+    toolCalls?: ChatCompletionMessageFunctionToolCall[],
   ): ToolCall[] {
     if (!toolCalls) return [];
 

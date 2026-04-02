@@ -1,5 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type {
+  MessageParam,
+  ContentBlockParam,
+  TextBlockParam,
+  ToolUseBlockParam,
+  ToolResultBlockParam,
+  ContentBlock,
+  TextBlock,
+  ToolUseBlock,
+  Tool as AnthropicTool,
+  MessageCreateParamsNonStreaming,
+} from "@anthropic-ai/sdk/resources/messages/messages.js";
+import type {
   LLMClient,
   Message,
   CompletionOptions,
@@ -10,14 +22,8 @@ import type {
 /**
  * LLMClient implementation for Anthropic (Claude models via raw API).
  *
- * This is the Tier 2 path for Claude — uses the Messages API directly
- * instead of the Claude Agent SDK. Useful when Claude Code is not
- * installed or for API-key-only environments.
- *
- * Key Anthropic differences:
- * - Tool results are sent as user messages with tool_result content blocks
- * - Assistant messages with tool calls have mixed text + tool_use content
- * - System prompt is a top-level parameter, not a message
+ * Tier 2 path for Claude — uses the Messages API directly instead of
+ * the Claude Agent SDK. Useful when Claude Code is not installed.
  */
 export class AnthropicLLMClient implements LLMClient {
   readonly name = "anthropic";
@@ -31,57 +37,53 @@ export class AnthropicLLMClient implements LLMClient {
     messages: Message[],
     options: CompletionOptions,
   ): Promise<CompletionResponse> {
-    const anthropicMessages = this.toAnthropicMessages(messages);
-
-    const request: Record<string, unknown> = {
+    const params: MessageCreateParamsNonStreaming = {
       model: options.model,
-      messages: anthropicMessages,
+      messages: this.toMessageParams(messages),
       max_tokens: options.maxTokens ?? 4096,
     };
 
     if (options.system) {
-      request.system = options.system;
+      params.system = options.system;
     }
 
     if (options.tools && options.tools.length > 0) {
-      request.tools = options.tools.map((tool) => ({
+      params.tools = options.tools.map((tool): AnthropicTool => ({
         name: tool.name,
         description: tool.description,
-        input_schema: tool.inputSchema,
+        input_schema: tool.inputSchema as AnthropicTool["input_schema"],
       }));
     }
 
     if (options.temperature !== undefined) {
-      request.temperature = options.temperature;
+      params.temperature = options.temperature;
     }
 
-    const response = await this.client.messages.create(
-      request as unknown as Anthropic.MessageCreateParamsNonStreaming,
-    );
+    const response = await this.client.messages.create(params);
 
-    const { text, toolCalls } = this.parseContent(response.content as unknown as Array<Record<string, unknown>>);
+    const { text, toolCalls } = this.parseContentBlocks(response.content);
 
     return {
       content: text,
       toolCalls,
       usage: {
-        inputTokens: response.usage?.input_tokens ?? 0,
-        outputTokens: response.usage?.output_tokens ?? 0,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
       },
       finishReason: response.stop_reason ?? "end_turn",
     };
   }
 
-  private toAnthropicMessages(messages: Message[]): Array<Record<string, unknown>> {
-    const result: Array<Record<string, unknown>> = [];
+  private toMessageParams(messages: Message[]): MessageParam[] {
+    const result: MessageParam[] = [];
 
     for (const msg of messages) {
-      if (msg.role === "system") continue; // Handled via system parameter
+      if (msg.role === "system") continue;
 
       if (msg.role === "assistant" && msg.toolCalls && msg.toolCalls.length > 0) {
-        const content: Array<Record<string, unknown>> = [];
+        const content: ContentBlockParam[] = [];
         if (msg.content) {
-          content.push({ type: "text", text: msg.content });
+          content.push({ type: "text", text: msg.content } satisfies TextBlockParam);
         }
         for (const tc of msg.toolCalls) {
           content.push({
@@ -89,44 +91,40 @@ export class AnthropicLLMClient implements LLMClient {
             id: tc.id,
             name: tc.name,
             input: tc.input,
-          });
+          } satisfies ToolUseBlockParam);
         }
         result.push({ role: "assistant", content });
       } else if (msg.role === "tool" && msg.toolResult) {
-        // Anthropic: tool results are user messages with tool_result blocks
         result.push({
           role: "user",
           content: [{
             type: "tool_result",
             tool_use_id: msg.toolResult.toolCallId,
             content: msg.toolResult.content,
-          }],
+          } satisfies ToolResultBlockParam],
         });
       } else {
-        result.push({
-          role: msg.role === "tool" ? "user" : msg.role,
-          content: msg.content,
-        });
+        const role = msg.role === "tool" ? "user" : msg.role;
+        result.push({ role: role as "user" | "assistant", content: msg.content });
       }
     }
 
     return result;
   }
 
-  private parseContent(
-    content: Array<Record<string, unknown>>,
-  ): { text: string; toolCalls: ToolCall[] } {
+  private parseContentBlocks(blocks: ContentBlock[]): { text: string; toolCalls: ToolCall[] } {
     let text = "";
     const toolCalls: ToolCall[] = [];
 
-    for (const block of content) {
+    for (const block of blocks) {
       if (block.type === "text") {
-        text += block.text as string;
+        text += (block as TextBlock).text;
       } else if (block.type === "tool_use") {
+        const toolBlock = block as ToolUseBlock;
         toolCalls.push({
-          id: block.id as string,
-          name: block.name as string,
-          input: (block.input ?? {}) as Record<string, unknown>,
+          id: toolBlock.id,
+          name: toolBlock.name,
+          input: (toolBlock.input ?? {}) as Record<string, unknown>,
         });
       }
     }

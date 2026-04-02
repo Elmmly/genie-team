@@ -1,4 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
+import {
+  GoogleGenAI,
+  type Content,
+  type GenerateContentConfig,
+  type GenerateContentParameters,
+} from "@google/genai";
 import type {
   LLMClient,
   Message,
@@ -16,12 +21,15 @@ function generateCallId(): string {
 /**
  * LLMClient implementation for Google Gemini.
  *
- * Maps between our unified types and Google's generateContent API.
- * Key differences from OpenAI:
- * - Tools use functionDeclarations (not function parameters)
+ * Key differences from Anthropic/OpenAI:
+ * - Tools use functionDeclarations
  * - Function calls may lack IDs (we generate them)
- * - Tool results use functionResponse matched by name/call_id
+ * - Tool results use functionResponse
  * - Arguments are objects (not JSON strings like OpenAI)
+ *
+ * Note: Google's SDK does not export a `Part` type directly, so
+ * response parts are narrowed via property checks rather than
+ * type imports.
  */
 export class GoogleLLMClient implements LLMClient {
   readonly name = "google";
@@ -35,9 +43,9 @@ export class GoogleLLMClient implements LLMClient {
     messages: Message[],
     options: CompletionOptions,
   ): Promise<CompletionResponse> {
-    const contents = this.toGoogleContents(messages);
+    const contents = this.toContents(messages);
 
-    const config: Record<string, unknown> = {};
+    const config: GenerateContentConfig = {};
 
     if (options.system) {
       config.systemInstruction = options.system;
@@ -61,19 +69,20 @@ export class GoogleLLMClient implements LLMClient {
       config.temperature = options.temperature;
     }
 
-    const response = await this.ai.models.generateContent({
+    const params: GenerateContentParameters = {
       model: options.model,
       contents,
       config,
-    });
+    };
+
+    const response = await this.ai.models.generateContent(params);
 
     const candidate = response.candidates?.[0];
-    const parts = (candidate?.content?.parts ?? []) as Array<Record<string, unknown>>;
+    const parts = candidate?.content?.parts ?? [];
     const toolCalls = this.parseToolCalls(parts);
-    const textContent = response.text ?? "";
 
     return {
-      content: textContent,
+      content: response.text ?? "",
       toolCalls,
       usage: {
         inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
@@ -83,14 +92,11 @@ export class GoogleLLMClient implements LLMClient {
     };
   }
 
-  private toGoogleContents(messages: Message[]): Array<Record<string, unknown>> {
-    const contents: Array<Record<string, unknown>> = [];
+  private toContents(messages: Message[]): Content[] {
+    const contents: Content[] = [];
 
     for (const msg of messages) {
-      if (msg.role === "system") {
-        // System messages handled via systemInstruction config
-        continue;
-      }
+      if (msg.role === "system") continue;
 
       if (msg.role === "assistant" && msg.toolCalls && msg.toolCalls.length > 0) {
         contents.push({
@@ -109,7 +115,7 @@ export class GoogleLLMClient implements LLMClient {
           parts: [{
             functionResponse: {
               id: msg.toolResult.toolCallId,
-              name: msg.toolResult.toolCallId, // Google matches by name
+              name: msg.toolResult.toolCallId,
               response: { result: msg.toolResult.content },
             },
           }],
@@ -130,17 +136,27 @@ export class GoogleLLMClient implements LLMClient {
     return contents;
   }
 
-  private parseToolCalls(parts: Array<Record<string, unknown>>): ToolCall[] {
+  private parseToolCalls(parts: unknown[]): ToolCall[] {
     const calls: ToolCall[] = [];
 
     for (const part of parts) {
-      const fc = part.functionCall as { id?: string; name: string; args: Record<string, unknown> } | undefined;
-      if (!fc) continue;
+      // Google SDK does not export Part or FunctionCallContent; narrow via property check.
+      // The SDK type defines `arguments` but runtime responses may use `args`.
+      const maybeFc = part as {
+        functionCall?: {
+          id?: string;
+          name: string;
+          arguments?: Record<string, unknown>;
+          args?: Record<string, unknown>;
+        };
+      };
+      if (!maybeFc.functionCall) continue;
 
+      const fc = maybeFc.functionCall;
       calls.push({
         id: fc.id ?? generateCallId(),
         name: fc.name,
-        input: fc.args ?? {},
+        input: fc.arguments ?? fc.args ?? {},
       });
     }
 
