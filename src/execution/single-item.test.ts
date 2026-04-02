@@ -177,6 +177,31 @@ describe("executeSingleItem", () => {
     expect(vi.mocked(runPhase).mock.calls.length).toBeLessThanOrEqual(3);
   });
 
+  it("exits 1 when review cycle results in BLOCKED", async () => {
+    // Arrange — discern requests changes, deliver fixes, second discern blocks
+    vi.mocked(runPhase)
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Verdict: CHANGES REQUESTED." }),
+      )
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Attempted fix." }),
+      )
+      .mockResolvedValueOnce(
+        mockPhaseResult({ output: "Verdict: BLOCKED. Critical issues." }),
+      );
+
+    // Act
+    const result = await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "discern",
+      throughPhase: "discern",
+      reviewCycles: 2,
+    });
+
+    // Assert
+    expect(result.verdict).toBe("BLOCKED");
+    expect(result.exitCode).toBe(1);
+  });
+
   it("exits 1 when phase exhausts turns", async () => {
     // Arrange
     vi.mocked(runPhase).mockResolvedValue(

@@ -343,6 +343,21 @@ describe("run command extended flags", () => {
     expect(opts.reviewCycles).toBeUndefined();
     expect(opts.skipPermissions).toBeUndefined();
     expect(opts.authMode).toBeUndefined();
+    expect(opts.verbose).toBeUndefined();
+  });
+
+  it("--verbose passes verbose true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "run", "--verbose", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ verbose: true }),
+    );
   });
 
   it("--auth oauth passes authMode and calls resolveAuth", async () => {
@@ -597,6 +612,18 @@ describe("session command", () => {
 
     // Assert
     expect(sessionCleanup).toHaveBeenCalledWith("P0-auth");
+  });
+
+  it("session cleanup without item or --all exits with code 3", async () => {
+    // Arrange
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies-core", "session", "cleanup"]);
+
+    // Assert
+    expect(process.exit).toHaveBeenCalledWith(3);
   });
 
   it("session cleanup --all cleans up all sessions", async () => {
