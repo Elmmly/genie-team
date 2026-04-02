@@ -11,6 +11,10 @@ import { runDaemonCycle, type DaemonOptions } from "./execution/daemon.js";
 import { listSessions, sessionCleanup, type FinishMode } from "./git/worktree.js";
 import { resolveAuth } from "./environment/auth.js";
 import { ClaudeAgentExecutor } from "./core/claude-agent-executor.js";
+import { LLMApiExecutor } from "./core/llm-api-executor.js";
+import { LocalToolExecutor } from "./core/tool-executor.js";
+import { OpenAILLMClient } from "./providers/openai-client.js";
+import type { PhaseExecutor } from "./core/phase-executor.js";
 
 function loadVersion(): string {
   try {
@@ -24,9 +28,26 @@ function loadVersion(): string {
   }
 }
 
+function createExecutor(provider: string): PhaseExecutor {
+  switch (provider) {
+    case "claude":
+      return new ClaudeAgentExecutor();
+    case "openai": {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error("--provider openai requires OPENAI_API_KEY environment variable");
+      }
+      const client = new OpenAILLMClient(apiKey);
+      const tools = new LocalToolExecutor(process.cwd());
+      return new LLMApiExecutor(client, tools);
+    }
+    default:
+      throw new InvalidArgumentError(`Unknown provider "${provider}". Valid providers: claude, openai`);
+  }
+}
+
 export function createCli(): Command {
   const program = new Command();
-  const executor = new ClaudeAgentExecutor();
 
   program
     .name("genies-core")
@@ -74,6 +95,7 @@ export function createCli(): Command {
 
   /** Raw CLI flags shared by run and daemon commands. */
   interface SharedCliOpts {
+    provider: string;
     model?: string;
     turns?: string;
     resume: boolean;
@@ -126,7 +148,8 @@ export function createCli(): Command {
   /** Add shared execution flags to a commander command. */
   function addExecutionFlags(cmd: Command): Command {
     return cmd
-      .option("--model <model>", "Model override (e.g. claude-sonnet-4-5-20250514)")
+      .option("--provider <name>", "AI provider (claude|openai)", "claude")
+      .option("--model <model>", "Model override (e.g. gpt-4o, claude-sonnet-4-5-20250514)")
       .option("--turns <n>", "Global turn limit override")
       .option("--no-resume", "Start fresh sessions (disable cross-phase resume)")
       .option("--trunk", "Use trunk-based mode (commit to default branch)")
@@ -151,6 +174,7 @@ export function createCli(): Command {
       .option("--from <phase>", "Starting phase", parsePhase, "discover" as PhaseName)
       .option("--through <phase>", "Ending phase", parsePhase, "done" as PhaseName),
   ).action(async (item: string, opts: RunOpts) => {
+      const executor = createExecutor(opts.provider);
       const options: SingleItemOptions = {
         ...parseExecutionOpts(opts),
         fromPhase: opts.from,
@@ -198,6 +222,7 @@ export function createCli(): Command {
       .option("--parallel <n>", "Concurrency limit")
       .option("--priority <level>", "Filter items by priority (e.g. P0)"),
   ).action(async (opts: DaemonOpts) => {
+      const executor = createExecutor(opts.provider);
       const options: DaemonOptions = {
         ...parseExecutionOpts(opts),
         throughPhase: opts.through,
