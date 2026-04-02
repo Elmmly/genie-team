@@ -35,17 +35,17 @@ export interface PhaseRecord {
   durationMs: number;
 }
 
+export type Verdict = "APPROVED" | "BLOCKED" | "CHANGES_REQUESTED";
+
 export interface SingleItemResult {
   exitCode: number;
-  verdict?: string;
+  verdict?: Verdict;
   totalCostUsd: number;
   phaseResults: PhaseRecord[];
   artifacts?: string[];
 }
 
-type Verdict = "APPROVED" | "BLOCKED" | "CHANGES_REQUESTED" | undefined;
-
-function detectVerdict(output: string): Verdict {
+function detectVerdict(output: string): Verdict | undefined {
   const upper = output.toUpperCase();
   if (upper.includes("APPROVED")) return "APPROVED";
   if (upper.includes("BLOCKED")) return "BLOCKED";
@@ -85,7 +85,7 @@ export async function executeSingleItem(
         ? (result: PhaseResult) => {
             costLogger.log({
               phase,
-              genie: phase,
+              genie: phase, // TODO: resolve actual genie name from phase-to-genie mapping
               turns: result.numTurns,
               inputTokens: result.inputTokens,
               outputTokens: result.outputTokens,

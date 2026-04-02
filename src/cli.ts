@@ -102,6 +102,7 @@ export function createCli(): Command {
 
   /** Convert raw CLI strings to typed ExecutionOptions. */
   function parseExecutionOpts(opts: SharedCliOpts): ExecutionOptions {
+    // Validate auth config early (throws if --auth apikey without ANTHROPIC_API_KEY)
     if (opts.auth) resolveAuth(opts.auth);
 
     const exec: ExecutionOptions = {

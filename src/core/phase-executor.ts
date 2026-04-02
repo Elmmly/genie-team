@@ -82,6 +82,9 @@ function formatVerboseMessage(msg: Record<string, unknown>): void {
   }
 }
 
+/** SDK result subtypes that indicate the phase was cut short. */
+const EXHAUSTION_SUBTYPES = new Set(["error_max_turns", "error_max_budget_usd"]);
+
 /**
  * Execute a single PDLC phase via the Claude Agent SDK.
  *
@@ -167,7 +170,7 @@ export async function runPhase(
     // Capture result from final SDKResultMessage
     if (msg.type === "result") {
       output = (msg.result as string) ?? "";
-      exhausted = msg.subtype === "error_max_turns" || msg.subtype === "error_max_budget_usd";
+      exhausted = EXHAUSTION_SUBTYPES.has(msg.subtype as string);
 
       const usage = msg.usage as
         | { input_tokens: number; output_tokens: number }
