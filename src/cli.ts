@@ -14,6 +14,7 @@ import { ClaudeAgentExecutor } from "./core/claude-agent-executor.js";
 import { LLMApiExecutor } from "./core/llm-api-executor.js";
 import { LocalToolExecutor } from "./core/tool-executor.js";
 import { OpenAILLMClient } from "./providers/openai-client.js";
+import { GoogleLLMClient } from "./providers/google-client.js";
 import type { PhaseExecutor } from "./core/phase-executor.js";
 
 function loadVersion(): string {
@@ -41,8 +42,17 @@ function createExecutor(provider: string): PhaseExecutor {
       const tools = new LocalToolExecutor(process.cwd());
       return new LLMApiExecutor(client, tools);
     }
+    case "google": {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("--provider google requires GEMINI_API_KEY environment variable");
+      }
+      const client = new GoogleLLMClient(apiKey);
+      const tools = new LocalToolExecutor(process.cwd());
+      return new LLMApiExecutor(client, tools);
+    }
     default:
-      throw new InvalidArgumentError(`Unknown provider "${provider}". Valid providers: claude, openai`);
+      throw new InvalidArgumentError(`Unknown provider "${provider}". Valid providers: claude, openai, google`);
   }
 }
 
@@ -148,7 +158,7 @@ export function createCli(): Command {
   /** Add shared execution flags to a commander command. */
   function addExecutionFlags(cmd: Command): Command {
     return cmd
-      .option("--provider <name>", "AI provider (claude|openai)", "claude")
+      .option("--provider <name>", "AI provider (claude|openai|google)", "claude")
       .option("--model <model>", "Model override (e.g. gpt-4o, claude-sonnet-4-5-20250514)")
       .option("--turns <n>", "Global turn limit override")
       .option("--no-resume", "Start fresh sessions (disable cross-phase resume)")
