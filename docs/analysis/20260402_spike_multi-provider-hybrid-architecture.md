@@ -20,10 +20,13 @@ The first spike incorrectly concluded "not feasible" by only comparing agent run
 
 | Layer | What it is | Claude | OpenAI | Google |
 |-------|-----------|--------|--------|--------|
-| **Tier 1: Agent Runtime** | CLI tool with built-in file access, tools, sessions, hooks | `@anthropic-ai/claude-agent-sdk` (production) | Codex CLI (exists, SDK maturity TBD) | Gemini CLI (exists, SDK maturity TBD) |
+| **Tier 1: Embeddable Agent SDK** | Programmatic agent runtime with tools, hooks, sessions | `@anthropic-ai/claude-agent-sdk` v0.2.90 (production, most mature) | `@openai/agents` v0.8.2 (generic orchestration framework, NOT coding-specific) | **None** — no official embeddable SDK |
+| **Tier 1.5: Subprocess Wrapper** | Wraps CLI binary, limited programmatic control | N/A | `@openai/codex-sdk` v0.118.0 (wraps Codex CLI) | `@ketd/gemini-cli-sdk` v0.4.0 (community, wraps Gemini CLI) |
 | **Tier 2: LLM API** | Model API client with tool/function calling | `@anthropic-ai/sdk` (production) | `openai` (production) | `@google/genai` (production) |
 
-**Strategy:** Use Tier 1 (agent runtime) when a provider offers a programmatic SDK. Fall back to Tier 2 (LLM API with self-managed agent loop) otherwise. Both tiers implement the same `PhaseExecutor` interface.
+**Verified against npm registry 2026-04-02.** Note: `@google/gemini-cli-sdk` does not exist on npm (hallucinated in initial research). Google has `@google/gemini-cli` (CLI tool) and `@google/gemini-cli-core` (internal library) but no official embeddable agent SDK.
+
+**Strategy:** Use Tier 1 when available. Fall back to Tier 2 (LLM API + self-managed agent loop) for providers without an embeddable SDK. Avoid Tier 1.5 (subprocess wrappers offer the worst of both worlds). Both tiers implement the same `PhaseExecutor` interface.
 
 ## Tool Calling Across LLM API SDKs
 
@@ -52,24 +55,23 @@ PhaseExecutor interface
 │   └── Full fidelity: hooks, sessions, budget, permissions, MCP, subagents
 │   └── This is TODAY's runPhase() — zero behavioral change
 │
-├── GeminiAgentExecutor (Tier 1, future)
-│   └── Wraps Gemini CLI programmatic API (when/if SDK matures)
-│   └── Fidelity depends on SDK capabilities
+├── OpenAIAgentExecutor (Tier 1, future)
+│   └── Wraps @openai/agents
+│   └── Generic framework — we wire our own tools into it
+│   └── Fidelity depends on framework capabilities
 │
-├── CodexAgentExecutor (Tier 1, future)
-│   └── Wraps Codex CLI programmatic API (when/if SDK matures)
-│   └── Fidelity depends on SDK capabilities
-│
-└── LLMApiExecutor (Tier 2, fallback)
+└── LLMApiExecutor (Tier 2, fallback for any provider)
     └── Self-managed agent loop: prompt → tool call → execute → result → repeat
     └── Uses LLMClient interface (one impl per provider)
     │   ├── AnthropicLLMClient (wraps @anthropic-ai/sdk)
     │   ├── OpenAILLMClient (wraps openai)
     │   └── GoogleLLMClient (wraps @google/genai)
     └── Uses LocalToolExecutor for Read/Write/Edit/Bash/Glob/Grep
-    └── Reduced fidelity: no hooks, no sessions, no MCP, no subagents
-    └── But: tool use works, streaming works, cost tracking works
+    └── We implement hooks, budget, turns in the loop (full control)
+    └── No sessions, no MCP, no subagents
 ```
+
+Note: Google has no Tier 1 option. `@google/gemini-cli-sdk` does not exist. Google users use Tier 2 (LLM API + self-managed loop) via `@google/genai`.
 
 ## PhaseExecutor Interface
 
