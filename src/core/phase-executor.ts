@@ -117,10 +117,10 @@ export async function runPhase(
       sessionId = msg.session_id as string;
     }
 
-    // Capture result from final message
-    if ("result" in msg) {
-      output = msg.result as string;
-      exhausted = msg.stop_reason === "max_tokens";
+    // Capture result from final SDKResultMessage
+    if (msg.type === "result") {
+      output = (msg.result as string) ?? "";
+      exhausted = msg.subtype === "error_max_turns" || msg.subtype === "error_max_budget_usd";
 
       const usage = msg.usage as
         | { input_tokens: number; output_tokens: number }
@@ -130,7 +130,7 @@ export async function runPhase(
         outputTokens = usage.output_tokens;
       }
 
-      costUsd = (msg.cost_usd as number) ?? 0;
+      costUsd = (msg.total_cost_usd as number) ?? 0;
       numTurns = (msg.num_turns as number) ?? 0;
     }
   }

@@ -26,10 +26,11 @@ describe("runPhase", () => {
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-123" },
       {
+        type: "result", subtype: "success",
         result: "Discovery complete. Found 3 opportunities.",
-        stop_reason: "end_turn",
+        stop_reason: null,
         usage: { input_tokens: 500, output_tokens: 200 },
-        cost_usd: 0.01,
+        total_cost_usd: 0.01,
         num_turns: 5,
       },
     ]);
@@ -47,10 +48,11 @@ describe("runPhase", () => {
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-456" },
       {
+        type: "result", subtype: "success",
         result: "Done",
-        stop_reason: "end_turn",
+        stop_reason: null,
         usage: { input_tokens: 1000, output_tokens: 500 },
-        cost_usd: 0.05,
+        total_cost_usd: 0.05,
         num_turns: 10,
       },
     ]);
@@ -69,7 +71,7 @@ describe("runPhase", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-789" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -95,7 +97,7 @@ describe("runPhase", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-ctx" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -111,7 +113,7 @@ describe("runPhase", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-resume" },
-      { result: "Resumed", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Resumed", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -125,15 +127,16 @@ describe("runPhase", () => {
     expect(opts.resume).toBe("sess-previous");
   });
 
-  it("reports max_tokens stop as turn exhaustion", async () => {
+  it("reports error_max_turns as turn exhaustion", async () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-exhaust" },
       {
+        type: "result", subtype: "error_max_turns",
         result: "Partial work done",
-        stop_reason: "max_tokens",
+        stop_reason: null,
         usage: { input_tokens: 500, output_tokens: 200 },
-        cost_usd: 0.02,
+        total_cost_usd: 0.02,
         num_turns: 50,
       },
     ]);
@@ -150,7 +153,7 @@ describe("runPhase", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-turns" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -168,7 +171,7 @@ describe("runPhase", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-trunk" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -191,7 +194,7 @@ describe("runPhase hooks", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-result-hook" },
-      { result: "Phase done", stop_reason: "end_turn", usage: { input_tokens: 500, output_tokens: 200 }, cost_usd: 0.03, num_turns: 5 },
+      { type: "result", subtype: "success", result: "Phase done", stop_reason: null,usage: { input_tokens: 500, output_tokens: 200 }, total_cost_usd: 0.03, num_turns: 5 },
     ]);
     const onResult = vi.fn();
 
@@ -212,7 +215,7 @@ describe("runPhase hooks", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-no-hooks" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -233,7 +236,7 @@ describe("runPhase auth mode", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-oauth" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -251,7 +254,7 @@ describe("runPhase auth mode", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-apikey" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -267,7 +270,7 @@ describe("runPhase auth mode", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-default" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
@@ -289,7 +292,7 @@ describe("runPhase SDK hooks wiring", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-hooks" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
     const onToolUse = vi.fn();
 
@@ -308,7 +311,7 @@ describe("runPhase SDK hooks wiring", () => {
     // Arrange
     mockQueryMessages([
       { type: "system", subtype: "init", session_id: "sess-no-hooks" },
-      { result: "Ok", stop_reason: "end_turn", usage: { input_tokens: 0, output_tokens: 0 }, cost_usd: 0, num_turns: 1 },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null,usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
     ]);
 
     // Act
