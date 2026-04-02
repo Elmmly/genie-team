@@ -10,6 +10,7 @@ export function formatModelsTable(
   const lines: string[] = [];
 
   lines.push("Model Tier Configuration");
+  lines.push(`Default provider: ${config.provider}`);
   lines.push("─".repeat(60));
 
   // Build genie-to-tier reverse map
@@ -23,8 +24,9 @@ export function formatModelsTable(
   for (const [tierName, tier] of Object.entries(config.tiers)) {
     const genies = tierGenies[tierName] ?? [];
     const genieList = genies.length > 0 ? genies.join(", ") : "(none)";
+    const providerNote = tier.provider ? ` [${tier.provider}]` : "";
     lines.push(
-      `  ${tierName.padEnd(12)} ${tier.model.padEnd(32)} ${genieList}`,
+      `  ${tierName.padEnd(12)} ${tier.model.padEnd(32)} ${genieList}${providerNote}`,
     );
   }
 

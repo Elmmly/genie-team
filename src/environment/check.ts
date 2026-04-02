@@ -91,6 +91,45 @@ export function checkAuth(): CheckResult {
   };
 }
 
+const PROVIDER_ENV_KEYS: Record<string, string> = {
+  claude: "ANTHROPIC_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  google: "GEMINI_API_KEY",
+};
+
+export function checkProvider(): CheckResult {
+  const config = loadGenieConfig();
+  const provider = config.provider;
+  const envKey = PROVIDER_ENV_KEYS[provider];
+
+  if (!envKey) {
+    return {
+      name: "Provider",
+      status: "warn",
+      detail: `Unknown provider "${provider}" in config`,
+    };
+  }
+
+  // Claude Tier 1 can use OAuth — API key is optional
+  if (provider === "claude") {
+    return {
+      name: "Provider",
+      status: "pass",
+      detail: `claude (Tier 1 — Claude Agent SDK)`,
+    };
+  }
+
+  const hasKey = !!process.env[envKey];
+  return {
+    name: "Provider",
+    status: hasKey ? "pass" : "warn",
+    detail: hasKey
+      ? `${provider} (Tier 2 — ${envKey} set)`
+      : `${provider} (Tier 2 — ${envKey} not set)`,
+  };
+}
+
 export function checkGenieConfig(): CheckResult {
   try {
     const config = loadGenieConfig();
@@ -140,6 +179,7 @@ export async function runChecks(): Promise<{
 
   // Sync checks
   results.push(checkAuth());
+  results.push(checkProvider());
   results.push(checkGenieConfig());
 
   const hasFail = results.some((r) => r.status === "fail");

@@ -1,3 +1,5 @@
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import type { PhaseName } from "../config/phase-config.js";
 import { getMaxTurns } from "../config/phase-config.js";
 import { buildPhasePrompt } from "../config/prompt-builder.js";
@@ -36,10 +38,16 @@ export class LLMApiExecutor implements PhaseExecutor {
     const maxTurns = getMaxTurns(phase, options?.turnOverrides);
     const verbose = options?.verbose ?? false;
 
+    const projectContext = this.loadProjectContext(options?.cwd ?? process.cwd());
+    const systemParts = [
+      projectContext,
+      `You are a genie-team ${phase} specialist.`,
+    ].filter(Boolean);
+
     const tools = this.toolExecutor.availableTools();
     const completionOpts: CompletionOptions = {
       model: options?.model ?? "default",
-      system: `You are a genie-team ${phase} specialist. ${prompt}`,
+      system: systemParts.join("\n\n"),
       tools,
     };
 
@@ -121,5 +129,32 @@ export class LLMApiExecutor implements PhaseExecutor {
     options?.hooks?.onResult?.(result);
 
     return result;
+  }
+
+  private loadProjectContext(cwd: string): string {
+    const parts: string[] = [];
+
+    // Load CLAUDE.md (primary project context)
+    const claudeMd = join(cwd, "CLAUDE.md");
+    if (existsSync(claudeMd)) {
+      try {
+        parts.push(readFileSync(claudeMd, "utf-8"));
+      } catch { /* skip unreadable */ }
+    }
+
+    // Load strategic context files
+    const contextDir = join(cwd, "docs", "context");
+    if (existsSync(contextDir)) {
+      for (const file of ["strategy.md", "market.md", "assumptions.md"]) {
+        const filePath = join(contextDir, file);
+        if (existsSync(filePath)) {
+          try {
+            parts.push(readFileSync(filePath, "utf-8"));
+          } catch { /* skip unreadable */ }
+        }
+      }
+    }
+
+    return parts.join("\n\n");
   }
 }

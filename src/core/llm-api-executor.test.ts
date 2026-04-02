@@ -194,4 +194,23 @@ describe("LLMApiExecutor", () => {
     const options = callArgs[1] as CompletionOptions;
     expect(options.system).toContain("discover");
   });
+
+  it("loads CLAUDE.md into system prompt when present", async () => {
+    // Arrange
+    const client = mockClient([{
+      content: "Done.",
+      toolCalls: [],
+      usage: { inputTokens: 100, outputTokens: 50 },
+      finishReason: "end_turn",
+    }]);
+    const executor = new LLMApiExecutor(client, mockToolExecutor());
+
+    // Act — run from the actual project root which has CLAUDE.md
+    await executor.runPhase("discover", "test", { cwd: process.cwd() });
+
+    // Assert
+    const callArgs = (client.complete as ReturnType<typeof vi.fn>).mock.calls[0];
+    const options = callArgs[1] as CompletionOptions;
+    expect(options.system).toContain("Genie Team");
+  });
 });

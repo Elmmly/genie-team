@@ -2,7 +2,7 @@
 import { createCli } from "./cli.js";
 
 // Known TypeScript subcommands. Everything else falls back to shell.
-const HANDLED_COMMANDS = new Set(["check", "models", "run", "daemon", "session"]);
+const HANDLED_COMMANDS = new Set(["check", "models", "providers", "run", "daemon", "session"]);
 // Global flags handled by genies-core directly
 const GLOBAL_FLAGS = new Set(["--version", "-V", "--help", "-h"]);
 

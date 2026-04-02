@@ -101,8 +101,39 @@ export function createCli(): Command {
     .command("models")
     .description("Display model tier configuration and per-genie assignments")
     .action(() => {
-      const config = loadGenieConfig();
       console.log(formatModelsTable(config));
+    });
+
+  program
+    .command("providers")
+    .description("List available AI providers and credential status")
+    .action(() => {
+      const providers = [
+        { name: "claude", tier: 1, envKey: "N/A (OAuth or ANTHROPIC_API_KEY)", description: "Claude Agent SDK (full fidelity)" },
+        { name: "anthropic", tier: 2, envKey: "ANTHROPIC_API_KEY", description: "Anthropic Messages API" },
+        { name: "openai", tier: 2, envKey: "OPENAI_API_KEY", description: "OpenAI Chat Completions" },
+        { name: "google", tier: 2, envKey: "GEMINI_API_KEY", description: "Google Gemini GenerateContent" },
+      ];
+
+      console.log("Available Providers");
+      console.log("─".repeat(60));
+
+      for (const p of providers) {
+        const isDefault = p.name === config.provider ? " (default)" : "";
+        const hasKey = p.name === "claude"
+          ? true
+          : !!process.env[p.envKey];
+        const status = hasKey ? "ready" : "no key";
+        console.log(
+          `  ${p.name.padEnd(12)} Tier ${p.tier}  [${status}]${isDefault}`,
+        );
+        console.log(`${"".padEnd(14)} ${p.description}`);
+      }
+
+      console.log("");
+      console.log(`Configured default: ${config.provider}`);
+      console.log("Set with: genie-config.yaml → provider: <name>");
+      console.log("Override: --provider <name>");
     });
 
   function parsePhase(value: string): PhaseName {
