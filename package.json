@@ -4,10 +4,10 @@
   "description": "Specialized AI genies for product discovery and delivery",
   "type": "module",
   "bin": {
-    "genies-core": "dist/cli.cjs"
+    "genies-core": "dist/index.js"
   },
   "scripts": {
-    "build": "node build.mjs",
+    "build": "tsc",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,7 +21,6 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.5.0",
-    "esbuild": "^0.27.4",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"

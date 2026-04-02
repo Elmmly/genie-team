@@ -21,8 +21,8 @@ if [[ "${GENIES_SOURCED:-false}" != "true" && "${GENIES_SKIP_CORE:-false}" != "t
     _genies_core=""
     if [[ -x "$(command -v genies-core 2>/dev/null)" ]]; then
         _genies_core="genies-core"
-    elif [[ -f "${BASH_SOURCE[0]%/*}/../dist/cli.cjs" ]]; then
-        _genies_core="node ${BASH_SOURCE[0]%/*}/../dist/cli.cjs"
+    elif [[ -f "${BASH_SOURCE[0]%/*}/../dist/index.js" ]]; then
+        _genies_core="node ${BASH_SOURCE[0]%/*}/../dist/index.js"
     fi
     if [[ -n "$_genies_core" ]]; then
         _core_ec=0

@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { createCli } from "./cli.js";
 
 // Known TypeScript subcommands. Everything else falls back to shell.
