@@ -84,18 +84,18 @@ export function createCli(): Command {
     verbose?: true;
   }
 
-  function parsePositiveInt(value: string, name: string): number {
+  function parseIntArg(value: string, name: string): number {
     const n = parseInt(value, 10);
-    if (Number.isNaN(n) || n < 0) {
-      throw new InvalidArgumentError(`${name} must be a non-negative integer, got "${value}"`);
+    if (Number.isNaN(n) || n <= 0) {
+      throw new InvalidArgumentError(`${name} must be a positive integer, got "${value}"`);
     }
     return n;
   }
 
-  function parsePositiveFloat(value: string, name: string): number {
+  function parseFloatArg(value: string, name: string): number {
     const n = parseFloat(value);
-    if (Number.isNaN(n) || n < 0) {
-      throw new InvalidArgumentError(`${name} must be a non-negative number, got "${value}"`);
+    if (Number.isNaN(n) || n <= 0) {
+      throw new InvalidArgumentError(`${name} must be a positive number, got "${value}"`);
     }
     return n;
   }
@@ -109,11 +109,11 @@ export function createCli(): Command {
     };
     if (opts.auth) exec.authMode = opts.auth;
     if (opts.model) exec.model = opts.model;
-    if (opts.turns) exec.turnOverrides = { global: parsePositiveInt(opts.turns, "--turns") };
+    if (opts.turns) exec.turnOverrides = { global: parseIntArg(opts.turns, "--turns") };
     if (!opts.resume) exec.noResume = true;
     if (opts.trunk) exec.trunkMode = true;
-    if (opts.budget) exec.maxBudgetUsd = parsePositiveFloat(opts.budget, "--budget");
-    if (opts.reviewCycles) exec.reviewCycles = parsePositiveInt(opts.reviewCycles, "--review-cycles");
+    if (opts.budget) exec.maxBudgetUsd = parseFloatArg(opts.budget, "--budget");
+    if (opts.reviewCycles) exec.reviewCycles = parseIntArg(opts.reviewCycles, "--review-cycles");
     if (opts.skipPermissions) exec.skipPermissions = true;
     if (opts.logDir) exec.logDir = opts.logDir;
     if (opts.verbose) exec.verbose = true;
@@ -201,7 +201,7 @@ export function createCli(): Command {
         finishMode: opts.finish,
       };
 
-      if (opts.parallel) options.parallel = parsePositiveInt(opts.parallel, "--parallel");
+      if (opts.parallel) options.parallel = parseIntArg(opts.parallel, "--parallel");
       if (opts.priority) options.priorities = [opts.priority];
 
       const result = await runDaemonCycle(options);

@@ -1,5 +1,6 @@
 import { execa } from "execa";
 import { dirname } from "node:path";
+import { PHASES } from "../config/phase-config.js";
 
 // ── Git context helpers ──
 
@@ -107,8 +108,14 @@ export async function listSessions(): Promise<SessionInfo[]> {
 
     const path = pathLine.replace("worktree ", "");
     const branch = branchLine.replace("branch refs/heads/", "");
-    // slug: strip "genie/" prefix and trailing "-phase"
-    const slug = branch.replace("genie/", "").replace(/-[^-]+$/, "");
+    // Strip "genie/" prefix and known phase suffix to recover the item slug.
+    // Must match against known phases to avoid stripping slug segments
+    // (e.g., "P1-done-handler-deliver" → slug "P1-done-handler", not "P1-done-handler").
+    const withoutPrefix = branch.replace("genie/", "");
+    const phaseSuffix = PHASES.find((p) => withoutPrefix.endsWith(`-${p}`));
+    const slug = phaseSuffix
+      ? withoutPrefix.slice(0, -(phaseSuffix.length + 1))
+      : withoutPrefix;
 
     sessions.push({ path, branch, slug });
   }

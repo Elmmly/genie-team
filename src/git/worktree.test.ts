@@ -220,6 +220,27 @@ describe("listSessions", () => {
     });
   });
 
+  it("handles multi-segment slugs correctly", async () => {
+    // Arrange
+    const porcelain = [
+      "worktree /Users/me/project",
+      "HEAD abc123",
+      "branch refs/heads/main",
+      "",
+      "worktree /Users/me/project--P1-done-handler",
+      "HEAD def456",
+      "branch refs/heads/genie/P1-done-handler-deliver",
+      "",
+    ].join("\n");
+    vi.mocked(execa).mockResolvedValue({ stdout: porcelain } as never);
+
+    // Act
+    const sessions = await listSessions();
+
+    // Assert — slug should be "P1-done-handler", not "P1-done"
+    expect(sessions[0].slug).toBe("P1-done-handler");
+  });
+
   it("returns empty array when no genie worktrees exist", async () => {
     // Arrange
     const porcelain = [
