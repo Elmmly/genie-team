@@ -1,4 +1,4 @@
-export type AuthMode = "oauth" | "apikey" | "unknown";
+export type AuthMode = "oauth" | "apikey";
 
 export interface AuthInfo {
   mode: AuthMode;
@@ -26,6 +26,19 @@ export function detectAuth(): AuthInfo {
     hasApiKey: false,
     billingNote: "OAuth billing (usage charged to Claude account)",
   };
+}
+
+/**
+ * Build an env override for SDK query() based on auth mode.
+ * Returns undefined when no override is needed (default or apikey mode).
+ */
+export function buildAuthEnv(
+  mode?: "oauth" | "apikey",
+): Record<string, string | undefined> | undefined {
+  if (mode === "oauth") {
+    return { ...process.env, ANTHROPIC_API_KEY: undefined };
+  }
+  return undefined;
 }
 
 /**

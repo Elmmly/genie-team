@@ -12,6 +12,7 @@ import {
   sessionFinish,
   integratePr,
   integrateTrunk,
+  listSessions,
 } from "./worktree.js";
 
 vi.mock("execa", () => ({
@@ -178,5 +179,103 @@ describe("sessionCleanup", () => {
 
     // Act & Assert — should not throw
     await sessionCleanup("P0-item");
+  });
+});
+
+describe("listSessions", () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it("returns genie worktrees from porcelain output", async () => {
+    // Arrange
+    const porcelain = [
+      "worktree /Users/me/project",
+      "HEAD abc123",
+      "branch refs/heads/main",
+      "",
+      "worktree /Users/me/project--P0-auth",
+      "HEAD def456",
+      "branch refs/heads/genie/P0-auth-deliver",
+      "",
+      "worktree /Users/me/project--P1-search",
+      "HEAD ghi789",
+      "branch refs/heads/genie/P1-search-design",
+      "",
+    ].join("\n");
+    vi.mocked(execa).mockResolvedValue({ stdout: porcelain } as never);
+
+    // Act
+    const sessions = await listSessions();
+
+    // Assert
+    expect(sessions).toHaveLength(2);
+    expect(sessions[0]).toEqual({
+      path: "/Users/me/project--P0-auth",
+      branch: "genie/P0-auth-deliver",
+      slug: "P0-auth",
+    });
+    expect(sessions[1]).toEqual({
+      path: "/Users/me/project--P1-search",
+      branch: "genie/P1-search-design",
+      slug: "P1-search",
+    });
+  });
+
+  it("handles multi-segment slugs correctly", async () => {
+    // Arrange
+    const porcelain = [
+      "worktree /Users/me/project",
+      "HEAD abc123",
+      "branch refs/heads/main",
+      "",
+      "worktree /Users/me/project--P1-done-handler",
+      "HEAD def456",
+      "branch refs/heads/genie/P1-done-handler-deliver",
+      "",
+    ].join("\n");
+    vi.mocked(execa).mockResolvedValue({ stdout: porcelain } as never);
+
+    // Act
+    const sessions = await listSessions();
+
+    // Assert — slug should be "P1-done-handler", not "P1-done"
+    expect(sessions[0].slug).toBe("P1-done-handler");
+  });
+
+  it("returns empty array when no genie worktrees exist", async () => {
+    // Arrange
+    const porcelain = [
+      "worktree /Users/me/project",
+      "HEAD abc123",
+      "branch refs/heads/main",
+      "",
+    ].join("\n");
+    vi.mocked(execa).mockResolvedValue({ stdout: porcelain } as never);
+
+    // Act
+    const sessions = await listSessions();
+
+    // Assert
+    expect(sessions).toEqual([]);
+  });
+
+  it("handles detached HEAD worktrees gracefully", async () => {
+    // Arrange
+    const porcelain = [
+      "worktree /Users/me/project",
+      "HEAD abc123",
+      "branch refs/heads/main",
+      "",
+      "worktree /Users/me/project--detached",
+      "HEAD def456",
+      "detached",
+      "",
+    ].join("\n");
+    vi.mocked(execa).mockResolvedValue({ stdout: porcelain } as never);
+
+    // Act
+    const sessions = await listSessions();
+
+    // Assert
+    expect(sessions).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { execa } from "execa";
-import { dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
+import { PHASES } from "../config/phase-config.js";
 
 // ── Git context helpers ──
 
@@ -10,7 +11,7 @@ export async function repoRoot(): Promise<string> {
 }
 
 export function repoName(root: string): string {
-  return root.split("/").at(-1) ?? root;
+  return basename(root) || root;
 }
 
 export async function defaultBranch(): Promise<string> {
@@ -44,7 +45,7 @@ export async function defaultBranch(): Promise<string> {
 // ── Naming conventions ──
 
 export function worktreeDir(root: string, item: string): string {
-  return `${dirname(root)}/${repoName(root)}--${item}`;
+  return join(dirname(root), `${repoName(root)}--${item}`);
 }
 
 export function branchName(item: string, phase: string): string {
@@ -86,8 +87,48 @@ export async function findBranch(item: string): Promise<string | undefined> {
   return first || undefined;
 }
 
+// ── Session listing ──
+
+export interface SessionInfo {
+  path: string;
+  branch: string;
+  slug: string;
+}
+
+export async function listSessions(): Promise<SessionInfo[]> {
+  const { stdout } = await execa("git", ["worktree", "list", "--porcelain"]);
+  const sessions: SessionInfo[] = [];
+  const blocks = stdout.split("\n\n");
+
+  for (const block of blocks) {
+    const lines = block.trim().split("\n");
+    const pathLine = lines.find((l) => l.startsWith("worktree "));
+    const branchLine = lines.find((l) => l.startsWith("branch refs/heads/genie/"));
+    if (!pathLine || !branchLine) continue;
+
+    const path = pathLine.replace("worktree ", "");
+    const branch = branchLine.replace("branch refs/heads/", "");
+    // Strip "genie/" prefix and known phase suffix to recover the item slug.
+    // Must match against known phases to avoid stripping slug segments
+    // (e.g., "P1-done-handler-deliver" → slug "P1-done-handler", not "P1-done-handler").
+    const withoutPrefix = branch.replace("genie/", "");
+    const phaseSuffix = PHASES.find((p) => withoutPrefix.endsWith(`-${p}`));
+    const slug = phaseSuffix
+      ? withoutPrefix.slice(0, -(phaseSuffix.length + 1))
+      : withoutPrefix;
+
+    sessions.push({ path, branch, slug });
+  }
+
+  return sessions;
+}
+
 // ── Session lifecycle ──
 
+/**
+ * How to integrate a worktree session after execution.
+ * "force" is internal-only (used by sessionFinish for cleanup) — not exposed in CLI.
+ */
 export type FinishMode = "pr" | "merge" | "force" | "leave-branch";
 
 export async function sessionStart(
@@ -99,7 +140,11 @@ export async function sessionStart(
   const branch = branchName(item, phase);
   const baseBranch = await defaultBranch();
 
-  // Reuse: worktree and branch both exist
+  // Reuse: worktree and branch both exist.
+  // Note: TOCTOU race exists between branchExists check and worktree add.
+  // In parallel daemon runs, two workers could race on the same branch.
+  // A proper fix requires file locking (e.g., proper-lockfile). Acceptable
+  // risk for single-genie mode; revisit if parallel conflicts are observed.
   if (await branchExists(branch)) {
     // Check if worktree exists by trying to resolve it
     try {
@@ -234,11 +279,14 @@ export async function integratePr(
     // PR creation failed — branch is pushed, user can create manually
   }
 
-  // Delete local branch
-  try {
-    await execa("git", ["-C", root, "branch", "-D", branch]);
-  } catch {
-    // May already be deleted
+  // Only delete local branch if PR was created successfully.
+  // If PR creation failed, keep the local branch so the user has a reference.
+  if (prUrl) {
+    try {
+      await execa("git", ["-C", root, "branch", "-D", branch]);
+    } catch {
+      // May already be deleted
+    }
   }
 
   return { prUrl, exitCode: 0 };

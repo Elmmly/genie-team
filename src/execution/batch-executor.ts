@@ -1,4 +1,5 @@
-import { executeSingleItem, type SingleItemResult } from "./single-item.js";
+import pLimit from "p-limit";
+import { executeSingleItem, type ExecutionOptions } from "./single-item.js";
 import {
   sessionStart,
   sessionCleanup,
@@ -14,17 +15,11 @@ export interface BatchItem {
   phase: PhaseName;
 }
 
-export interface BatchOptions {
+export interface BatchOptions extends ExecutionOptions {
   throughPhase: PhaseName;
   finishMode: FinishMode;
   parallel?: number;
   continueOnFailure?: boolean;
-  trunkMode?: boolean;
-  model?: string;
-  skipPermissions?: boolean;
-  noResume?: boolean;
-  maxBudgetUsd?: number;
-  logDir?: string;
 }
 
 interface ItemOutcome {
@@ -62,91 +57,15 @@ export async function executeBatch(
   return executeParallel(items, options, parallel);
 }
 
-async function executeSequential(
-  items: BatchItem[],
+/** Integrate outcomes and sort into succeeded/failed/conflicts buckets. */
+async function integrateOutcomes(
+  outcomes: Array<{ item: BatchItem; outcome: ItemOutcome }>,
   options: BatchOptions,
-): Promise<BatchResult> {
+): Promise<{ succeeded: ItemOutcome[]; failed: ItemOutcome[]; conflicts: ItemOutcome[] }> {
   const succeeded: ItemOutcome[] = [];
   const failed: ItemOutcome[] = [];
   const conflicts: ItemOutcome[] = [];
-  let totalCostUsd = 0;
 
-  for (const item of items) {
-    const outcome = await executeOneItem(item, options);
-    totalCostUsd += outcome.costUsd;
-
-    if (outcome.exitCode === 0) {
-      const integration = await integrateItem(item.slug, options);
-      if (integration.exitCode === 2) {
-        conflicts.push({ ...outcome, exitCode: 2 });
-      } else if (integration.exitCode !== 0) {
-        failed.push({ ...outcome, exitCode: integration.exitCode });
-      } else {
-        succeeded.push({ ...outcome, prUrl: integration.prUrl });
-      }
-    } else {
-      failed.push(outcome);
-      await sessionCleanup(item.slug);
-      if (!options.continueOnFailure) break;
-    }
-  }
-
-  return {
-    succeeded,
-    failed,
-    conflicts,
-    totalCostUsd,
-    exitCode: failed.length > 0 || conflicts.length > 0 ? 1 : 0,
-  };
-}
-
-async function executeParallel(
-  items: BatchItem[],
-  options: BatchOptions,
-  concurrency: number,
-): Promise<BatchResult> {
-  const succeeded: ItemOutcome[] = [];
-  const failed: ItemOutcome[] = [];
-  const conflicts: ItemOutcome[] = [];
-  let totalCostUsd = 0;
-
-  // Concurrency semaphore
-  let running = 0;
-  let idx = 0;
-  const outcomes: Array<{ item: BatchItem; outcome: ItemOutcome }> = [];
-
-  await new Promise<void>((resolve) => {
-    function launch() {
-      while (running < concurrency && idx < items.length) {
-        const item = items[idx++];
-        running++;
-
-        executeOneItem(item, options)
-          .then((outcome) => {
-            outcomes.push({ item, outcome });
-            totalCostUsd += outcome.costUsd;
-          })
-          .catch(() => {
-            outcomes.push({
-              item,
-              outcome: { slug: item.slug, input: item.input, exitCode: 1, costUsd: 0 },
-            });
-          })
-          .finally(() => {
-            running--;
-            if (running === 0 && idx >= items.length) {
-              resolve();
-            } else {
-              launch();
-            }
-          });
-      }
-      if (items.length === 0) resolve();
-    }
-    launch();
-  });
-
-  // Serialize integration
   for (const { item, outcome } of outcomes) {
     if (outcome.exitCode === 0) {
       const integration = await integrateItem(item.slug, options);
@@ -163,6 +82,58 @@ async function executeParallel(
     }
   }
 
+  return { succeeded, failed, conflicts };
+}
+
+async function executeSequential(
+  items: BatchItem[],
+  options: BatchOptions,
+): Promise<BatchResult> {
+  const outcomes: Array<{ item: BatchItem; outcome: ItemOutcome }> = [];
+  let totalCostUsd = 0;
+
+  for (const item of items) {
+    const outcome = await executeOneItem(item, options);
+    totalCostUsd += outcome.costUsd;
+    outcomes.push({ item, outcome });
+
+    if (outcome.exitCode !== 0 && !options.continueOnFailure) break;
+  }
+
+  const { succeeded, failed, conflicts } = await integrateOutcomes(outcomes, options);
+
+  return {
+    succeeded,
+    failed,
+    conflicts,
+    totalCostUsd,
+    exitCode: failed.length > 0 || conflicts.length > 0 ? 1 : 0,
+  };
+}
+
+async function executeParallel(
+  items: BatchItem[],
+  options: BatchOptions,
+  concurrency: number,
+): Promise<BatchResult> {
+  let totalCostUsd = 0;
+
+  const limit = pLimit(concurrency);
+  const outcomes = await Promise.all(
+    items.map((item) =>
+      limit(async () => {
+        const outcome = await executeOneItem(item, options);
+        return { item, outcome };
+      }),
+    ),
+  );
+
+  for (const { outcome } of outcomes) {
+    totalCostUsd += outcome.costUsd;
+  }
+
+  const { succeeded, failed, conflicts } = await integrateOutcomes(outcomes, options);
+
   return {
     succeeded,
     failed,
@@ -177,17 +148,14 @@ async function executeOneItem(
   options: BatchOptions,
 ): Promise<ItemOutcome> {
   try {
-    await sessionStart(item.slug, item.phase);
+    const cwd = await sessionStart(item.slug, item.phase);
 
+    const { throughPhase, finishMode: _, parallel: _p, continueOnFailure: _c, ...executionOpts } = options;
     const result = await executeSingleItem(item.input, {
+      ...executionOpts,
+      cwd,
       fromPhase: item.phase,
-      throughPhase: options.throughPhase,
-      model: options.model,
-      skipPermissions: options.skipPermissions,
-      trunkMode: options.trunkMode,
-      noResume: options.noResume,
-      maxBudgetUsd: options.maxBudgetUsd,
-      logDir: options.logDir,
+      throughPhase,
     });
 
     return {
@@ -197,6 +165,8 @@ async function executeOneItem(
       costUsd: result.totalCostUsd,
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[batch] ${item.slug} failed: ${message}`);
     return {
       slug: item.slug,
       input: item.input,
