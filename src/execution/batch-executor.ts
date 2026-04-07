@@ -78,7 +78,9 @@ async function integrateOutcomes(
       }
     } else {
       failed.push(outcome);
-      await sessionCleanup(item.slug);
+      if (options.cleanupOnFailure) {
+        await sessionCleanup(item.slug);
+      }
     }
   }
 
@@ -148,7 +150,9 @@ async function executeOneItem(
   options: BatchOptions,
 ): Promise<ItemOutcome> {
   try {
-    const cwd = await sessionStart(item.slug, item.phase);
+    const cwd = options.noWorktree
+      ? process.cwd()
+      : await sessionStart(item.slug, item.phase);
 
     const { throughPhase, finishMode: _, parallel: _p, continueOnFailure: _c, ...executionOpts } = options;
     const result = await executeSingleItem(item.input, {
