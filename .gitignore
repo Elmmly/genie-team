@@ -39,3 +39,7 @@ Desktop.ini
 
 # Generated outputs (test images, etc.)
 outputs/
+
+# Node.js / TypeScript
+node_modules/
+dist/

@@ -445,6 +445,45 @@ install_genies() {
     fi
 }
 
+# Build and globally install genies-core (TypeScript SDK orchestrator)
+install_genies_core() {
+    if [[ ! -f "$SCRIPT_DIR/package.json" ]]; then
+        log_warn "No package.json found — skipping genies-core build"
+        return 0
+    fi
+
+    if ! command -v node &>/dev/null; then
+        log_warn "Node.js not found — skipping genies-core build (genies will use bash fallback)"
+        return 0
+    fi
+
+    log_info "Building genies-core (TypeScript SDK orchestrator)..."
+
+    (cd "$SCRIPT_DIR" && npm install --ignore-scripts 2>&1 | tail -1) || {
+        log_warn "npm install failed — skipping genies-core build"
+        return 0
+    }
+
+    (cd "$SCRIPT_DIR" && npm run build 2>&1) || {
+        log_warn "npm run build failed — skipping genies-core build"
+        return 0
+    }
+
+    (cd "$SCRIPT_DIR" && npm link 2>&1) || {
+        log_warn "npm link failed — genies-core built but not globally linked"
+        log_info "You can manually run: cd $SCRIPT_DIR && npm link"
+        return 0
+    }
+
+    if command -v genies-core &>/dev/null; then
+        log_success "genies-core built and linked globally ($(genies-core --version 2>/dev/null || echo 'unknown'))"
+    else
+        log_warn "genies-core linked but not found on PATH — check your npm prefix"
+    fi
+
+    return 0
+}
+
 # Install scripts (genies only — single CLI entry point)
 install_scripts() {
     local dest="$1"
@@ -672,6 +711,8 @@ cmd_global() {
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install scripts"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+            log_info "[DRY RUN] Would build and npm link genies-core"
+        [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             setup_scripts_path "true"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install hooks"
@@ -725,6 +766,10 @@ cmd_global() {
     # Scripts installation (genies)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         install_scripts "$GLOBAL_CLAUDE_DIR/scripts" "$force"
+
+    # Build and globally link genies-core (TypeScript SDK orchestrator)
+    [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
+        install_genies_core
 
     # Hooks installation (scripts + settings merge)
     [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \

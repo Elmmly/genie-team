@@ -14,6 +14,27 @@ if [[ "${GENIES_SOURCED:-false}" != "true" ]]; then
     set -euo pipefail
 fi
 
+# ── SDK delegation ──
+# When genies-core (TypeScript) is available, delegate to it first.
+# Exit 127 from genies-core means "not handled" — fall through to bash.
+if [[ "${GENIES_SOURCED:-false}" != "true" && "${GENIES_SKIP_CORE:-false}" != "true" ]]; then
+    _genies_core=""
+    if [[ -x "$(command -v genies-core 2>/dev/null)" ]]; then
+        _genies_core="genies-core"
+    elif [[ -f "${BASH_SOURCE[0]%/*}/../dist/index.js" ]]; then
+        _genies_core="node ${BASH_SOURCE[0]%/*}/../dist/index.js"
+    fi
+    if [[ -n "$_genies_core" ]]; then
+        _core_ec=0
+        $_genies_core "$@" || _core_ec=$?
+        if [[ $_core_ec -ne 127 ]]; then
+            exit $_core_ec
+        fi
+        # Exit 127 = not handled; fall through to bash
+    fi
+    unset _genies_core _core_ec
+fi
+
 # ─────────────────────────────────────────────
 # Constants
 # ─────────────────────────────────────────────
