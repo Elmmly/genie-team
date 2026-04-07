@@ -1,5 +1,5 @@
 import { execa } from "execa";
-import { dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { PHASES } from "../config/phase-config.js";
 
 // ── Git context helpers ──
@@ -11,7 +11,7 @@ export async function repoRoot(): Promise<string> {
 }
 
 export function repoName(root: string): string {
-  return root.split("/").at(-1) ?? root;
+  return basename(root) || root;
 }
 
 export async function defaultBranch(): Promise<string> {
@@ -45,7 +45,7 @@ export async function defaultBranch(): Promise<string> {
 // ── Naming conventions ──
 
 export function worktreeDir(root: string, item: string): string {
-  return `${dirname(root)}/${repoName(root)}--${item}`;
+  return join(dirname(root), `${repoName(root)}--${item}`);
 }
 
 export function branchName(item: string, phase: string): string {
