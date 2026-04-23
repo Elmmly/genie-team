@@ -19,6 +19,14 @@ vi.mock("execa", () => ({
   execa: vi.fn(),
 }));
 
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    existsSync: vi.fn(actual.existsSync),
+  };
+});
+
 import { execa } from "execa";
 
 describe("repoRoot", () => {
@@ -277,5 +285,107 @@ describe("listSessions", () => {
 
     // Assert
     expect(sessions).toEqual([]);
+  });
+});
+
+describe("worktreeRunSetup", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("runs .genie/setup.sh when it exists and is executable", async () => {
+    // Arrange
+    const { existsSync } = await import("node:fs");
+    vi.mocked(existsSync).mockImplementation((p) => {
+      return String(p).endsWith(".genie/setup.sh");
+    });
+    vi.mocked(execa).mockResolvedValue({ stdout: "", exitCode: 0 } as never);
+
+    // Act
+    const { worktreeRunSetup } = await import("./worktree.js");
+    await worktreeRunSetup("/tmp/worktree");
+
+    // Assert
+    expect(execa).toHaveBeenCalledWith(
+      "bash",
+      ["/tmp/worktree/.genie/setup.sh"],
+      expect.objectContaining({ cwd: "/tmp/worktree" }),
+    );
+  });
+
+  it("detects npm via package-lock.json and runs npm ci", async () => {
+    // Arrange
+    const { existsSync } = await import("node:fs");
+    vi.mocked(existsSync).mockImplementation((p) => {
+      const s = String(p);
+      if (s.endsWith("package-lock.json")) return true;
+      if (s.endsWith("node_modules")) return false;
+      return false;
+    });
+    vi.mocked(execa).mockResolvedValue({ stdout: "" } as never);
+
+    // Act
+    const { worktreeRunSetup } = await import("./worktree.js");
+    await worktreeRunSetup("/tmp/worktree");
+
+    // Assert
+    expect(execa).toHaveBeenCalledWith(
+      "npm",
+      ["ci"],
+      expect.objectContaining({ cwd: "/tmp/worktree" }),
+    );
+  });
+
+  it("detects pnpm via pnpm-lock.yaml", async () => {
+    // Arrange
+    const { existsSync } = await import("node:fs");
+    vi.mocked(existsSync).mockImplementation((p) => {
+      const s = String(p);
+      if (s.endsWith("pnpm-lock.yaml")) return true;
+      if (s.endsWith("node_modules")) return false;
+      return false;
+    });
+    vi.mocked(execa).mockResolvedValue({ stdout: "" } as never);
+
+    // Act
+    const { worktreeRunSetup } = await import("./worktree.js");
+    await worktreeRunSetup("/tmp/worktree");
+
+    // Assert
+    expect(execa).toHaveBeenCalledWith(
+      "pnpm",
+      ["install", "--frozen-lockfile"],
+      expect.objectContaining({ cwd: "/tmp/worktree" }),
+    );
+  });
+
+  it("skips install when node_modules already exists", async () => {
+    // Arrange
+    const { existsSync } = await import("node:fs");
+    vi.mocked(existsSync).mockImplementation((p) => {
+      const s = String(p);
+      if (s.endsWith("node_modules")) return true;
+      return false;
+    });
+
+    // Act
+    const { worktreeRunSetup } = await import("./worktree.js");
+    await worktreeRunSetup("/tmp/worktree");
+
+    // Assert — no execa call for install
+    expect(execa).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when no lockfile or setup script found", async () => {
+    // Arrange
+    const { existsSync } = await import("node:fs");
+    vi.mocked(existsSync).mockReturnValue(false);
+
+    // Act
+    const { worktreeRunSetup } = await import("./worktree.js");
+    await worktreeRunSetup("/tmp/worktree");
+
+    // Assert
+    expect(execa).not.toHaveBeenCalled();
   });
 });

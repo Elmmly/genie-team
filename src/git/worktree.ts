@@ -1,4 +1,5 @@
 import { execa } from "execa";
+import { existsSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { PHASES } from "../config/phase-config.js";
 
@@ -334,4 +335,50 @@ export async function integrateTrunk(
   }
 
   return { exitCode: 0 };
+}
+
+// ── Worktree environment setup ──
+
+interface PackageManager {
+  cmd: string;
+  args: string[];
+  lockfile: string;
+}
+
+const PACKAGE_MANAGERS: PackageManager[] = [
+  { cmd: "pnpm", args: ["install", "--frozen-lockfile"], lockfile: "pnpm-lock.yaml" },
+  { cmd: "npm", args: ["ci"], lockfile: "package-lock.json" },
+  { cmd: "yarn", args: ["install", "--frozen-lockfile"], lockfile: "yarn.lock" },
+  { cmd: "bun", args: ["install", "--frozen-lockfile"], lockfile: "bun.lock" },
+];
+
+/**
+ * Post-worktree-creation environment setup.
+ * Priority: .genie/setup.sh > auto-detect package manager > no-op.
+ */
+export async function worktreeRunSetup(worktreeDir: string): Promise<void> {
+  // Option A: project-defined setup script
+  const setupScript = join(worktreeDir, ".genie", "setup.sh");
+  if (existsSync(setupScript)) {
+    await execa("bash", [setupScript], { cwd: worktreeDir });
+    return;
+  }
+
+  // Skip if node_modules already exists
+  if (existsSync(join(worktreeDir, "node_modules"))) {
+    return;
+  }
+
+  // Option B: detect lockfile and install
+  for (const pm of PACKAGE_MANAGERS) {
+    if (existsSync(join(worktreeDir, pm.lockfile))) {
+      await execa(pm.cmd, pm.args, { cwd: worktreeDir });
+      return;
+    }
+    // Check bun.lockb alternative
+    if (pm.cmd === "bun" && existsSync(join(worktreeDir, "bun.lockb"))) {
+      await execa(pm.cmd, pm.args, { cwd: worktreeDir });
+      return;
+    }
+  }
 }

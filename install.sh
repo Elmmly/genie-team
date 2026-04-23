@@ -445,61 +445,55 @@ install_genies() {
     fi
 }
 
-# Build and globally install genies-core (TypeScript SDK orchestrator)
+# Build and globally install genies (TypeScript SDK orchestrator)
 install_genies_core() {
     if [[ ! -f "$SCRIPT_DIR/package.json" ]]; then
-        log_warn "No package.json found — skipping genies-core build"
+        log_warn "No package.json found — skipping genies build"
         return 0
     fi
 
     if ! command -v node &>/dev/null; then
-        log_warn "Node.js not found — skipping genies-core build (genies will use bash fallback)"
+        log_warn "Node.js not found — skipping genies build"
         return 0
     fi
 
-    log_info "Building genies-core (TypeScript SDK orchestrator)..."
+    log_info "Building genies (TypeScript SDK orchestrator)..."
 
     (cd "$SCRIPT_DIR" && npm install --ignore-scripts 2>&1 | tail -1) || {
-        log_warn "npm install failed — skipping genies-core build"
+        log_warn "npm install failed — skipping genies build"
         return 0
     }
 
     (cd "$SCRIPT_DIR" && npm run build 2>&1) || {
-        log_warn "npm run build failed — skipping genies-core build"
+        log_warn "npm run build failed — skipping genies build"
         return 0
     }
 
     (cd "$SCRIPT_DIR" && npm link 2>&1) || {
-        log_warn "npm link failed — genies-core built but not globally linked"
+        log_warn "npm link failed — genies built but not globally linked"
         log_info "You can manually run: cd $SCRIPT_DIR && npm link"
         return 0
     }
 
-    if command -v genies-core &>/dev/null; then
-        log_success "genies-core built and linked globally ($(genies-core --version 2>/dev/null || echo 'unknown'))"
+    if command -v genies &>/dev/null; then
+        log_success "genies built and linked globally ($(genies --version 2>/dev/null || echo 'unknown'))"
     else
-        log_warn "genies-core linked but not found on PATH — check your npm prefix"
+        log_warn "genies linked but not found on PATH — check your npm prefix"
     fi
 
     return 0
 }
 
-# Install scripts (genies only — single CLI entry point)
+# Install validation scripts (genies binary comes from npm link)
 install_scripts() {
     local dest="$1"
     local force="$2"
 
-    if [[ ! -d "$SCRIPT_DIR/scripts" ]]; then
-        log_warn "Source not found: $SCRIPT_DIR/scripts"
-        return 1
-    fi
-
     mkdir -p "$dest"
-    local count=0
 
     # Clean up legacy scripts from previous installations
     local legacy_files=("run-pdlc.sh" "run-batch.sh" "run-quality-checks.sh"
-                        "genie-session.sh" "genie-quality")
+                        "genie-session.sh" "genie-quality" "genie-session" "genies")
     for legacy in "${legacy_files[@]}"; do
         if [[ -f "$dest/$legacy" ]]; then
             rm "$dest/$legacy"
@@ -507,39 +501,14 @@ install_scripts() {
         fi
     done
 
-    # Only install genies (the single entry point) to PATH.
-    # genie-session is a library sourced by genies (not a standalone command).
-    # genie-quality logic is inlined in genies quality subcommand.
-    local script="$SCRIPT_DIR/scripts/genies"
-    if [[ -f "$script" && -x "$script" ]]; then
-        local target_file="$dest/genies"
-
-        if [[ -f "$target_file" && "$force" != "true" ]]; then
-            log_warn "Skipping scripts/genies (exists)"
-        else
-            cp "$script" "$target_file"
-            chmod +x "$target_file"
-            count=$((count + 1))
-        fi
-    fi
-
-    # Copy genie-session library alongside genies (sourced, not on PATH directly)
-    local session_lib="$SCRIPT_DIR/scripts/genie-session"
-    if [[ -f "$session_lib" ]]; then
-        cp "$session_lib" "$dest/genie-session"
-        chmod +x "$dest/genie-session"
-    fi
-
     # Copy validate/ directory (used by genies quality subcommand)
     if [[ -d "$SCRIPT_DIR/scripts/validate" ]]; then
         mkdir -p "$dest/validate"
         cp "$SCRIPT_DIR/scripts/validate"/*.sh "$dest/validate/" 2>/dev/null || true
         chmod +x "$dest/validate"/*.sh 2>/dev/null || true
+        log_success "Installed validation scripts"
     fi
 
-    if [[ $count -gt 0 ]]; then
-        log_success "Installed $count scripts"
-    fi
     return 0
 }
 
@@ -711,7 +680,7 @@ cmd_global() {
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             log_info "[DRY RUN] Would install scripts"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
-            log_info "[DRY RUN] Would build and npm link genies-core"
+            log_info "[DRY RUN] Would build and npm link genies"
         [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
             setup_scripts_path "true"
         [[ "$install_all" == "true" || "$install_hooks_flag" == "true" ]] && \
@@ -767,7 +736,7 @@ cmd_global() {
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         install_scripts "$GLOBAL_CLAUDE_DIR/scripts" "$force"
 
-    # Build and globally link genies-core (TypeScript SDK orchestrator)
+    # Build and globally link genies (TypeScript SDK orchestrator)
     [[ "$install_all" == "true" || "$install_scripts_flag" == "true" ]] && \
         install_genies_core
 

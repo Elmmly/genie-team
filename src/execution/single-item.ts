@@ -1,10 +1,14 @@
 import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks, type ToolUseEvent } from "../core/phase-executor.js";
 import { SessionTracker } from "../core/session-tracker.js";
 import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js";
+import { getFrontmatterField } from "../core/frontmatter.js";
+import { extractPhaseArtifact } from "../core/artifact.js";
+import type { FinishMode } from "../git/worktree.js";
 import {
   PHASES,
   phaseIndex,
   getGenieName,
+  getMinTurns,
   type PhaseName,
   type TurnOverrides,
 } from "../config/phase-config.js";
@@ -23,6 +27,16 @@ export interface ExecutionOptions {
   authMode?: "oauth" | "apikey";
   hasContextDir?: boolean;
   verbose?: boolean;
+  dryRun?: boolean;
+  noWorktree?: boolean;
+  finishMode?: FinishMode;
+  minPhase?: PhaseName;
+  continueOnFailure?: boolean;
+  cleanupOnFailure?: boolean;
+  worktreeSlug?: string;
+  useLock?: boolean;
+  noPreflight?: boolean;
+  deliverMinTurns?: number;
 }
 
 export interface SingleItemOptions extends ExecutionOptions {
@@ -46,13 +60,35 @@ export interface SingleItemResult {
   artifacts?: string[];
 }
 
-function detectVerdict(output: string): Verdict | undefined {
-  const upper = output.toUpperCase();
+function detectVerdictFromText(text: string): Verdict | undefined {
+  const upper = text.toUpperCase();
   if (upper.includes("APPROVED")) return "APPROVED";
   if (upper.includes("BLOCKED")) return "BLOCKED";
   if (upper.includes("CHANGES REQUESTED") || upper.includes("CHANGES_REQUESTED"))
     return "CHANGES_REQUESTED";
   return undefined;
+}
+
+/**
+ * Detect verdict with priority: frontmatter field → output text → undefined.
+ */
+async function detectVerdict(output: string, itemPath?: string): Promise<Verdict | undefined> {
+  // Primary: frontmatter verdict field (most reliable)
+  if (itemPath) {
+    try {
+      const fmVerdict = await getFrontmatterField(itemPath, "verdict");
+      if (typeof fmVerdict === "string" && fmVerdict) {
+        const normalized = fmVerdict.replace(/_/g, " ").toUpperCase();
+        const parsed = detectVerdictFromText(normalized);
+        if (parsed) return parsed;
+      }
+    } catch {
+      // File may not exist or be unreadable — fall through
+    }
+  }
+
+  // Fallback: parse from output text
+  return detectVerdictFromText(output);
 }
 
 /**
@@ -65,6 +101,15 @@ export async function executeSingleItem(
   input: string,
   options: SingleItemOptions,
 ): Promise<SingleItemResult> {
+  // Dry-run: return early without executing any phases
+  if (options.dryRun) {
+    return {
+      exitCode: 0,
+      totalCostUsd: 0,
+      phaseResults: [],
+    };
+  }
+
   const fromIdx = phaseIndex(options.fromPhase);
   const throughIdx = phaseIndex(options.throughPhase);
   const tracker = new SessionTracker({ noResume: options.noResume });
@@ -112,12 +157,13 @@ export async function executeSingleItem(
 
   const phaseResults: PhaseRecord[] = [];
   let totalCostUsd = 0;
-  let verdict: Verdict;
+  let verdict: Verdict | undefined;
   let exitCode = 0;
+  let currentInput = input;
 
-  async function runAndRecord(phase: PhaseName): Promise<PhaseResult> {
+  async function runAndRecord(phase: PhaseName, phaseInput: string): Promise<PhaseResult> {
     const start = Date.now();
-    const result = await runPhase(phase, input, {
+    const result = await runPhase(phase, phaseInput, {
       ...basePhaseOpts,
       resumeSessionId: tracker.getResumeId(),
       hooks: buildHooks(phase),
@@ -135,15 +181,32 @@ export async function executeSingleItem(
     if (options.verbose) {
       console.error(`\n=== Phase: ${phase} ===`);
     }
-    const result = await runAndRecord(phase);
+    const result = await runAndRecord(phase, currentInput);
 
     if (result.exhausted) {
       exitCode = 1;
       break;
     }
 
+    // Min-turn enforcement: retry if phase completed too quickly
+    const minTurns = phase === "deliver" && options.deliverMinTurns != null
+      ? options.deliverMinTurns
+      : getMinTurns(phase);
+    if (minTurns > 0 && result.numTurns < minTurns) {
+      if (options.verbose) {
+        console.error(`[${phase}] Anomalous: ${result.numTurns} turns (minimum: ${minTurns}). Retrying with resume.`);
+      }
+      await runAndRecord(phase, currentInput);
+    }
+
+    // Thread artifact paths between phases
+    const artifact = extractPhaseArtifact(phase, result.output);
+    if (artifact) {
+      currentInput = artifact;
+    }
+
     if (phase === "discern") {
-      verdict = detectVerdict(result.output);
+      verdict = await detectVerdict(result.output, currentInput);
 
       if (verdict === "BLOCKED") {
         exitCode = 1;
@@ -154,9 +217,9 @@ export async function executeSingleItem(
       let cyclesUsed = 0;
       while (verdict === "CHANGES_REQUESTED" && cyclesUsed < maxReviewCycles) {
         cyclesUsed++;
-        await runAndRecord("deliver");
-        const discernResult = await runAndRecord("discern");
-        verdict = detectVerdict(discernResult.output);
+        await runAndRecord("deliver", currentInput);
+        const discernResult = await runAndRecord("discern", currentInput);
+        verdict = await detectVerdict(discernResult.output, currentInput);
       }
 
       if (verdict === "BLOCKED") {

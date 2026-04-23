@@ -9,6 +9,12 @@ vi.mock("./execution/daemon.js", () => ({
   runDaemonCycle: vi.fn(),
 }));
 
+vi.mock("./execution/daemon-loop.js", () => ({
+  runDaemon: vi.fn(),
+  stopDaemon: vi.fn(),
+  readDaemonStatus: vi.fn(),
+}));
+
 vi.mock("./git/worktree.js", () => ({
   listSessions: vi.fn(),
   sessionCleanup: vi.fn(),
@@ -18,13 +24,40 @@ vi.mock("./environment/auth.js", () => ({
   resolveAuth: vi.fn(),
 }));
 
+vi.mock("./environment/check.js", () => ({
+  runChecks: vi.fn(),
+  formatCheckResult: vi.fn(),
+}));
+
+vi.mock("./execution/lockfile.js", () => ({
+  acquireLock: vi.fn(),
+}));
+
+vi.mock("./status/batch-status.js", () => ({
+  readBatchStatus: vi.fn(),
+  formatStatusTable: vi.fn(),
+  formatStatusJson: vi.fn(),
+}));
+
 import { executeSingleItem } from "./execution/single-item.js";
 import type { SingleItemResult } from "./execution/single-item.js";
 import { runDaemonCycle } from "./execution/daemon.js";
 import type { DaemonCycleResult } from "./execution/daemon.js";
+import { runDaemon, stopDaemon, readDaemonStatus } from "./execution/daemon-loop.js";
+import type { DaemonStatus } from "./execution/daemon-loop.js";
 import { listSessions, sessionCleanup } from "./git/worktree.js";
 import type { SessionInfo } from "./git/worktree.js";
 import { resolveAuth } from "./environment/auth.js";
+import { runChecks } from "./environment/check.js";
+import { acquireLock } from "./execution/lockfile.js";
+import { readBatchStatus, formatStatusTable, formatStatusJson } from "./status/batch-status.js";
+import type { StatusReport } from "./status/batch-status.js";
+
+/** Set up default mocks for run command preflight and lock. Call after vi.resetAllMocks(). */
+function setupRunMocks(): void {
+  vi.mocked(runChecks).mockResolvedValue({ results: [], exitCode: 0 });
+  vi.mocked(acquireLock).mockResolvedValue({ release: vi.fn() });
+}
 
 function mockRunResult(overrides?: Partial<SingleItemResult>): SingleItemResult {
   return {
@@ -45,7 +78,7 @@ describe("CLI", () => {
     cli.exitOverride();
 
     // Act & Assert
-    expect(() => cli.parse(["node", "genies-core", "unknown-cmd"])).toThrow();
+    expect(() => cli.parse(["node", "genies", "unknown-cmd"])).toThrow();
   });
 
   it("parses --version without error", () => {
@@ -55,7 +88,7 @@ describe("CLI", () => {
     cli.configureOutput({ writeOut: () => {} });
 
     // Act & Assert
-    expect(() => cli.parse(["node", "genies-core", "--version"])).toThrow();
+    expect(() => cli.parse(["node", "genies", "--version"])).toThrow();
     // Commander throws on --version (exits 0), but should not crash
   });
 
@@ -91,11 +124,23 @@ describe("CLI", () => {
     // Assert
     expect(runCmd).toBeDefined();
   });
+
+  it("registers quality subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const qualityCmd = cli.commands.find((c) => c.name() === "quality");
+
+    // Assert
+    expect(qualityCmd).toBeDefined();
+  });
 });
 
 describe("run command", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    setupRunMocks();
     vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
     vi.spyOn(console, "log").mockImplementation(() => {});
   });
@@ -106,7 +151,7 @@ describe("run command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "docs/backlog/P1-auth.md"]);
+    await cli.parseAsync(["node", "genies", "run", "docs/backlog/P1-auth.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -124,7 +169,7 @@ describe("run command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--from", "design", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--from", "design", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -139,7 +184,7 @@ describe("run command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--through", "deliver", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--through", "deliver", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -156,7 +201,7 @@ describe("run command", () => {
 
     // Act & Assert
     await expect(
-      cli.parseAsync(["node", "genies-core", "run", "--from", "bogus", "item.md"]),
+      cli.parseAsync(["node", "genies", "run", "--from", "bogus", "item.md"]),
     ).rejects.toThrow();
   });
 
@@ -168,7 +213,7 @@ describe("run command", () => {
 
     // Act & Assert
     await expect(
-      cli.parseAsync(["node", "genies-core", "run", "--through", "nope", "item.md"]),
+      cli.parseAsync(["node", "genies", "run", "--through", "nope", "item.md"]),
     ).rejects.toThrow();
   });
 
@@ -185,7 +230,7 @@ describe("run command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "item.md"]);
 
     // Assert
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
@@ -201,7 +246,7 @@ describe("run command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "item.md"]);
 
     // Assert
     expect(process.exit).toHaveBeenCalledWith(1);
@@ -213,7 +258,7 @@ describe("run command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "item.md"]);
 
     // Assert
     expect(process.exit).toHaveBeenCalledWith(0);
@@ -223,6 +268,7 @@ describe("run command", () => {
 describe("run command extended flags", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    setupRunMocks();
     vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult());
     vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -233,7 +279,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--model", "claude-sonnet-4-5-20250514", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--model", "claude-sonnet-4-5-20250514", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -247,7 +293,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--turns", "200", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--turns", "200", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -261,7 +307,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--no-resume", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--no-resume", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -275,7 +321,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--trunk", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--trunk", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -289,7 +335,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--budget", "5.00", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--budget", "5.00", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -303,7 +349,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--review-cycles", "3", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--review-cycles", "3", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -317,7 +363,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--skip-permissions", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--skip-permissions", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -331,7 +377,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "item.md"]);
 
     // Assert
     const opts = vi.mocked(executeSingleItem).mock.calls[0][1];
@@ -351,7 +397,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--verbose", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--verbose", "item.md"]);
 
     // Assert
     expect(executeSingleItem).toHaveBeenCalledWith(
@@ -370,7 +416,7 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--auth", "oauth", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--auth", "oauth", "item.md"]);
 
     // Assert
     expect(resolveAuth).toHaveBeenCalledWith("oauth");
@@ -390,13 +436,228 @@ describe("run command extended flags", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "run", "--auth", "apikey", "item.md"]);
+    await cli.parseAsync(["node", "genies", "run", "--auth", "apikey", "item.md"]);
 
     // Assert
     expect(resolveAuth).toHaveBeenCalledWith("apikey");
     expect(executeSingleItem).toHaveBeenCalledWith(
       "item.md",
       expect.objectContaining({ authMode: "apikey" }),
+    );
+  });
+});
+
+describe("run command phase 3 flags", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    setupRunMocks();
+    vi.mocked(executeSingleItem).mockResolvedValue(mockRunResult());
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("--dry-run sets dryRun true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--dry-run", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ dryRun: true }),
+    );
+  });
+
+  it("--no-worktree sets noWorktree true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--no-worktree", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ noWorktree: true }),
+    );
+  });
+
+  it("--finish-mode sets finishMode", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--finish-mode", "merge", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ finishMode: "merge" }),
+    );
+  });
+
+  it("--finish-mode rejects invalid mode", async () => {
+    // Arrange
+    const cli = createCli();
+    cli.exitOverride();
+    cli.configureOutput({ writeErr: () => {} });
+
+    // Act & Assert
+    await expect(
+      cli.parseAsync(["node", "genies", "run", "--finish-mode", "bad", "item.md"]),
+    ).rejects.toThrow();
+  });
+
+  it("--min-phase sets minPhase", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--min-phase", "design", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ minPhase: "design" }),
+    );
+  });
+
+  it("--continue-on-failure sets continueOnFailure true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--continue-on-failure", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ continueOnFailure: true }),
+    );
+  });
+
+  it("--cleanup-on-failure sets cleanupOnFailure true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--cleanup-on-failure", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ cleanupOnFailure: true }),
+    );
+  });
+
+  it("--slug sets worktreeSlug", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--slug", "custom-slug", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ worktreeSlug: "custom-slug" }),
+    );
+  });
+
+  it("--lock sets useLock true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--lock", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ useLock: true }),
+    );
+  });
+
+  it("--no-preflight sets noPreflight true", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--no-preflight", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ noPreflight: true }),
+    );
+  });
+
+  it("--discover-turns sets per-phase turn override", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--discover-turns", "25", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({
+        turnOverrides: expect.objectContaining({ discover: 25 }),
+      }),
+    );
+  });
+
+  it("--deliver-turns sets per-phase turn override", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--deliver-turns", "200", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({
+        turnOverrides: expect.objectContaining({ deliver: 200 }),
+      }),
+    );
+  });
+
+  it("per-phase turns combine with --turns global", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync([
+      "node", "genies", "run",
+      "--turns", "50",
+      "--deliver-turns", "200",
+      "item.md",
+    ]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({
+        turnOverrides: { global: 50, deliver: 200 },
+      }),
+    );
+  });
+
+  it("--deliver-min-turns sets deliverMinTurns", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "run", "--deliver-min-turns", "10", "item.md"]);
+
+    // Assert
+    expect(executeSingleItem).toHaveBeenCalledWith(
+      "item.md",
+      expect.objectContaining({ deliverMinTurns: 10 }),
     );
   });
 });
@@ -435,7 +696,7 @@ describe("daemon command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "daemon"]);
+    await cli.parseAsync(["node", "genies", "daemon"]);
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
@@ -451,7 +712,7 @@ describe("daemon command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "daemon", "--through", "deliver"]);
+    await cli.parseAsync(["node", "genies", "daemon", "--through", "deliver"]);
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
@@ -464,7 +725,7 @@ describe("daemon command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "daemon", "--finish", "merge"]);
+    await cli.parseAsync(["node", "genies", "daemon", "--finish", "merge"]);
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
@@ -477,7 +738,7 @@ describe("daemon command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "daemon", "--parallel", "4"]);
+    await cli.parseAsync(["node", "genies", "daemon", "--parallel", "4"]);
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
@@ -490,7 +751,7 @@ describe("daemon command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "daemon", "--priority", "P0"]);
+    await cli.parseAsync(["node", "genies", "daemon", "--priority", "P0"]);
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
@@ -503,7 +764,7 @@ describe("daemon command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "daemon", "--model", "claude-opus-4-6"]);
+    await cli.parseAsync(["node", "genies", "daemon", "--model", "claude-opus-4-6"]);
 
     // Assert
     expect(runDaemonCycle).toHaveBeenCalledWith(
@@ -517,7 +778,7 @@ describe("daemon command", () => {
 
     // Act
     await cli.parseAsync([
-      "node", "genies-core", "daemon",
+      "node", "genies", "daemon",
       "--trunk", "--skip-permissions", "--budget", "10", "--log-dir", "/tmp/logs",
     ]);
 
@@ -543,7 +804,7 @@ describe("daemon command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "daemon"]);
+    await cli.parseAsync(["node", "genies", "daemon"]);
 
     // Assert
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
@@ -580,7 +841,7 @@ describe("session command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "session", "list"]);
+    await cli.parseAsync(["node", "genies", "session", "list"]);
 
     // Assert
     expect(listSessions).toHaveBeenCalled();
@@ -595,7 +856,7 @@ describe("session command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "session", "list"]);
+    await cli.parseAsync(["node", "genies", "session", "list"]);
 
     // Assert
     const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
@@ -608,7 +869,7 @@ describe("session command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "session", "cleanup", "P0-auth"]);
+    await cli.parseAsync(["node", "genies", "session", "cleanup", "P0-auth"]);
 
     // Assert
     expect(sessionCleanup).toHaveBeenCalledWith("P0-auth");
@@ -620,7 +881,7 @@ describe("session command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "session", "cleanup"]);
+    await cli.parseAsync(["node", "genies", "session", "cleanup"]);
 
     // Assert
     expect(process.exit).toHaveBeenCalledWith(3);
@@ -636,11 +897,348 @@ describe("session command", () => {
     const cli = createCli();
 
     // Act
-    await cli.parseAsync(["node", "genies-core", "session", "cleanup", "--all"]);
+    await cli.parseAsync(["node", "genies", "session", "cleanup", "--all"]);
 
     // Assert
     expect(sessionCleanup).toHaveBeenCalledWith("P0-auth");
     expect(sessionCleanup).toHaveBeenCalledWith("P1-search");
     expect(sessionCleanup).toHaveBeenCalledTimes(2);
+  });
+});
+
+function mockStatusReport(overrides?: Partial<StatusReport>): StatusReport {
+  return {
+    items: [
+      { slug: "P1-auth", phase: "deliver", status: "done", durationSecs: 120, logFile: "/tmp/P1-auth.log" },
+    ],
+    summary: { total: 1, done: 1, running: 0, stuck: 0, failed: 0 },
+    exitCode: 0,
+    ...overrides,
+  };
+}
+
+describe("status command", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("registers status subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const cmd = cli.commands.find((c) => c.name() === "status");
+
+    // Assert
+    expect(cmd).toBeDefined();
+  });
+
+  it("calls readBatchStatus with --log-dir", async () => {
+    // Arrange
+    vi.mocked(readBatchStatus).mockResolvedValue(mockStatusReport());
+    vi.mocked(formatStatusTable).mockReturnValue("table output");
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "status", "--log-dir", "/tmp/logs"]);
+
+    // Assert
+    expect(readBatchStatus).toHaveBeenCalledWith("/tmp/logs", expect.any(Object));
+  });
+
+  it("falls back to LOG_DIR env var when --log-dir not provided", async () => {
+    // Arrange
+    const origEnv = process.env.LOG_DIR;
+    process.env.LOG_DIR = "/tmp/env-logs";
+    vi.mocked(readBatchStatus).mockResolvedValue(mockStatusReport());
+    vi.mocked(formatStatusTable).mockReturnValue("table output");
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "status"]);
+
+    // Assert
+    expect(readBatchStatus).toHaveBeenCalledWith("/tmp/env-logs", expect.any(Object));
+    process.env.LOG_DIR = origEnv;
+  });
+
+  it("passes --stuck-mins to readBatchStatus", async () => {
+    // Arrange
+    vi.mocked(readBatchStatus).mockResolvedValue(mockStatusReport());
+    vi.mocked(formatStatusTable).mockReturnValue("table output");
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "status", "--log-dir", "/tmp/logs", "--stuck-mins", "20"]);
+
+    // Assert
+    expect(readBatchStatus).toHaveBeenCalledWith("/tmp/logs", { stuckMins: 20 });
+  });
+
+  it("outputs table format by default", async () => {
+    // Arrange
+    vi.mocked(readBatchStatus).mockResolvedValue(mockStatusReport());
+    vi.mocked(formatStatusTable).mockReturnValue("TABLE OUTPUT");
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "status", "--log-dir", "/tmp/logs"]);
+
+    // Assert
+    expect(formatStatusTable).toHaveBeenCalled();
+    expect(formatStatusJson).not.toHaveBeenCalled();
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("TABLE OUTPUT");
+  });
+
+  it("outputs JSON format with --json", async () => {
+    // Arrange
+    vi.mocked(readBatchStatus).mockResolvedValue(mockStatusReport());
+    vi.mocked(formatStatusJson).mockReturnValue('{"json": true}');
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "status", "--log-dir", "/tmp/logs", "--json"]);
+
+    // Assert
+    expect(formatStatusJson).toHaveBeenCalled();
+    expect(formatStatusTable).not.toHaveBeenCalled();
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain('{"json": true}');
+  });
+
+  it("exits with report exit code", async () => {
+    // Arrange
+    vi.mocked(readBatchStatus).mockResolvedValue(mockStatusReport({ exitCode: 2 }));
+    vi.mocked(formatStatusTable).mockReturnValue("table");
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "status", "--log-dir", "/tmp/logs"]);
+
+    // Assert
+    expect(process.exit).toHaveBeenCalledWith(2);
+  });
+
+  it("exits 3 when no --log-dir and no LOG_DIR env", async () => {
+    // Arrange
+    const origEnv = process.env.LOG_DIR;
+    delete process.env.LOG_DIR;
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "status"]);
+
+    // Assert
+    expect(process.exit).toHaveBeenCalledWith(3);
+    process.env.LOG_DIR = origEnv;
+  });
+});
+
+function mockDaemonStatus(overrides?: Partial<DaemonStatus>): DaemonStatus {
+  return {
+    daemon_pid: 1234,
+    started_at: "2026-04-07T00:00:00Z",
+    current_cycle: 5,
+    last_cycle_at: "2026-04-07T00:25:00Z",
+    cumulative_cost_usd: 2.50,
+    status: "sleeping",
+    next_scan_at: "2026-04-07T00:30:00Z",
+    items_completed: ["P1-auth"],
+    items_failed: [],
+    items_stalled: [],
+    totals: { completed: 1, failed: 0, stalled: 0, finisher_recovered: 0 },
+    ...overrides,
+  };
+}
+
+describe("daemon start subcommand", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(runDaemon).mockResolvedValue();
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("registers daemon start subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const daemonCmd = cli.commands.find((c) => c.name() === "daemon");
+    const startCmd = daemonCmd?.commands.find((c) => c.name() === "start");
+
+    // Assert
+    expect(startCmd).toBeDefined();
+  });
+
+  it("calls runDaemon with defaults", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "start"]);
+
+    // Assert
+    expect(runDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({
+        throughPhase: "done",
+        finishMode: "pr",
+      }),
+    );
+  });
+
+  it("--interval sets interval", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "start", "--interval", "60"]);
+
+    // Assert
+    expect(runDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({ interval: 60 }),
+    );
+  });
+
+  it("--max-cycles sets maxCycles", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "start", "--max-cycles", "10"]);
+
+    // Assert
+    expect(runDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({ maxCycles: 10 }),
+    );
+  });
+
+  it("--max-cost sets maxCostUsd", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "start", "--max-cost", "50.00"]);
+
+    // Assert
+    expect(runDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({ maxCostUsd: 50.0 }),
+    );
+  });
+
+  it("--status-file sets statusFile", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "start", "--status-file", "/tmp/daemon.json"]);
+
+    // Assert
+    expect(runDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({ statusFile: "/tmp/daemon.json" }),
+    );
+  });
+});
+
+describe("daemon stop subcommand", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(stopDaemon).mockResolvedValue();
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("registers daemon stop subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const daemonCmd = cli.commands.find((c) => c.name() === "daemon");
+    const stopCmd = daemonCmd?.commands.find((c) => c.name() === "stop");
+
+    // Assert
+    expect(stopCmd).toBeDefined();
+  });
+
+  it("calls stopDaemon with status file", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "stop", "--status-file", "/tmp/daemon.json"]);
+
+    // Assert
+    expect(stopDaemon).toHaveBeenCalledWith("/tmp/daemon.json");
+  });
+});
+
+describe("daemon status subcommand", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("registers daemon status subcommand", () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    const daemonCmd = cli.commands.find((c) => c.name() === "daemon");
+    const statusCmd = daemonCmd?.commands.find((c) => c.name() === "status");
+
+    // Assert
+    expect(statusCmd).toBeDefined();
+  });
+
+  it("displays daemon status from status file", async () => {
+    // Arrange
+    vi.mocked(readDaemonStatus).mockReturnValue(mockDaemonStatus());
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "status", "--status-file", "/tmp/daemon.json"]);
+
+    // Assert
+    expect(readDaemonStatus).toHaveBeenCalledWith("/tmp/daemon.json");
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("sleeping");
+  });
+
+  it("reports when no daemon is running", async () => {
+    // Arrange
+    vi.mocked(readDaemonStatus).mockReturnValue(undefined);
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon", "status", "--status-file", "/tmp/daemon.json"]);
+
+    // Assert
+    const output = vi.mocked(console.log).mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("No daemon");
+  });
+});
+
+describe("daemon backward compatibility", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(runDaemonCycle).mockResolvedValue(mockDaemonResult());
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+
+  it("daemon with no subcommand still runs one-shot cycle", async () => {
+    // Arrange
+    const cli = createCli();
+
+    // Act
+    await cli.parseAsync(["node", "genies", "daemon"]);
+
+    // Assert
+    expect(runDaemonCycle).toHaveBeenCalled();
   });
 });

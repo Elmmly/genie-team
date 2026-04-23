@@ -178,7 +178,7 @@ describe("executeBatch", () => {
     expect(integrateTrunk).not.toHaveBeenCalled();
   });
 
-  it("cleans up worktree on item failure", async () => {
+  it("cleans up worktree on item failure when cleanupOnFailure is set", async () => {
     // Arrange
     vi.mocked(executeSingleItem).mockResolvedValue({
       exitCode: 1,
@@ -192,6 +192,7 @@ describe("executeBatch", () => {
     await executeBatch(items, {
       throughPhase: "discern",
       finishMode: "pr",
+      cleanupOnFailure: true,
     });
 
     // Assert
@@ -268,5 +269,22 @@ describe("executeBatch", () => {
       expect.any(String),
       expect.objectContaining({ turnOverrides: { global: 200 } }),
     );
+  });
+
+  it("skips sessionStart when noWorktree is true", async () => {
+    // Arrange
+    const items = [makeItem("P1-item")];
+
+    // Act
+    await executeBatch(items, {
+      throughPhase: "done",
+      finishMode: "pr",
+      noWorktree: true,
+    });
+
+    // Assert — sessionStart should NOT have been called
+    expect(sessionStart).not.toHaveBeenCalled();
+    // executeSingleItem should still be called
+    expect(executeSingleItem).toHaveBeenCalled();
   });
 });
