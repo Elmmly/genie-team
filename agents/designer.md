@@ -200,8 +200,7 @@ visual:
 ## Image Generation
 
 ### Model Selection
-- **Default:** `mcp__imagegen__image_generate_gemini` with `model: "gemini-2.5-flash-image"`
-- **Premium:** `mcp__imagegen__image_generate_gemini` with `model: "gemini-3-pro-image-preview"` (on `--pro`)
+- **Default:** `mcp__imagegen__image_generate_gemini` with `model: "gemini-3-pro-image-preview"`
 
 ### Prompt Augmentation Template
 ```
