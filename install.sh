@@ -752,7 +752,7 @@ cmd_global() {
     echo "              adr, architecture-diagram, brand-spec"
     echo "  Stacks:     typescript, go, rust, csharp, java (language-specific quality profiles)"
     echo "  Scripts:    genies (autonomous runner + batch + session + quality)"
-    echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
+    echo "  Hooks:      session ground truth + context re-injection (session-ground-truth, track-command, track-artifacts, verify-stack, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
     echo ""
     echo "Scripts are on PATH — run from any project directory:"
@@ -957,7 +957,7 @@ cmd_project() {
     echo "              adr, architecture-diagram, brand-spec"
     echo "  Stacks:     typescript, go, rust, csharp, java (language-specific quality profiles)"
     echo "  Scripts:    genies (autonomous runner + batch + session + quality)"
-    echo "  Hooks:      context re-injection on compaction (track-command, track-artifacts, reinject-context)"
+    echo "  Hooks:      session ground truth + context re-injection (session-ground-truth, track-command, track-artifacts, verify-stack, reinject-context)"
     echo "  MCP:        imagegen (image generation via Gemini/OpenAI)"
 }
 
@@ -1025,7 +1025,7 @@ cmd_uninstall() {
     case "$target" in
         global)
             log_info "Removing global installation..."
-            for dir in commands skills rules agents schemas scripts hooks; do
+            for dir in commands skills rules agents schemas stacks scripts hooks; do
                 if [[ -d "$GLOBAL_CLAUDE_DIR/$dir" ]]; then
                     clean_genie_files "$SCRIPT_DIR/$dir" "$GLOBAL_CLAUDE_DIR/$dir" "$dir" "false"
                     # Remove directory only if empty after cleaning
@@ -1039,11 +1039,18 @@ cmd_uninstall() {
                 rm -rf "${GLOBAL_CLAUDE_DIR:?}/agent-memory"
                 log_success "Removed agent-memory"
             fi
-            # Clean up PATH entry from shell profile
+            # Clean up PATH entry from shell profile.
+            # Portable line removal: BSD sed's -i takes a mandatory extension
+            # argument (sed -i'' -e … consumes -e as the extension on macOS),
+            # so filter to a temp file instead of in-place sed.
             local profile
             profile="$(detect_shell_profile)"
             if [[ -f "$profile" ]] && grep -qF '.claude/scripts' "$profile"; then
-                sed -i'' -e '/# Genie Team scripts/d' -e '/\.claude\/scripts/d' "$profile"
+                local tmp_profile
+                tmp_profile=$(mktemp)
+                grep -v -e '# Genie Team scripts' -e '\.claude/scripts' "$profile" > "$tmp_profile" || true
+                cat "$tmp_profile" > "$profile"
+                rm -f "$tmp_profile"
                 log_success "Removed PATH entry from $profile"
             fi
             if check_claude_cli && check_mcp_installed; then
@@ -1059,7 +1066,7 @@ cmd_uninstall() {
             ;;
         project)
             log_info "Removing project installation..."
-            for dir in commands skills rules agents hooks schemas scripts; do
+            for dir in commands skills rules agents hooks schemas stacks scripts; do
                 if [[ -d "./.claude/$dir" ]]; then
                     clean_genie_files "$SCRIPT_DIR/$dir" "./.claude/$dir" "$dir" "false"
                     rmdir "./.claude/$dir" 2>/dev/null && \
