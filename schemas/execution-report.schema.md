@@ -122,10 +122,10 @@ files_changed:
     path: schemas/execution-report.schema.md
     purpose: Schema definition for execution reports
   - action: modified
-    path: genies/shaper/GENIE.md
+    path: agents/shaper.md
     purpose: Added structured frontmatter output instruction
   - action: modified
-    path: genies/shaper/SHAPED_WORK_CONTRACT_TEMPLATE.md
+    path: schemas/shaped-work-contract.schema.md
     purpose: Restructured to frontmatter-first format
 test_results:
   passed: 5
@@ -150,7 +150,7 @@ acceptance_criteria:
     evidence: schemas/design-document.schema.md created with field tables
   - id: AC-3
     status: met
-    evidence: genies/shaper/GENIE.md updated to produce structured frontmatter
+    evidence: agents/shaper.md updated to produce structured frontmatter
   - id: AC-4
     status: not_met
     evidence: "Blocked: Crafter headless mode not yet implemented (GT-1)"

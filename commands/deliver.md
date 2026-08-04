@@ -10,7 +10,10 @@ Activate Crafter genie to implement the technical design with TDD discipline.
 - Optional flags:
   - `--tests` - Write tests only (TDD start)
   - `--implement` - Implementation only (tests exist)
-  - `--instrument` - Add telemetry only
+
+Instrumentation is not a separate mode: telemetry/observability required by
+the design is implemented as part of the default flow (see code-quality
+skill's instrumentation guidance).
 
 ---
 
@@ -109,7 +112,6 @@ Produces:
 |---------|---------|
 | `/deliver:tests [design]` | Write tests only (TDD start) |
 | `/deliver:implement [design]` | Implementation only (tests exist) |
-| `/deliver:instrument [files]` | Add telemetry only |
 
 ---
 
@@ -188,6 +190,31 @@ If any wiring is missing, either:
 
 **When this phase is trivial:** For pure library code, utilities, or prompt-only changes with no service bootstrap, note "Phase 4: N/A — no service wiring required" and proceed.
 
+### Phase 5: Verification Block (MANDATORY exit gate)
+
+"Implemented" is a checklist, not a claim. Before flipping the backlog
+frontmatter to `status: implemented`, append a **Verification** block to the
+backlog item's Implementation section. Every line is evidence, not intention:
+
+```markdown
+### Verification
+- **Tests:** `{exact command}` → {N} passed, {M} failed, {S} skipped
+- **Pre-existing failures:** {list failing tests that were already failing
+  before this change, or "none"} — NEVER folded into an "all green" claim
+- **Build/lint:** `{exact command(s)}` → clean | {errors}
+- **Docs updated:** {README/specs/ADRs touched, or "none required because …"}
+- **Lands as:** {git status --short summary of the files this change touches}
+```
+
+Rules:
+- Run the commands and paste real counts — no "tests pass" without numbers.
+- If anything fails that this change caused, the status does NOT flip to
+  `implemented`; fix it or report blocked.
+- Pre-existing failures are named separately so reviewers can tell inherited
+  breakage from introduced breakage.
+- `/done` will refuse to archive an item whose Implementation section lacks
+  this block.
+
 ---
 
 ## Usage Examples
@@ -219,6 +246,13 @@ If any wiring is missing, either:
 >
 > === PHASE 3: REFACTOR ===
 > No refactoring needed - code is clean.
+>
+> === PHASE 5: VERIFICATION BLOCK ===
+> Tests: `npm test` → 20 passed, 0 failed, 0 skipped
+> Pre-existing failures: none
+> Build/lint: `npm run build && npm run lint` → clean
+> Docs updated: docs/specs/auth/token-refresh.md (Implementation Evidence)
+> Lands as: 3 new files, 1 modified (src/services/, src/middleware/, tests/)
 >
 > Appended to docs/backlog/P2-auth-improvements.md
 > Status updated: designed → implemented

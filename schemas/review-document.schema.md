@@ -89,7 +89,7 @@ issues:
     description: "exit_code enum missing value 3 (blocked)"
     fix: "Add 3=blocked to exit_code constraint"
   - severity: minor
-    location: "genies/critic/GENIE.md:89"
+    location: "agents/critic.md:89"
     description: "Output template missing spec_version field"
     fix: "Add spec_version to review frontmatter"
 acceptance_criteria:
@@ -133,7 +133,7 @@ to frontmatter-first format.
 | Issue | Severity | Location | Fix |
 |-------|----------|----------|-----|
 | exit_code missing value 3 | Major | schemas/execution-report.schema.md | Add 3=blocked |
-| Critic template no spec_version | Minor | genies/critic/GENIE.md | Add spec_version field |
+| Critic template no spec_version | Minor | agents/critic.md | Add spec_version field |
 
 ## Verdict
 

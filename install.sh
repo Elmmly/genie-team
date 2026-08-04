@@ -33,7 +33,6 @@ Options:
   --skills            Install skills only
   --rules             Install rules only
   --agents            Install agents only
-  --genies            Install genie specs only (project only)
   --schemas           Install schemas only
   --stacks            Install stack profile templates only
   --scripts           Install scripts only (genies)
@@ -412,39 +411,6 @@ install_stacks() {
     copy_dir "$SCRIPT_DIR/stacks" "$dest" "$force" "stacks"
 }
 
-# Install consolidated genie specs (all .md files per genie)
-install_genies() {
-    local dest="$1"
-    local force="$2"
-
-    mkdir -p "$dest"
-    local count=0
-
-    for genie_dir in "$SCRIPT_DIR/genies"/*; do
-        if [[ -d "$genie_dir" ]]; then
-            local genie_name=$(basename "$genie_dir")
-            local target_dir="$dest/$genie_name"
-            mkdir -p "$target_dir"
-
-            for md_file in "$genie_dir"/*.md; do
-                if [[ -f "$md_file" ]]; then
-                    local filename=$(basename "$md_file")
-                    if [[ -f "$target_dir/$filename" && "$force" != "true" ]]; then
-                        log_warn "Skipping genies/$genie_name/$filename (exists)"
-                    else
-                        cp "$md_file" "$target_dir/$filename"
-                        count=$((count + 1))
-                    fi
-                fi
-            done
-        fi
-    done
-
-    if [[ $count -gt 0 ]]; then
-        log_success "Installed $count genie files"
-    fi
-}
-
 # Build and globally install genies (TypeScript SDK orchestrator)
 install_genies_core() {
     if [[ ! -f "$SCRIPT_DIR/package.json" ]]; then
@@ -517,6 +483,8 @@ merge_hook_config() {
     local settings_file="$1"
     local cmd_prefix="$2"
 
+    # NOTE: must stay structurally identical to hooks/hooks.json —
+    # scripts/validate/check-hook-registration.sh enforces parity.
     local hook_config
     hook_config=$(cat << HOOKJSON
 {
@@ -533,7 +501,7 @@ merge_hook_config() {
     ],
     "PostToolUse": [
       {
-        "matcher": "Write",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
@@ -552,6 +520,15 @@ merge_hook_config() {
       }
     ],
     "SessionStart": [
+      {
+        "matcher": "startup|resume|compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${cmd_prefix}/session-ground-truth.sh"
+          }
+        ]
+      },
       {
         "matcher": "compact|clear",
         "hooks": [
@@ -794,7 +771,6 @@ cmd_project() {
     local install_skills="false"
     local install_rules="false"
     local install_agents="false"
-    local install_genies="false"
     local install_schemas="false"
     local install_stacks_flag="false"
     local install_scripts_flag="false"
@@ -812,7 +788,7 @@ cmd_project() {
             --skills) install_skills="true"; install_all="false" ;;
             --rules) install_rules="true"; install_all="false" ;;
             --agents) install_agents="true"; install_all="false" ;;
-            --genies) install_genies="true"; install_all="false"; log_warn "DEPRECATED: --genies flag is deprecated. Genies are now consolidated into agents/. Use --agents instead." ;;
+            --genies) log_error "--genies was removed: genie specs are consolidated into agents/ (use --agents)"; exit 1 ;;
             --schemas) install_schemas="true"; install_all="false" ;;
             --stacks) install_stacks_flag="true"; install_all="false" ;;
             --scripts) install_scripts_flag="true"; install_all="false" ;;
@@ -858,8 +834,6 @@ cmd_project() {
             log_info "[DRY RUN] Would install rules to $claude_dir/rules/"
         [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
             log_info "[DRY RUN] Would install agents to $claude_dir/agents/"
-        [[ "$install_genies" == "true" ]] && \
-            log_info "[DRY RUN] Would install genie specs to $claude_dir/genies/ (DEPRECATED)"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             log_info "[DRY RUN] Would install schemas to $claude_dir/schemas/"
         [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
@@ -887,8 +861,6 @@ cmd_project() {
             clean_genie_files "$SCRIPT_DIR/rules" "$claude_dir/rules" "rules" "$dry_run"
         [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
             clean_genie_files "$SCRIPT_DIR/agents" "$claude_dir/agents" "agents" "$dry_run"
-        [[ "$install_genies" == "true" ]] && \
-            clean_genie_files "$SCRIPT_DIR/genies" "$claude_dir/genies" "genies" "$dry_run"
         [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
             clean_genie_files "$SCRIPT_DIR/schemas" "$claude_dir/schemas" "schemas" "$dry_run"
         [[ "$install_all" == "true" || "$install_stacks_flag" == "true" ]] && \
@@ -910,9 +882,6 @@ cmd_project() {
 
     [[ "$install_all" == "true" || "$install_agents" == "true" ]] && \
         install_agents "$claude_dir/agents" "$force"
-
-    [[ "$install_genies" == "true" ]] && \
-        install_genies "$claude_dir/genies" "$force"
 
     [[ "$install_all" == "true" || "$install_schemas" == "true" ]] && \
         install_schemas "$claude_dir/schemas" "$force"
@@ -1098,7 +1067,7 @@ cmd_uninstall() {
                         log_success "Cleaned genie-team files from $dir"
                 fi
             done
-            # genies/ is entirely genie-team owned — safe to remove
+            # Legacy: genies/ specs from pre-consolidation installs — safe to remove
             if [[ -d "./.claude/genies" ]]; then
                 rm -rf "./.claude/genies"
                 log_success "Removed genies"

@@ -1,13 +1,18 @@
 ---
 name: debugging
-description: "Structured root cause investigation when tests fail unexpectedly or fixes don't resolve the issue. Use when a test fails that you expected to pass, when a previous fix attempt didn't work, or when an error occurs during implementation."
+description: "Structured root cause investigation for any reported bug, regression, or failed fix. Use when a user reports a bug or runtime misbehavior, when a test fails that you expected to pass, when a previous fix attempt didn't work ('the fix didn't work'), or when an error occurs during implementation. Reproduce first; find the root cause before patching."
 allowed-tools: Read, Grep, Glob, Bash(npm test*), Bash(npm run test*), Bash(npx vitest*), Bash(pytest*), Bash(jest*), Bash(cargo test*), Bash(cargo check*), Bash(cargo clippy*), Bash(go test*), Bash(go vet*), Bash(go build*), Bash(dotnet test*), Bash(dotnet build*), Bash(mvn test*), Bash(mvn compile*), Bash(gradle test*), Bash(gradle build*), Bash(./gradlew *), Bash(swift build*), Bash(swift test*), Bash(xcodebuild *), Bash(make test*), Bash(make check*), Bash(git diff*), Bash(git log*)
 ---
 
 # Systematic Debugging
 
-When a test fails unexpectedly or a fix attempt doesn't work, follow this protocol.
+When a bug is reported, a regression appears, a test fails unexpectedly, or a
+fix attempt doesn't work, follow this protocol.
 Do NOT improvise. Do NOT try random changes.
+
+This applies to user-reported runtime bugs exactly as it does to test
+failures during implementation — for a runtime bug, "the failing test" in
+Phase 1 means reproducing the reported behavior and stating the reproduction.
 
 ## Attempt Counter
 

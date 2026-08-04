@@ -85,10 +85,10 @@ ac_mapping:
     components: [schemas/design-document.schema.md]
   - ac_id: AC-3
     approach: Shaper GENIE.md updated to produce structured frontmatter
-    components: [genies/shaper/GENIE.md]
+    components: [agents/shaper.md]
   - ac_id: AC-4
     approach: Crafter GENIE.md updated to validate frontmatter on intake
-    components: [genies/crafter/GENIE.md]
+    components: [agents/crafter.md]
   - ac_id: AC-5
     approach: spec_version field required in all schemas
     components: [schemas/shaped-work-contract.schema.md, schemas/design-document.schema.md, schemas/execution-report.schema.md]
@@ -105,16 +105,16 @@ components:
   - name: Genie behavior updates
     action: modify
     files:
-      - genies/shaper/GENIE.md
-      - genies/architect/GENIE.md
-      - genies/crafter/GENIE.md
-      - genies/critic/GENIE.md
+      - agents/shaper.md
+      - agents/architect.md
+      - agents/crafter.md
+      - agents/critic.md
   - name: Template restructuring
     action: modify
     files:
-      - genies/shaper/SHAPED_WORK_CONTRACT_TEMPLATE.md
-      - genies/architect/DESIGN_DOCUMENT_TEMPLATE.md
-      - genies/crafter/IMPLEMENTATION_REPORT_TEMPLATE.md
+      - schemas/shaped-work-contract.schema.md
+      - schemas/design-document.schema.md
+      - schemas/execution-report.schema.md
 ---
 
 # Design: GT-2 Stable Spec Schema

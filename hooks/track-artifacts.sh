@@ -1,13 +1,16 @@
 #!/bin/bash
-# Hook: PostToolUse (Write) — track artifact file paths
-# Appends written file paths to session state. Deduplicates. Caps at 20.
+# Hook: PostToolUse (Write|Edit) — track artifact file paths
+# Appends written/edited file paths to the Artifacts Written section of the
+# session state file. Section-aware (Command History lines also start with
+# "- "). Deduplicates. Caps at 20.
+# Format: schemas/session-state.schema.md
 # Zero LLM cost — pure shell operations.
 
-set -euo pipefail
+set -uo pipefail
 
 input=$(cat)
-file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
-cwd=$(echo "$input" | jq -r '.cwd // empty')
+file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || file_path=""
+cwd=$(echo "$input" | jq -r '.cwd // empty' 2>/dev/null) || cwd=""
 
 state_file="$cwd/.claude/session-state.md"
 
@@ -29,18 +32,23 @@ if [[ "$rel_path" == ".claude/session-state.md" ]]; then
     exit 0
 fi
 
-# Skip if already tracked (dedup)
-if grep -qF -- "- $rel_path" "$state_file" 2>/dev/null; then
+# Lines of the Artifacts Written section only
+artifact_lines() {
+    awk '/^## Artifacts Written/{f=1;next} /^## /{f=0} f && /^- /' "$state_file"
+}
+
+# Skip if already tracked (dedup within the artifacts section)
+if artifact_lines | grep -qxF -- "- $rel_path"; then
     exit 0
 fi
 
 # Count current artifact entries
-artifact_count=$(grep -c '^- ' "$state_file" 2>/dev/null) || artifact_count=0
+artifact_count=$(artifact_lines | grep -c '^- ') || artifact_count=0
 
-# If at cap, remove the oldest entry (first artifact line)
+# If at cap, remove the oldest entry (first "- " line after the artifacts
+# header). Artifacts Written is the final section per the schema, so no
+# later section can be affected.
 if [[ "$artifact_count" -ge 20 ]]; then
-    # Remove the first line matching "^- " after "## Artifacts Written"
-    # Use sed to delete the first occurrence of a "- " line after the artifacts header
     tmp_file=$(mktemp)
     awk '
         /^## Artifacts Written/ { in_artifacts=1; print; next }
@@ -50,7 +58,7 @@ if [[ "$artifact_count" -ge 20 ]]; then
     mv "$tmp_file" "$state_file"
 fi
 
-# Append the new artifact
+# Append the new artifact (Artifacts Written is the final section)
 echo "- $rel_path" >> "$state_file"
 
 exit 0

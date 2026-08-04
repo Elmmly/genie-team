@@ -555,12 +555,13 @@ genie-team/
 ├── skills/              # Automatic behavior skills
 ├── hooks/
 │   ├── hooks.json       # Plugin hook configuration
+│   ├── session-ground-truth.sh # Git + env state at session start
 │   ├── track-command.sh # Command tracking
-│   ├── track-artifacts.sh # Artifact tracking
+│   ├── track-artifacts.sh # Artifact tracking (Write + Edit)
+│   ├── verify-stack.sh  # Stack-aware verification on Write/Edit
 │   └── reinject-context.sh # Context re-injection on compaction
 ├── rules/               # Always-on constraints
 ├── schemas/             # Document format schemas
-├── genies/              # Genie specs, system prompts, templates
 ├── scripts/
 │   ├── genies           # CLI entry point (lifecycle, session, quality)
 │   ├── genie-session    # Session library (sourced by genies)

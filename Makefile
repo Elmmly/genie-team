@@ -6,7 +6,7 @@ SHELL := /bin/bash
 
 # ── Configuration ────────────────────────────────────────────
 SHELLCHECK_EXCLUDES := SC1091,SC2034,SC2155,SC2015,SC2317,SC1090,SC2329,SC2218
-SHELLCHECK_DIRS     := commands scripts .claude/hooks
+SHELLCHECK_DIRS     := commands scripts hooks tests
 SHELLCHECK_FILES    := install.sh
 DOCS_DIR            := docs
 DOCS_EXCLUDE        := docs/archive
@@ -17,7 +17,7 @@ DOC_SOURCES   = $(shell find $(DOCS_DIR) -name '*.md' -not -path '$(DOCS_EXCLUDE
 TEST_FILES    = $(shell find tests -name 'test_*.sh' | sort)
 
 # ── Targets ──────────────────────────────────────────────────
-.PHONY: help lint test ci check shellcheck lint-docs
+.PHONY: help lint test test-hooks test-unit ci check shellcheck lint-docs lint-hooks
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | \
@@ -27,7 +27,7 @@ ci: lint test ## Run full CI pipeline (lint + test)
 
 check: ci ## Alias for ci
 
-lint: shellcheck lint-docs ## Run all linters
+lint: shellcheck lint-docs lint-hooks ## Run all linters
 
 shellcheck: ## Lint shell scripts
 	shellcheck -e $(SHELLCHECK_EXCLUDES) $(SHELL_SOURCES)
@@ -37,10 +37,22 @@ lint-docs: ## Validate doc frontmatter and cross-references
 	@scripts/validate/validate-frontmatter.sh $(DOC_SOURCES)
 	@scripts/validate/check-crossrefs.sh $(DOC_SOURCES)
 
-test: ## Run all tests
-	@failed=0; \
+lint-hooks: ## Verify hooks.json and install.sh hook registrations match
+	@scripts/validate/check-hook-registration.sh
+
+test: test-hooks test-unit ## Run all tests (shell + vitest)
+
+test-hooks: ## Run shell test suite (tests/test_*.sh)
+	@if [ -z "$(TEST_FILES)" ]; then \
+		echo "ERROR: no tests found matching tests/test_*.sh" >&2; \
+		exit 1; \
+	fi; \
+	failed=0; \
 	for f in $(TEST_FILES); do \
 		echo "=== Running $$f ==="; \
 		bash "$$f" || failed=1; \
 	done; \
 	exit $$failed
+
+test-unit: ## Run TypeScript unit tests (vitest)
+	@npm test --silent

@@ -12,7 +12,7 @@ Specialized AI genies for product discovery and delivery, extending Claude Code 
 
 Canonical sources for installable artifacts live at the repo root: `agents/`, `commands/`, `skills/`, `rules/`, `hooks/`. The `install.sh` script copies these to target `.claude/` directories (global or project-scoped). The repo's own `.claude/` installed copies are gitignored.
 
-Supporting directories: `genies/` (specs, prompts, templates), `schemas/` (document format schemas), `templates/` (CLAUDE.md template), `tests/`, `docs/` (document trail).
+Supporting directories: `schemas/` (document format schemas), `templates/` (CLAUDE.md template), `tests/`, `docs/` (document trail). (The former `genies/` spec tree was consolidated into `agents/` and removed.)
 
 ## Document Trail
 

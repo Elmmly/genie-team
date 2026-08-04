@@ -128,6 +128,27 @@ This structure:
 
 ---
 
+## Verification Gate (MANDATORY)
+
+Before archiving a backlog item that went through implementation
+(`status: implemented`, `reviewed`, or later), check its Implementation
+section for the **Verification block** required by `/deliver` (exact test
+command with pass/fail counts, pre-existing failures, build/lint state, docs
+updated, git status summary).
+
+**If the block is absent, refuse to archive:**
+
+```
+> Cannot archive docs/backlog/P2-example.md: Implementation section has no
+> Verification block. "Done" requires evidence, not a claim.
+> Run the verification (see /deliver Phase 5), append the block, then re-run /done.
+```
+
+This gate does not apply to items that never reached implementation
+(abandoned discoveries, superseded contracts) — those archive normally.
+
+---
+
 ## Error Handling
 
 | Scenario | Behavior |
@@ -135,6 +156,7 @@ This structure:
 | No artifacts found | "No active artifacts found for {concept}" |
 | Missing frontmatter | "Skipping {file}: no frontmatter found" |
 | Already completed | "Already archived: {file}" |
+| Missing Verification block | Refuse to archive implemented items (see Verification Gate) |
 | No context available | "Specify artifact path or concept: /done [path\|concept]" |
 
 ---

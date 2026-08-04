@@ -89,7 +89,36 @@ Is --pro flag set?
 Use `mcp__imagegen__image_generate_gemini` with:
 - `prompt`: The augmented prompt (brand context appended)
 - `model`: Selected model per tier
-- `filenameHint`: Descriptive filename based on prompt (e.g., "hero-landing-page")
+- `filenameHint`: Descriptive filename based on prompt (e.g., "hero-landing-page-a")
+
+---
+
+## Variant Generation (default behavior)
+
+Serial regenerate-reject rounds are the observed failure mode — one image per
+round, each regeneration silently dropping a required element. Defaults:
+
+1. **Hard constraints first.** Before generating, restate the user's hard
+   constraints as an explicit list (required subjects/figures, required
+   composition, must-avoid elements). A "hard constraint" is anything the
+   user named as part of the scene, not styling adjectives.
+2. **Three labeled variants per generation: A, B, C.** Same constraints, a
+   deliberately different design angle each (e.g., A: literal/centered,
+   B: alternative composition or perspective, C: bolder stylistic
+   interpretation). Use `filenameHint` suffixes `-a`, `-b`, `-c`.
+3. **One-line design-intent note per variant** — what the variant is trying
+   ("B: low-angle shot emphasizing the tower, figure in foreground").
+4. **Self-verify before presenting.** Check each variant against the
+   hard-constraint list. A variant missing a required element is marked
+   "✗ dropped {element}" — regenerate it once, or present it labeled as
+   non-compliant. Never present a constraint-violating image unlabeled.
+5. **On revision rounds, keep satisfied constraints in the prompt.** When the
+   user asks to change one thing, re-send the full constraint list with the
+   change applied — do not prompt only for the delta (that is how required
+   figures get dropped).
+
+Single-image mode only when the user explicitly asks for one image or is
+iterating on a specific chosen variant.
 
 ---
 
@@ -137,15 +166,17 @@ Check environment capabilities in order:
 After successful generation, log the asset:
 
 1. Ensure `docs/brand/assets/` directory exists
-2. Save the generated image to `docs/brand/assets/{filename}.{ext}`
-3. Append entry to `docs/brand/assets/manifest.md`:
+2. Save each generated variant to `docs/brand/assets/{filename}.{ext}`
+3. Append one entry per variant to `docs/brand/assets/manifest.md`:
 
 ```markdown
 ## Asset: {filename}.{ext}
 - **Generated:** {YYYY-MM-DD}
+- **Variant:** {A|B|C} — {one-line design intent}
 - **Model:** {model} ({default|premium} tier)
 - **Brand guide:** {brand guide path}
 - **Prompt:** "{user's original prompt}"
+- **Hard constraints:** {list} — {all satisfied | dropped: {element}}
 - **Augmented:** colors ({primary}, {accent}), mood ({mood}), style ({style})
 ```
 

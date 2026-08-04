@@ -7,10 +7,12 @@ Activate Critic genie to review implementation against acceptance criteria.
 ## Arguments
 
 - `backlog-item` - Path to backlog item (contains shaped contract + design + implementation) (required)
-- Optional flags:
-  - `--security` - Security-focused review only
-  - `--performance` - Performance-focused review only
-  - `--accept` - Just acceptance criteria check
+
+There are no focus flags or sub-commands: every default `/discern` review
+includes acceptance verification, the adversarial security pass, and
+performance assessment. Narrowing the review is not supported — the failure
+mode this prevents is real vulnerabilities shipping because nobody asked for
+the security pass.
 
 ---
 
@@ -97,13 +99,40 @@ Produces a **Review Document** with clear verdict:
 
 ---
 
-## Sub-Commands
+## Adversarial Security Pass (MANDATORY)
 
-| Command | Purpose |
-|---------|---------|
-| `/discern:security [code]` | Security-focused review |
-| `/discern:performance [code]` | Performance-focused review |
-| `/discern:accept [impl]` | Just acceptance criteria check |
+Every `/discern` review includes an adversarial security pass as a distinct
+section of the review document — not a checkbox, an attack attempt. Assume
+the implementation is vulnerable and try to prove it. For each vector below,
+either demonstrate an exploit path (file:line, payload, effect) or state
+specifically why the code is not susceptible:
+
+1. **XSS — including inline SVG/HTML.** Any user-supplied content rendered
+   into markup: does it escape script tags AND inline SVG (`<svg onload=…>`),
+   event-handler attributes, and `javascript:` URLs? Sanitizers that only
+   strip `<script>` miss stored XSS via SVG.
+2. **CSS injection.** User-supplied values interpolated into styles or
+   `style=` attributes (exfiltration selectors, `url()` beacons, UI overlay).
+3. **Authorization / IDOR — including on-behalf-of paths.** Every endpoint
+   and handler: is the *authenticated* principal checked against the
+   *addressed* resource? Pay attention to admin/on-behalf-of/impersonation
+   flows and IDs accepted from the client.
+4. **Injection.** SQL, shell/command, and template injection anywhere
+   user-controlled data meets an interpreter (queries, `exec`, string-built
+   templates, YAML/JSON parsers with code paths).
+5. **Secrets exposure.** Keys/tokens in logs, error messages, client-visible
+   config, committed files, or overly broad env passthrough.
+6. **Over-required fields.** Forms/APIs demanding data the feature doesn't
+   need — a privacy defect and an adoption blocker; flag it.
+7. **Silently-failing credentials.** Auth that degrades to anonymous/no-op on
+   expired or invalid credentials instead of failing loudly (the two-month
+   expired-PAT failure mode). Credential failure must surface as an error.
+
+If the pass is interrupted, the review is **incomplete** — resume or restate
+it before issuing a verdict; never issue APPROVED with a partial security pass.
+
+Findings feed the standard severity levels; any demonstrated vulnerability is
+**Critical** and blocks approval.
 
 ---
 
@@ -114,7 +143,7 @@ Critic evaluates:
 2. **Spec ACs verified?** (if spec_ref exists — each spec AC checked against implementation)
 3. Code quality acceptable?
 4. Test coverage sufficient?
-5. Security concerns?
+5. **Adversarial security pass complete?** (see section above — mandatory, all seven vectors)
 6. Performance concerns?
 7. Error handling adequate?
 8. Risks identified and mitigated?

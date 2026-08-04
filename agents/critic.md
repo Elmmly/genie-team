@@ -159,10 +159,21 @@ acceptance_criteria:
 - **Achieved:** [%]
 - **Missing:** [What's not covered]
 
-## Security Review
-- [ ] No sensitive data exposure
-- [ ] Input validation present
-- [ ] No injection vulnerabilities
+## Security Review (adversarial — attempt each vector, don't just tick boxes)
+- [ ] No sensitive data exposure (logs, errors, client-visible config, committed files)
+- [ ] Input validation present at trust boundaries
+- [ ] Authentication/authorization checked — principal vs addressed resource on every handler, including IDOR and on-behalf-of/impersonation paths
+- [ ] No injection vulnerabilities (SQL, shell/command, template)
+- [ ] No XSS — including stored XSS via inline SVG/HTML and event-handler attributes
+- [ ] No CSS injection from user-supplied values in styles
+- [ ] Secure defaults used; no over-required fields collecting unneeded data
+- [ ] Credentials fail loudly — expired/invalid auth surfaces an error, never silently degrades
+
+## Performance Review
+- [ ] No obvious N+1 queries
+- [ ] Appropriate caching
+- [ ] No blocking operations in hot paths
+- [ ] Resource cleanup handled
 
 ## Risk Assessment
 | Risk | L | I | Status |
