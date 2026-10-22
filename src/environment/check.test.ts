@@ -33,6 +33,20 @@ describe("checkClaudeCli", () => {
     expect(result.name).toBe("Claude CLI");
   });
 
+  it("reports the executable it resolved and the SDK version", async () => {
+    // Arrange
+    vi.mocked(execa).mockImplementation((async (bin: string) =>
+      bin === "which" ? { stdout: "/opt/homebrew/bin/claude\n" } : { stdout: "2.1.308 (Claude Code)" }) as never);
+
+    // Act
+    const result = await checkClaudeCli();
+
+    // Assert
+    expect(result.status).toBe("pass");
+    expect(result.detail).toContain("/opt/homebrew/bin/claude");
+    expect(result.detail).toContain("SDK ");
+  });
+
   it("fails when claude CLI is not found", async () => {
     // Arrange
     vi.mocked(execa).mockRejectedValue(new Error("not found"));

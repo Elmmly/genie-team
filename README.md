@@ -48,6 +48,7 @@ Genie Team is a playground for discovering new ways of working. It's not a finis
 ### Prerequisites
 
 - **[Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)** (v1.0.33+) — The foundation that genie-team extends
+  Genies run the `claude` on your PATH (or the one named by `GENIE_CLAUDE_PATH`), so `claude update` keeps them current; the Agent SDK's bundled copy is used only when neither is found. `genies check` shows which executable and SDK version are in use.
 - **[`gh` CLI](https://cli.github.com/)** (optional) — For PR creation in PR-mode workflows
 - **[`jq`](https://jqlang.github.io/jq/)** (optional) — For the headless runner's JSON parsing
 

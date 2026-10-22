@@ -30,6 +30,8 @@ export interface PhaseOptions {
   hooks?: PhaseHooks;
   authMode?: "oauth" | "apikey";
   verbose?: boolean;
+  /** Claude Code executable to run instead of the SDK's bundled copy. */
+  claudeExecutable?: string;
 }
 
 export interface PhaseResult {
@@ -94,6 +96,7 @@ const EXHAUSTION_SUBTYPES = new Set(["error_max_turns", "error_max_budget_usd"])
  * - Turn budget from phase defaults or overrides
  * - CLAUDE.md loaded via settingSources: ["project"]
  * - Session resume for multi-phase continuity
+ * - Installed Claude Code executable (see resolveClaudeExecutable) when given
  */
 export async function runPhase(
   phase: PhaseName,
@@ -118,6 +121,10 @@ export async function runPhase(
     resume: options?.resumeSessionId,
     maxBudgetUsd: options?.maxBudgetUsd,
   };
+
+  if (options?.claudeExecutable) {
+    queryOptions.pathToClaudeCodeExecutable = options.claudeExecutable;
+  }
 
   if (options?.skipPermissions) {
     queryOptions.permissionMode = "bypassPermissions";

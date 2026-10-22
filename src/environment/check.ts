@@ -1,4 +1,10 @@
+import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { execa } from "execa";
+import { CLAUDE_PATH_ENV, resolveClaudeExecutable } from "./claude-cli.js";
+
+const require = createRequire(import.meta.url);
 import { detectAuth } from "./auth.js";
 import { loadGenieConfig } from "../config/genie-config.js";
 
@@ -14,19 +20,45 @@ export interface CheckResult {
 // Each check is an independent function returning a CheckResult.
 // No check depends on another — they can run in any order.
 
-export async function checkClaudeCli(): Promise<CheckResult> {
+function sdkVersion(): string {
   try {
-    const { stdout } = await execa("claude", ["--version"]);
+    // The package does not export its package.json; walk up from its entry file.
+    let dir = dirname(require.resolve("@anthropic-ai/claude-agent-sdk"));
+    for (let depth = 0; depth < 3; depth++) {
+      const candidate = join(dir, "package.json");
+      if (existsSync(candidate)) {
+        const pkg = JSON.parse(readFileSync(candidate, "utf-8")) as { name?: string; version?: string };
+        if (pkg.name === "@anthropic-ai/claude-agent-sdk") return pkg.version ?? "unknown";
+      }
+      dir = dirname(dir);
+    }
+  } catch {
+    // fall through
+  }
+  return "unknown";
+}
+
+export async function checkClaudeCli(): Promise<CheckResult> {
+  const exe = await resolveClaudeExecutable();
+  if (!exe) {
+    return {
+      name: "Claude CLI",
+      status: "fail",
+      detail: `claude not found on PATH — install from https://claude.com/claude-code or set ${CLAUDE_PATH_ENV}`,
+    };
+  }
+  try {
+    const { stdout } = await execa(exe, ["--version"]);
     return {
       name: "Claude CLI",
       status: "pass",
-      detail: `v${stdout.trim()}`,
+      detail: `v${stdout.trim()} at ${exe} · SDK ${sdkVersion()}`,
     };
   } catch {
     return {
       name: "Claude CLI",
       status: "fail",
-      detail: "claude not found on PATH — install from https://claude.com/claude-code",
+      detail: `${exe} did not run — check ${CLAUDE_PATH_ENV} or reinstall from https://claude.com/claude-code`,
     };
   }
 }

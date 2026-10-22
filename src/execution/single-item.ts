@@ -1,4 +1,5 @@
 import { runPhase, type PhaseOptions, type PhaseResult, type PhaseHooks, type ToolUseEvent } from "../core/phase-executor.js";
+import { resolveClaudeExecutable } from "../environment/claude-cli.js";
 import { SessionTracker } from "../core/session-tracker.js";
 import { createCostLogger, createArtifactTracker } from "../hooks/phase-hooks.js";
 import { getFrontmatterField } from "../core/frontmatter.js";
@@ -24,6 +25,8 @@ export interface ExecutionOptions {
   reviewCycles?: number;
   maxBudgetUsd?: number;
   logDir?: string;
+  /** Claude Code executable for every phase; resolved from the environment when omitted. */
+  claudeExecutable?: string;
   authMode?: "oauth" | "apikey";
   hasContextDir?: boolean;
   verbose?: boolean;
@@ -153,6 +156,7 @@ export async function executeSingleItem(
     maxBudgetUsd: options.maxBudgetUsd,
     authMode: options.authMode,
     verbose: options.verbose,
+    claudeExecutable: options.claudeExecutable ?? (await resolveClaudeExecutable()),
   };
 
   const phaseResults: PhaseRecord[] = [];

@@ -15,8 +15,13 @@ vi.mock("../core/frontmatter.js", () => ({
   getFrontmatterField: vi.fn(),
 }));
 
+vi.mock("../environment/claude-cli.js", () => ({
+  resolveClaudeExecutable: vi.fn(async () => "/resolved/claude"),
+}));
+
 import { runPhase } from "../core/phase-executor.js";
 import { getFrontmatterField } from "../core/frontmatter.js";
+import { resolveClaudeExecutable } from "../environment/claude-cli.js";
 
 function mockPhaseResult(overrides?: Partial<PhaseResult>): PhaseResult {
   return {
@@ -717,5 +722,43 @@ describe("dry-run mode", () => {
     expect(runPhase).not.toHaveBeenCalled();
     expect(result.exitCode).toBe(0);
     expect(result.phaseResults).toEqual([]);
+  });
+});
+
+describe("executeSingleItem claude executable", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("passes an explicit claudeExecutable to every phase", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+
+    // Act
+    await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "design",
+      throughPhase: "design",
+      claudeExecutable: "/opt/homebrew/bin/claude",
+    });
+
+    // Assert
+    const opts = vi.mocked(runPhase).mock.calls[0][2] as Record<string, unknown>;
+    expect(opts.claudeExecutable).toBe("/opt/homebrew/bin/claude");
+  });
+
+  it("resolves the installed claude when none is given", async () => {
+    // Arrange
+    vi.mocked(runPhase).mockResolvedValue(mockPhaseResult());
+    vi.mocked(resolveClaudeExecutable).mockResolvedValue("/resolved/claude");
+
+    // Act
+    await executeSingleItem("docs/backlog/P0-item.md", {
+      fromPhase: "design",
+      throughPhase: "design",
+    });
+
+    // Assert
+    const opts = vi.mocked(runPhase).mock.calls[0][2] as Record<string, unknown>;
+    expect(opts.claudeExecutable).toBe("/resolved/claude");
   });
 });

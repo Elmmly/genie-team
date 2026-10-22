@@ -324,3 +324,39 @@ describe("runPhase SDK hooks wiring", () => {
     expect(opts.hooks).toBeUndefined();
   });
 });
+
+describe("runPhase claude executable", () => {
+  it("passes claudeExecutable to the SDK as pathToClaudeCodeExecutable", async () => {
+    // Arrange
+    vi.mocked(query).mockClear();
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-exe" },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null, usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
+    ]);
+
+    // Act
+    await runPhase("deliver", "docs/backlog/P0-item.md", { claudeExecutable: "/opt/homebrew/bin/claude" });
+
+    // Assert
+    const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
+    const opts = callArgs.options as Record<string, unknown>;
+    expect(opts.pathToClaudeCodeExecutable).toBe("/opt/homebrew/bin/claude");
+  });
+
+  it("leaves pathToClaudeCodeExecutable unset when no claudeExecutable is given", async () => {
+    // Arrange
+    vi.mocked(query).mockClear();
+    mockQueryMessages([
+      { type: "system", subtype: "init", session_id: "sess-noexe" },
+      { type: "result", subtype: "success", result: "Ok", stop_reason: null, usage: { input_tokens: 0, output_tokens: 0 }, total_cost_usd: 0, num_turns: 1 },
+    ]);
+
+    // Act
+    await runPhase("deliver", "docs/backlog/P0-item.md", {});
+
+    // Assert
+    const callArgs = vi.mocked(query).mock.calls[0][0] as Record<string, unknown>;
+    const opts = callArgs.options as Record<string, unknown>;
+    expect(opts.pathToClaudeCodeExecutable).toBeUndefined();
+  });
+});
