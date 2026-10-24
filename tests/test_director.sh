@@ -129,8 +129,9 @@ for heading in "WILL Do" "WILL NOT Do" "The Board" "The Tick" "Preflight" "Dispa
 done
 
 # Arrange / Act
+# User-specific paths only: ~/.claude/ is the global install location and is allowed
 # shellcheck disable=SC2088  # '~/' is a literal pattern, not a path
-home_paths=$(grep -nE '~/|/Users/' "$DIRECTOR" "$DIRECT" 2>/dev/null)
+home_paths=$(cat "$DIRECTOR" "$DIRECT" 2>/dev/null | sed 's|~/\.claude/||g' | grep -nE '/Users/|/home/|~/')
 
 # Assert
 assert_empty "AC-2: director.md and direct.md name no home paths" "$home_paths"
@@ -170,6 +171,33 @@ assert_empty "AC-6: the revert does not rely on ORIG_HEAD" "$(grep -n 'ORIG_HEAD
 assert_contains "AC-3: /direct schedules only under /loop" "$(read_file "$DIRECT")" "only under \`/loop\`"
 assert_contains "AC-4: the Crafter never sets its own verdict" "$(read_file agents/crafter.md)" "Never set \`verdict\`"
 assert_contains "AC-4: the Crafter stays on its slice branch" "$(read_file agents/crafter.md)" "Stay on \`genie/<slice-id>-deliver\`"
+
+# ── Identity paths handed to genies ──────────────────────────
+echo "=== Identity paths ==="
+
+# Arrange
+dispatch=$(section "$DIRECTOR" '^## Dispatch')
+# Every "Read and internalize `<path>`" in director.md, path only
+# shellcheck disable=SC2016  # backticks are literals in the pattern
+identity_paths=$(grep -oE 'Read and internalize `[^`]+`' "$DIRECTOR" 2>/dev/null | sed -E 's/^Read and internalize `//; s/`$//')
+# A .claude/agents/ path not anchored at <repo>/ or ~/ (or another absolute prefix)
+BARE_AGENTS='(^|[^/A-Za-z0-9_.~-])\.claude/agents/'
+
+# Act
+unresolved=$(echo "$identity_paths" | grep -vE '^(<identity>|/|~/|<repo>/)')
+bare_director=$(grep -nE "$BARE_AGENTS" "$DIRECTOR" 2>/dev/null)
+bare_direct=$(grep -nE "$BARE_AGENTS" "$DIRECT" 2>/dev/null)
+
+# Assert
+assert_contains "identity: dispatch resolves the project install first" "$dispatch" "<repo>/.claude/agents/<genie>.md"
+# shellcheck disable=SC2088  # '~/' is literal text in the charter, not a path
+assert_contains "identity: dispatch falls back to the global install" "$dispatch" "~/.claude/agents/<genie>.md"
+assert_contains "identity: a missing genie stops that dispatch" "$dispatch" "genie <name> not installed"
+# shellcheck disable=SC2016  # backticks are literal text in the charter
+assert_contains "identity: dispatch prompts carry the resolved identity path" "$dispatch" 'Read and internalize `<identity>`'
+assert_empty "identity: every identity path in director.md is resolved or absolute" "$unresolved"
+assert_empty "identity: director.md never hands a genie a bare .claude/agents/ path" "$bare_director"
+assert_empty "identity: direct.md never names a bare .claude/agents/ path" "$bare_direct"
 
 # ── Vocabulary: genie-team terms only ────────────────────────
 echo "=== Vocabulary ==="

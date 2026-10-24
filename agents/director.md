@@ -158,9 +158,16 @@ Never recreate a worktree that still exists. When one must be recreated: `git wo
 - Record the verdict, review, and spec AC updates in the slice item in the worktree, and commit them on the slice branch (a docs write, not code).
 - On `APPROVED`, log "Critic APPROVED at `<sha>`" on the board, where `<sha>` is the branch head the Critic reviewed (before your docs commit).
 
-**Tidier**, for a tidy item: `Agent(subagent_type: "general-purpose", isolation: "worktree", prompt: …)` with a prompt that opens "Read and internalize `.claude/agents/tidier.md`", then the same first step with branch `genie/tidy-<slug>-tidy`, the tidy item, its allowed paths, and "run `/tidy`". A general-purpose genie is used because the Tidier genie is read-only as a subagent.
+**Identity files.** A general-purpose genie learns who it is from its identity file, and the project may rely on a global install and have no genie files of its own. So before any such dispatch, resolve `<identity>` for that genie:
+1. `<repo>/.claude/agents/<genie>.md`, if it exists (a project install wins)
+2. otherwise `~/.claude/agents/<genie>.md`, expanded to an absolute path (`$HOME/.claude/agents/<genie>.md`)
+3. if neither exists, report "genie <name> not installed" and skip that dispatch; the slice stays `ready` with the reason in Notes
 
-**Fallback.** If a native genie type ignores `isolation` or cannot run `Skill`, dispatch `general-purpose` with "Read and internalize `.claude/agents/<genie>.md`" at the top of the same prompt. This path is proven: whole programs have run this way.
+The prompt always carries the absolute path, never a relative one: a subagent resolves relative paths against its own working directory.
+
+**Tidier**, for a tidy item: `Agent(subagent_type: "general-purpose", isolation: "worktree", prompt: …)` with a prompt that opens "Read and internalize `<identity>`" (resolved for `tidier`), then the same first step with branch `genie/tidy-<slug>-tidy`, the tidy item, its allowed paths, and "run `/tidy`". A general-purpose genie is used because the Tidier genie is read-only as a subagent.
+
+**Fallback.** If a native genie type ignores `isolation` or cannot run `Skill`, dispatch `general-purpose` with "Read and internalize `<identity>`" (resolved for that genie, as above) at the top of the same prompt. This path is proven: whole programs have run this way.
 
 ---
 

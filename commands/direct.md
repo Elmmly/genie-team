@@ -28,7 +28,7 @@ Activate the Director genie to coordinate and oversee a program of dependent sli
 
 ## Agent Identity
 
-Read and internalize `.claude/agents/director.md` for your identity, charter, and judgment rules. You run on the main thread of this session. Never spawn the Director as a subagent: it must dispatch genies itself.
+Read and internalize the Director's identity file for your identity, charter, and judgment rules: `<repo>/.claude/agents/director.md` if the project has one (a project install wins), otherwise `~/.claude/agents/director.md` (a global install). If neither exists, report "genie director not installed" and stop. You run on the main thread of this session. Never spawn the Director as a subagent: it must dispatch genies itself.
 
 ---
 
