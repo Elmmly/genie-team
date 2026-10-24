@@ -479,6 +479,50 @@ install_scripts() {
 }
 
 # Merge hook configuration into a settings file
+# jq definitions shared by hook merge and removal. A genie-team entry is one whose
+# command is exactly "bash <prefix>/<hook>.sh" for a script in hooks/; anything else
+# in the settings file belongs to the user and is left alone.
+# shellcheck disable=SC2016  # $prefix and $names are jq variables, not shell
+GENIE_HOOKS_JQ='
+def is_genie($prefix; $names):
+    any(.hooks[]?; .command as $c | any($names[]; $c == "bash \($prefix)/\(.)"));
+def strip_genie($prefix; $names):
+    if (.hooks | type) == "object" then
+        .hooks |= (with_entries(.value |= map(select(is_genie($prefix; $names) | not)))
+                   | with_entries(select(.value | length > 0)))
+        | if .hooks == {} then del(.hooks) else . end
+    else . end;
+'
+
+# JSON array of the hook script names genie-team installs (from hooks/*.sh)
+genie_hook_names() {
+    local script
+    for script in "$SCRIPT_DIR/hooks"/*.sh; do
+        [[ -f "$script" ]] && basename "$script"
+    done | jq -R . | jq -s .
+}
+
+# Remove genie-team hook registrations from a settings file, keeping the user's own
+remove_hook_config() {
+    local settings_file="$1"
+    local cmd_prefix="$2"
+
+    [[ -f "$settings_file" ]] || return 0
+    if ! command -v jq &>/dev/null; then
+        log_warn "jq not found — remove genie-team hooks from $settings_file manually"
+        return 0
+    fi
+
+    local stripped
+    stripped=$(jq --arg prefix "$cmd_prefix" --argjson names "$(genie_hook_names)" \
+        "$GENIE_HOOKS_JQ strip_genie(\$prefix; \$names)" "$settings_file") || {
+        log_warn "Could not parse $settings_file — remove genie-team hooks manually"
+        return 0
+    }
+    echo "$stripped" > "$settings_file"
+    log_success "Removed genie-team hook config from $(basename "$settings_file")"
+}
+
 merge_hook_config() {
     local settings_file="$1"
     local cmd_prefix="$2"
@@ -554,8 +598,14 @@ HOOKJSON
 
     if [[ -f "$settings_file" ]]; then
         local merged
+        # Replace genie-team's own entries and append the current ones; the user's
+        # hooks on the same events stay (a plain object merge would replace the arrays)
         merged=$(jq --argjson hooks "$(echo "$hook_config" | jq '.hooks')" \
-            '.hooks = (.hooks // {}) * $hooks' "$settings_file")
+            --arg prefix "$cmd_prefix" --argjson names "$(genie_hook_names)" \
+            "$GENIE_HOOKS_JQ"' strip_genie($prefix; $names)
+            | .hooks = (.hooks // {})
+            | reduce ($hooks | keys_unsorted[]) as $e (.; .hooks[$e] = ((.hooks[$e] // []) + $hooks[$e]))' \
+            "$settings_file")
         echo "$merged" > "$settings_file"
         log_success "Merged hook config into $(basename "$settings_file")"
     else
@@ -1034,6 +1084,7 @@ cmd_uninstall() {
                         log_success "Cleaned genie-team files from $dir"
                 fi
             done
+            remove_hook_config "$GLOBAL_CLAUDE_DIR/settings.json" "$GLOBAL_CLAUDE_DIR/hooks"
             # agent-memory is entirely genie-team owned — safe to remove
             if [[ -d "$GLOBAL_CLAUDE_DIR/agent-memory" ]]; then
                 rm -rf "${GLOBAL_CLAUDE_DIR:?}/agent-memory"
@@ -1074,6 +1125,7 @@ cmd_uninstall() {
                         log_success "Cleaned genie-team files from $dir"
                 fi
             done
+            remove_hook_config "./.claude/settings.local.json" ".claude/hooks"
             # Legacy: genies/ specs from pre-consolidation installs — safe to remove
             if [[ -d "./.claude/genies" ]]; then
                 rm -rf "./.claude/genies"
