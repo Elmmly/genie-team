@@ -18,7 +18,7 @@ acceptance_criteria:
       runtime isolation) and a Program board. The shaped-work schema documents these fields,
       the board has its own schema, and lint-docs rejects a slices path that does not exist
       or a starts_when entry that is not a slice of the same program.
-    status: pending
+    status: met
   - id: AC-2
     description: >-
       The Director genie (agents/director.md) holds the program's intent, coordinates and
@@ -29,7 +29,7 @@ acceptance_criteria:
       health-check commands come from the program item. Only verify falls back, to the stack
       profile's Verification section; with no verify command anywhere, /direct reports that and
       stops.
-    status: pending
+    status: met
   - id: AC-3
     description: >-
       /direct [program] runs one tick. With no path it ticks every open program in
@@ -39,7 +39,7 @@ acceptance_criteria:
       held slice stops only itself and the slices that start after it; the others keep going.
       The loop ends when no slice can move without the Navigator: every slice is merged, held,
       blocked, or waiting on a held or blocked slice.
-    status: pending
+    status: met
   - id: AC-4
     description: >-
       Everything runs inside the directing session. Crafters, Critics, and Tidiers are subagents
@@ -47,7 +47,7 @@ acceptance_criteria:
       forbids out-of-process spawns (claude -p, genies run) and any budget or turn cap. A
       structural test fails if director.md or direct.md tells the Director to spawn out of
       process.
-    status: pending
+    status: met
   - id: AC-5
     description: >-
       Mid-run coordination. A Crafter that needs something outside its rows (a path another slice
@@ -57,7 +57,7 @@ acceptance_criteria:
       cross-slice decision under Shared contracts in the program item, and messages every live
       Crafter the decision touches. A request that changes product scope goes to the Navigator
       and leaves that slice blocked.
-    status: pending
+    status: met
   - id: AC-6
     description: >-
       The merge gate, one slice at a time:
@@ -68,18 +68,21 @@ acceptance_criteria:
          Director granted the slice under Shared contracts, or the slice's own docs.
       5. Merge to main with ff-only.
       6. Verify again on main.
-      7. Run /done, then /commit.
+      7. Mark the slice done (status: done; merged slices stay in docs/backlog/ until /done
+         archives the whole program), then /commit with explicit paths.
       8. Remove the worktree and the branch.
-      Nothing passes without verdict APPROVED and the /deliver verification block. When main
-      goes red after a merge, the Director restores it with a forward revert.
-    status: pending
+      Nothing passes without a Critic approval logged at the branch head and the /deliver
+      verification block; every hand-back clears the verdict. When main goes red after a merge,
+      the Director forward-reverts the recorded merged range and puts the slice's work back on
+      its branch before handing it back.
+    status: met
   - id: AC-7
     description: >-
       After every merge the Director runs the health check: /diagnose scoped to the merged slice's
       paths, plus the program's configured complexity tool if there is one. A finding over the
       threshold becomes a tidy-<slug> item that a Tidier runs through the same gate. A tidy item
       never touches a path a live slice owns.
-    status: pending
+    status: met
   - id: AC-8
     description: >-
       Recovery. Attempts cap at 3 per slice and count only failures handed back to the Crafter
@@ -87,13 +90,13 @@ acceptance_criteria:
       count. A Crafter whose subagent ended is respawned on its existing worktree and branch.
       After a compaction or in a new session, the next tick rebuilds the board from git and
       ListAgents.
-    status: pending
+    status: met
   - id: AC-9
     description: >-
       /direct runs only in trunk-based mode, merging into local main. In PR mode it reports why
       and stops. The settings template and README carry the permission rules the merge gate
       and Crafters need, including git rebase inside worktrees.
-    status: pending
+    status: met
 ---
 
 # In-Session Program Direction
@@ -132,3 +135,42 @@ The Director uses the same vocabulary as every other genie-team document. It has
 | `main` | the repository's default branch, whether it is named `main` or `master` |
 | health check | `/diagnose` plus the program's complexity command, run after each merge |
 | board | the `## Board` section of the program item, rewritten every tick |
+
+## Implementation Evidence
+<!-- Updated by /deliver on 2026-10-24 from P1-program-director -->
+
+### Test Coverage
+- tests/test_director.sh: 37 test cases covering AC-1
+- tests/test_director.sh: 21 test cases covering AC-2
+- tests/test_director.sh: 16 test cases covering AC-3
+- tests/test_director.sh: 9 test cases covering AC-4
+- tests/test_director.sh: 3 test cases covering AC-9
+- tests/test_director.sh: 2 vocabulary test cases (no kitchen terms in installed artifacts)
+- AC-5 to AC-8: charter sections checked structurally under AC-2; behavior needs a live program
+
+### Implementation Files
+- agents/director.md: the Director genie's charter
+- commands/direct.md: the /direct command
+- schemas/program-board.schema.md: program, slice, Slice Protocol, Shared Contracts, Board, Requests
+- scripts/validate/validate-frontmatter.sh: kind and verdict enums
+- scripts/validate/check-crossrefs.sh: slices exist; starts_when stays inside the program
+- agents/crafter.md, agents/critic.md, agents/tidier.md: Skill tool; working under the Director
+- templates/settings.json: git rebase allow rules
+
+## Review Verdict
+<!-- Updated by /discern on 2026-10-24 from P1-program-director -->
+
+**Verdict:** APPROVED (after two review rounds; all findings fixed)
+**ACs verified:** 9/9 met
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | Schemas document the fields; validators enforce enums, id format, slice existence and kind, block lists, no `..`, and starts_when scope; fixtures and tests green |
+| AC-2 | met | All charter sections in genie-team vocabulary; commands read from `main`; verify falls back to the stack profile; no verify stops the tick |
+| AC-3 | met | Flags, no-path ticking, scheduling only under `/loop`, held/blocked stop only their dependents, loop-end rule consistent across director, direct, and spec |
+| AC-4 | met | In-session only, no caps (WILL NOT plus tests); worktree isolation for Crafters and Tidiers; cd discipline for respawns and Critics |
+| AC-5 | met | Requests read per branch, answered by `SendMessage` to the agent ID, Shared Contracts committed on `main`. Live messaging awaits the smoke slice |
+| AC-6 | met | Eight gate steps in order; entry needs a Critic approval at the branch head; exact-range forward revert plus revert-of-revert; `status: done` at step 7 |
+| AC-7 | met | Health check after each merge; tidy items with ACs, design, allowed paths, committed before dispatch; never touch a live slice's paths |
+| AC-8 | met | Attempt cap 3; misfires not counted, capped at 3 in a row; respawn on the existing worktree; rebuild from git plus the committed board |
+| AC-9 | met | PR mode refused; narrowed rebase rules in the settings template and README |

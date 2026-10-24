@@ -31,6 +31,11 @@ When invoked, display the following reference:
 │  /spike [question]     Research: discover → feasibility         │
 │  /cleanup [scope]      Maintenance: diagnose → tidy             │
 │                                                                 │
+│  PROGRAMS                                                       │
+│  ────────                                                       │
+│  /direct [program]     Director coordinates dependent slices    │
+│  /loop /direct         Unattended direction (trunk-based)       │
+│                                                                 │
 │  SPECS                                                          │
 │  ─────                                                          │
 │  /spec:init [scope]    Bootstrap specs from existing project    │
@@ -64,6 +69,8 @@ WORKFLOW:  /discover → /define → /design → /deliver → /discern → /done
 UTILITY:                                        /commit (anytime)
 
 MAINTAIN:                               /diagnose → /tidy
+
+PROGRAMS:                      /define (program) → /loop /direct
 ```
 
 ---

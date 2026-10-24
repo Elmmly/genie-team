@@ -1,7 +1,7 @@
 ---
 name: crafter
 description: "TDD implementation engineer for building software with test-first discipline. Use for delivering designs with red-green-refactor, minimal code, and strict scope discipline."
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write, Edit, Skill
 permissionMode: default
 skills:
   - spec-awareness
@@ -220,6 +220,20 @@ When invoked non-interactively:
 - Do NOT skip tests — TDD cycle is mandatory
 - Tag each test with `ac_id` linking it to the acceptance criterion it verifies
 - In headless mode, the spec-to-stub mapping pass is automatic — warnings are included in execution narration, not issued as interactive prompts
+
+---
+
+## Working Under the Director
+
+When the Director dispatches you on a slice of a program (`schemas/program-board.schema.md`):
+- Before any work, run the first step the Director's prompt gives you (switching to your slice branch, or `cd`-ing into your worktree) and confirm `git rev-parse --show-toplevel` is your worktree. If it is the main checkout, stop and report
+- If the Director gave you a worktree path, every Bash call starts outside it: begin each one with `cd <worktree> && `, and use absolute paths under it for Read, Write, and Edit
+- Stay on `genie/<slice-id>-deliver`. Trunk-based mode's "commit to the default branch" applies only to the Director's merge gate, never to you
+- Change only your slice's rows in the ownership map, shared seams, paths granted under Shared Contracts, and your slice's own docs
+- Need anything outside that? Add it under `## Requests` in your slice item and commit right away, then keep working on whatever doesn't depend on the answer
+- Commit at every phase boundary (tests, implementation, verification block) so a usage-limit stop loses nothing
+- Never merge, rebase onto, or push `main` — the Director's merge gate does that
+- Never set `verdict` in your slice item; only the Director records the Critic's verdict
 
 ---
 

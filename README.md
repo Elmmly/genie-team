@@ -381,6 +381,45 @@ genies session cleanup
 
 Enable by adding `worktree-enabled` to your project's `CLAUDE.md`.
 
+### Programs (`/direct`)
+
+For work too big for one item that splits into slices whose dependencies are known — say, a walking skeleton followed by features that build on it. The **Director** genie gives the program continuous coordination and oversight from one interactive session: it dispatches one Crafter per ready slice into its own worktree, answers their requests while they work, takes each approved slice through a serial merge gate (rebase, verify, ownership check, fast-forward, verify again), and runs a health check after every merge.
+
+```
+> /define "billing: skeleton, invoices, reminders"   # shape a program: one item per slice + a program item
+> /direct docs/backlog/P1-billing.md --status        # see the board
+> /loop /direct                                      # run unattended; each tick schedules the next
+```
+
+The loop ends when no slice can move without you; the board in the program item says what is waiting on you.
+
+**Requirements:**
+- **Trunk-based mode** (see Git Workflow below). In PR mode `/direct` stops.
+- **A verify command:** `verify:` in the program item, or a stack profile's Verification section.
+- **Permission rules** so the merge gate can rebase inside worktrees (copy from `templates/settings.json`):
+  ```json
+  "Bash(git rebase main)", "Bash(git rebase --continue)", "Bash(git rebase --abort)",
+  "Bash(git -C * rebase main)", "Bash(git -C * rebase --continue)", "Bash(git -C * rebase --abort)"
+  ```
+  (use `master` in place of `main` if that is your default branch)
+- **`.gitignore`** entries for the Director's state and the worktrees:
+  ```
+  .claude/director/
+  .claude/worktrees/
+  ```
+
+Genies run as subagents of your session, on its model and account, with no budget or turn caps. Switch models between slices, not during one. If the session ends, worktrees and commits survive; the next `/direct` respawns live slices.
+
+Paragraph to copy into your project's `CLAUDE.md`. Note that `trunk-based` switches **every** genie workflow in the project to trunk mode, not just programs:
+
+```markdown
+## Programs
+trunk-based
+Programs of dependent slices run through `/direct`. Only the Director merges to main.
+A genie working on a slice changes only its own rows in the Slice Protocol; anything
+else goes under `## Requests` in its slice item, committed on its branch.
+```
+
 ### Git Workflow
 
 **PR mode** (default): Feature branches (`genie/{item}-{phase}`) with pull requests via `gh`. No direct pushes to main.
@@ -471,6 +510,7 @@ genies --from design --lock --log-dir ./logs docs/backlog/P2-approved-item.md
 | **Critic** | `/discern` | Review, acceptance criteria, risks |
 | **Tidier** | `/tidy` | Refactoring, cleanup, tech debt |
 | **Designer** | `/brand` | Brand identity, visual assets, design tokens |
+| **Director** | `/direct` | Coordination and oversight of a program of dependent slices |
 
 ## Commands & Skills
 
@@ -501,6 +541,7 @@ Both are the recommended Claude Code extension patterns. Commands are for workfl
 - `/bugfix [issue]` — Quick fix flow
 - `/spike [question]` — Technical investigation
 - `/cleanup [scope]` — Debt reduction
+- `/direct [program]` — Coordinate and oversee a program of dependent slices (`/loop /direct` for unattended)
 
 ### Brand
 - `/brand [input]` — Brand workshop (`--workshop` for fresh, `--evolve` to update)

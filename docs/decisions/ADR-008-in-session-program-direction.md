@@ -9,7 +9,7 @@ deciders: [architect, navigator]
 domain: workflow
 spec_refs:
   - docs/specs/workflow/program-direction.md
-backlog_ref: docs/backlog/P1-program-director.md
+backlog_ref: docs/archive/orchestration/2026-10-24_program-director/P1-program-director.md
 tags: [architecture, orchestration, subagents, worktrees, billing]
 ---
 

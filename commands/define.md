@@ -76,6 +76,20 @@ Produces a **Shaped Work Contract** containing:
 6. Behavioral Delta - What existing spec behavior is changing (when applicable)
 7. Handoff - Ready for design?
 
+### Programs
+
+When the work is too big for one item but splits into slices whose dependencies are known,
+shape a **program** for `/direct` (`schemas/program-board.schema.md`):
+
+- **One backlog item per slice** (`kind: slice`, with `starts_when` naming the slices that
+  must merge first). Never fold several slices into one multi-cut item
+- **One program item** (`kind: program`) listing them under `slices`, with the program's
+  `verify` command (and `regenerate` or `health_check` if the project needs them)
+- **A Slice Protocol** in the program item: the order, an ownership map (path globs → slice),
+  shared seams and how to edit them, numbering ranges (migrations, ports), and runtime
+  isolation for parallel worktrees
+- Each slice is small enough for one Crafter in one worktree, and owns its paths outright
+
 ---
 
 ## Spec Lifecycle Behavior

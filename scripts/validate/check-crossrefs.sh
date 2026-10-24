@@ -1,6 +1,8 @@
 #!/bin/bash
 # Tier 3: Check cross-reference integrity in frontmatter
 # Validates that spec_ref, adr_refs, backlog_ref, etc. point to existing files.
+# For programs (kind: program), also validates that each slices path exists and that
+# every starts_when entry of a slice is one of the same program's slices.
 # Input: file paths as positional arguments (pre-commit convention)
 # Exit: 0 if all refs resolve, 1 if any broken
 
@@ -51,12 +53,27 @@ get_array_field() {
         fi
         if [[ $in_field -eq 1 ]]; then
             if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+(.*) ]]; then
-                echo "${BASH_REMATCH[1]}" | sed 's/^["'"'"']//' | sed 's/["'"'"']$//'
+                # Drop a trailing "  # comment", then surrounding quotes
+                echo "${BASH_REMATCH[1]}" | sed 's/[[:space:]][[:space:]]*#.*$//' \
+                    | sed 's/^["'"'"']//' | sed 's/["'"'"']$//'
             else
                 break  # No longer in array
             fi
         fi
     done <<< "$frontmatter"
+}
+
+# Report a non-empty flow-style list ("field: [a, b]"), which get_array_field can't read.
+# Program fields must use block lists so validation never silently skips them.
+reject_flow_list() {
+    local file="$1"
+    local frontmatter="$2"
+    local field="$3"
+    if echo "$frontmatter" | grep -qE "^${field}:[[:space:]]*\[[[:space:]]*[^][:space:]]"; then
+        echo "[TIER-3] $file — $field is a flow-style list; validation cannot read it" >&2
+        echo "  → Write it as a block list, one '  - path' per line" >&2
+        errors=$((errors + 1))
+    fi
 }
 
 # Check if a file exists relative to repo root
@@ -103,6 +120,39 @@ for file in "$@"; do
         [[ -z "$spec_ref" ]] && continue
         check_ref "$file" "spec_refs" "$spec_ref"
     done < <(get_array_field "$frontmatter" "spec_refs")
+
+    # Programs: slices exist and are slices, and starts_when stays inside the program
+    if [[ "$(get_field "$frontmatter" "kind")" == "program" ]]; then
+        reject_flow_list "$file" "$frontmatter" "slices"
+        slices=$(get_array_field "$frontmatter" "slices")
+        while IFS= read -r slice; do
+            [[ -z "$slice" ]] && continue
+            if [[ "$slice" == *..* ]]; then
+                echo "[TIER-3] $file — slices path '$slice' contains '..'" >&2
+                echo "  → Use a path relative to the repository root, without '..'" >&2
+                errors=$((errors + 1))
+                continue
+            fi
+            check_ref "$file" "slices" "$slice"
+            [[ -f "$REPO_ROOT/$slice" ]] || continue
+            slice_frontmatter=$(extract_frontmatter "$REPO_ROOT/$slice") || continue
+            if [[ "$(get_field "$slice_frontmatter" "kind")" != "slice" ]]; then
+                echo "[TIER-3] $file — slices entry '$slice' does not have kind: slice" >&2
+                echo "  → Add 'kind: slice' to that item, or remove it from slices" >&2
+                errors=$((errors + 1))
+                continue
+            fi
+            reject_flow_list "$slice" "$slice_frontmatter" "starts_when"
+            while IFS= read -r dep; do
+                [[ -z "$dep" ]] && continue
+                if ! grep -qxF -- "$dep" <<< "$slices"; then
+                    echo "[TIER-3] $slice — starts_when '$dep' is not a slice of program $file" >&2
+                    echo "  → List it under the program's slices, or remove it from starts_when" >&2
+                    errors=$((errors + 1))
+                fi
+            done < <(get_array_field "$slice_frontmatter" "starts_when")
+        done <<< "$slices"
+    fi
 done
 
 if [[ $errors -gt 0 ]]; then

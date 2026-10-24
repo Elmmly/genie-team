@@ -110,3 +110,20 @@ For headless orchestrators, dispatch via CLI contract:
 2. Spawn `claude -p` per worktree (see cli-contract.md)
 3. Monitor via `--output-format stream-json`
 4. Clean up worktrees after completion
+
+### In-Session Program Direction
+
+For a program of dependent slices (`schemas/program-board.schema.md`), the Director
+genie coordinates and oversees parallel work from one interactive session (`/direct`):
+
+- **Trunk-based mode required.** In PR mode `/direct` reports why and stops
+- **Genies are subagents of the session**, never out-of-process spawns, with no budget
+  or turn caps. Crafters and Tidiers run with worktree isolation
+- **Worktrees** live under `.claude/worktrees/` inside the repository root, on branches
+  `genie/<item>-deliver` (or `genie/tidy-<slug>-tidy`)
+- **The Director is the only writer to `main`**: one slice at a time, rebased, verified,
+  ownership-checked, fast-forwarded, and verified again. Trunk mode's "commit directly to
+  the default branch" applies to the Director's merge gate only; genies working on slices
+  stay on their slice branch
+- **Requests** go in the genie's own slice item, committed on its branch; the Director
+  answers by message and records cross-slice decisions under Shared Contracts

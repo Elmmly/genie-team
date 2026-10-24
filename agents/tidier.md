@@ -1,7 +1,7 @@
 ---
 name: tidier
 description: "Code cleanup specialist for safe, incremental refactoring using Kent Beck's Tidy First approach. Use for codebase analysis and cleanup execution."
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
 permissionMode: plan
 skills:
   - spec-awareness
@@ -190,6 +190,15 @@ When invoked via Task tool, return results in this structure:
 ### Blockers (if any)
 - [Issues requiring escalation]
 ```
+
+---
+
+## Working Under the Director
+
+When the Director dispatches tidy work in a worktree, it runs as a general-purpose genie that
+reads this file, so it can edit inside that worktree. Never touch a path a live slice owns; if
+the cleanup needs one, add it under `## Requests` in the tidy item, commit, and continue with
+the rest.
 
 ---
 

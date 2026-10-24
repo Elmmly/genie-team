@@ -3,7 +3,8 @@ spec_version: "1.0"
 type: shaped-work
 id: P1-program-director
 title: "Direct a program of slices from one session"
-status: designed
+status: done
+verdict: APPROVED
 created: 2026-10-24
 updated: 2026-10-24
 appetite: medium
@@ -22,7 +23,7 @@ acceptance_criteria:
       program-level verify, regenerate, and health_check. A new schemas/program-board.schema.md
       defines the Slice protocol and the Program board. lint-docs rejects a slices path that does
       not exist and a starts_when entry that is not a slice of the same program.
-    status: pending
+    status: met
   - id: AC-2
     description: >-
       agents/director.md ports the trial charter, generalized: no project names, absolute paths,
@@ -30,28 +31,28 @@ acceptance_criteria:
       Verify, regenerate, and health-check commands come from
       the program item. Only verify falls back, to the stack profile's Verification section;
       with no verify command anywhere, /direct reports that and stops.
-    status: pending
+    status: met
   - id: AC-3
     description: >-
       commands/direct.md: one tick per call; no path ticks every open program; flags --one,
       --status, --merge, --tidy, --no-wake; /loop /direct runs it unattended with self-paced
       wake-ups; a blocked or held slice stops only itself and its dependents; the loop ends when
       no slice can move without the Navigator.
-    status: pending
+    status: met
   - id: AC-4
     description: >-
       Everything runs in the session. Crafters, Critics, and Tidiers are subagents of the
       directing session, and Crafters and Tidiers run with worktree isolation. The charter
       forbids claude -p, genies run, and budget or turn caps. tests/test_director.sh fails if
       director.md or direct.md tells the Director to spawn out of process.
-    status: pending
+    status: met
   - id: AC-5
     description: >-
       Mid-run coordination. Crafters write cross-slice needs under Requests in their own slice
       item on their branch. Every tick the Director answers each open request by message. It
       records each cross-slice decision under Shared contracts in the program item and messages
       every live Crafter it affects. A request that changes scope goes to the Navigator.
-    status: pending
+    status: met
   - id: AC-6
     description: >-
       The merge gate:
@@ -61,30 +62,32 @@ acceptance_criteria:
       4. Check ownership, counting paths granted under Shared contracts.
       5. Merge to main with ff-only.
       6. Verify again on main.
-      7. Run /done, then /commit.
+      7. Mark the slice done (status: done, kept in docs/backlog/ until the program is done),
+         then /commit with explicit paths.
       8. Remove the worktree and the branch.
-      A slice passes only with verdict APPROVED and the /deliver verification block on its item.
-      A red main is restored with a forward revert.
-    status: pending
+      A slice passes only with a Critic approval logged at its branch head and the /deliver
+      verification block on its item. A red main is restored with a forward revert of the
+      recorded merged range.
+    status: met
   - id: AC-7
     description: >-
       Health check after each merge: /diagnose scoped to the merged paths, plus the
       health_check command if the program sets one. A finding over the threshold becomes a tidy-<slug> item
       for a Tidier. A tidy item never touches a path a live slice owns.
-    status: pending
+    status: met
   - id: AC-8
     description: >-
       Recovery. Attempts cap at 3 per slice and count only failures handed back to the Crafter.
       Misfires and usage-limit interruptions are logged but not counted. An ended Crafter is
       respawned on its existing worktree. The tick rebuilds the board from git and ListAgents
       after a compaction.
-    status: pending
+    status: met
   - id: AC-9
     description: >-
       Trunk-based only: in PR mode /direct reports why and stops. templates/settings.json and
       README carry the permission rules the merge gate and Crafters need, including git rebase inside
       .claude/worktrees/.
-    status: pending
+    status: met
   - id: AC-10
     description: >-
       Docs and distribution:
@@ -96,7 +99,7 @@ acceptance_criteria:
       - commands/define.md shapes programs as one item per slice.
       - install.sh installs the new genie and command through copy_dir.
       - make ci passes.
-    status: pending
+    status: met
 ---
 
 # Shaped Work Contract: Direct a program of slices from one session
@@ -157,7 +160,7 @@ A trial ran a Director in a downstream product repo on 2026-10-22 and 2026-10-23
 
 ## Routing
 
-Designed (below). Next: `/deliver docs/backlog/P1-program-director.md` on `genie/P1-program-director-deliver`.
+Done 2026-10-24: delivered on `genie/P1-program-director-deliver`, reviewed APPROVED, archived.
 
 ---
 
@@ -283,3 +286,107 @@ Deliver in this order, committing at each step:
 7. `make ci`.
 
 Port every rule faithfully, but not the trial's vocabulary. The trial's charter lines each record a failure that happened, so a line dropped while generalizing reopens that failure. Translate the trial's kitchen terms into the terms in the spec's Terms table as you port. Finish with the `/deliver` verification block.
+
+---
+
+# Implementation
+
+Delivered on `genie/P1-program-director-deliver` (2026-10-24), test-first: `tests/test_director.sh` and its fixtures were written and run red (82 failing) before any artifact.
+
+## What was built
+
+| Artifact | Change |
+|---|---|
+| `agents/director.md` | **New.** The Director's charter in genie-team vocabulary: Charter (WILL / WILL NOT), Inputs, The Board, The Tick (with a lock), Preflight, Dispatch, Requests and Shared Contracts, The Merge Gate, Health Check, Failure Handling, Reporting, Memory Guidance, Routing |
+| `commands/direct.md` | **New.** `/direct [program]` with `--one`, `--status`, `--merge`, `--tidy`, `--no-wake`; mode and verify checks; `/loop /direct` for unattended direction |
+| `schemas/program-board.schema.md` | **New.** Program and slice frontmatter; Slice Protocol, Shared Contracts, Board (columns, states, log), and Requests sections, with examples |
+| `schemas/shaped-work-contract.schema.md` | Program and slice fields, pointing to the board schema |
+| `scripts/validate/validate-frontmatter.sh` | Enums for `kind` and `verdict` |
+| `scripts/validate/check-crossrefs.sh` | Program `slices` must exist; each slice's `starts_when` must be a slice of the same program |
+| `agents/crafter.md`, `critic.md`, `tidier.md` | `Skill` added to `tools`; a "Working Under the Director" section each |
+| `rules/agent-conventions.md`, `autonomous-execution.md`, `workflow.md` | Worktree-write exception; "In-Session Program Direction"; `/direct` in the command reference |
+| `commands/define.md`, `commands/genie-help.md`, `README.md` | Programs subsection; `/direct` in help; README "Programs (`/direct`)" section with permission rules, `.gitignore` entries, and the CLAUDE.md paragraph |
+| `templates/settings.json` | `Bash(git rebase *)` and `Bash(git -C * rebase *)` |
+| `tests/test_director.sh`, `tests/fixtures/program/` | **New.** 88 structural and validation tests |
+
+## Deviations from the design
+
+1. **Critic stays read-only; the Director records the verdict.** The Critic genie has `permissionMode: plan` and no Write tool, so it cannot write `verdict` to the slice item as the spec's ownership wording assumed. The Critic returns its verdict and review; the Director writes them into the slice item on the slice branch (a docs write, not code). This keeps review independent.
+2. **Tidy work uses D2's fallback from the start.** The Tidier genie is also `permissionMode: plan`, so a native Tidier subagent cannot edit its worktree. The Director dispatches tidy items as `general-purpose` with the Tidier identity file. Making the Tidier writable everywhere would change its analysis role, so that is left as a separate decision.
+3. **Install test uses a real install.** `install.sh --dry-run` prints only component names, not files, so the test installs agents, commands, and schemas into a temporary project and checks the files exist.
+4. **Installed artifacts don't cite genie-team's history.** `director.md` and `direct.md` install into other projects, so they state each trial-derived rule as a known failure ("A Crafter has worked in the main checkout before") instead of referring to "the trial" or to ADR-008.
+5. **The `.gitignore` entries live in README guidance**, not in `install.sh`, matching the reviewed design text.
+
+## Wiring check (Phase 4)
+
+Prompt-only change; no service bootstrap. Reachability: `install.sh project --agents --commands --schemas` installs `director.md`, `direct.md`, and `program-board.schema.md` (tested). The new validation rules run in `make lint-docs` and the pre-commit hook.
+
+**Not yet done: the D2 smoke slice.** Whether a native `crafter` subagent honours `isolation: "worktree"` and can run `Skill` has not been exercised in a live session. The charter carries the fallback. Run one smoke slice after installing this branch.
+
+## AC coverage
+
+| AC | Evidence |
+|---|---|
+| AC-1 | Schema docs, both validators, 4 fixtures, 37 tests |
+| AC-2 | `director.md` sections, no home paths, trial rules ported, verify fallback: 21 tests |
+| AC-3 | `direct.md` sections, flags, `/loop /direct`, identity load: 16 tests |
+| AC-4 | WILL NOT forbids out-of-process spawns and caps; no mention elsewhere; worktree isolation; `Skill` on three genies: 9 tests |
+| AC-5 to AC-8 | Charter sections present (Requests and Shared Contracts, The Merge Gate, Health Check, Failure Handling), checked structurally only. Their behavior is prompt-level and needs a live program to verify |
+| AC-9 | PR-mode refusal text, rebase allow rules: 3 tests |
+| AC-10 | Rules, help, README, define, install: 10 tests |
+
+### Verification
+- **Tests:** `make test` → `tests/test_director.sh` 113 passed, 0 failed; `tests/test_hooks.sh` 32 passed, 0 failed; `tests/test_install.sh` 14 passed, 0 failed; vitest 382 passed, 0 failed, 0 skipped (after review fixes)
+- **Pre-existing failures:** none
+- **Build/lint:** `make ci` (shellcheck, lint-docs, lint-hooks, tests) → exit 0, clean
+- **Docs updated:** README, rules (workflow, autonomous-execution, agent-conventions), define, genie-help, both schemas, `docs/specs/workflow/program-direction.md` (Implementation Evidence)
+- **Lands as:** 13 modified files (agents ×3, commands ×2, rules ×3, schemas ×1, validate scripts ×2, README, settings template) and new `agents/director.md`, `commands/direct.md`, `schemas/program-board.schema.md`, `tests/test_director.sh`, `tests/fixtures/program/` (9 files); plus this backlog item and the spec
+
+---
+
+# Review
+
+**Reviewer:** Critic genie (independent subagent, two rounds), 2026-10-24
+**Verdict:** APPROVED (after fixes)
+
+## Round 1: CHANGES_REQUESTED
+
+The text was complete and CI green, but tracing one slice through its life found seven Majors. All were fixed on this branch:
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | After a forward revert the slice could never re-merge (rebase dropped its commits) | Record `<pre-merge>`/`<merged>`, revert that exact range, then ff the worktree to `main` and revert the revert before hand-back. Replayed in a scratch repo: re-merge works |
+| 2 | `/done` at the gate archived the slice, breaking the program's `slices` crossref and sweeping siblings | Step 7 sets `status: done` and keeps the slice in `docs/backlog/`; the program archives with all its slices at the end; explicit-path staging |
+| 3 | Respawned genies and the Critic ran in the main checkout (cwd resets every Bash call, confirmed by probe) | `cd <worktree> && ` on every call, absolute paths under the worktree |
+| 4 | A Crafter could write `verdict: APPROVED` and pass the gate | Gate trusts a board log line "Critic APPROVED at `<sha>`" at the branch head; every hand-back clears `verdict`; Crafters never set it |
+| 5 | Worktree path unknown before dispatch; harness base commit stale (probe: `a706304`, not `main`) | Crafter's first step is `git checkout -B genie/<id>-deliver main`; Director finds the worktree by branch, records agent IDs, background dispatch |
+| 6 | "Git wins" erased `held`, `blocked`, and attempt counts | Board split into derived and Director-owned columns; Director-owned carried from the committed board; ordered first-match state table |
+| 7 | Tool assumptions unverified | Rewritten from live probe facts (`ListAgents` main-thread only, `SendMessage` by agent ID, locked harness worktrees) |
+
+Minor fixes in the same pass: tidy items committed on `main` with allowed paths, ACs, and design; scheduling only under `/loop`; cross-session lock released on every exit; trunk mode's commit-to-main limited to the gate; validators reject flow-style lists, `..`, non-slice entries, and unsafe ids, and strip inline comments; the Critic may run `verify`; misfires capped at 3 in a row with usage-limit backoff; settings narrowed to `rebase main|master|--continue|--abort`; README notes that `trunk-based` affects every workflow.
+
+## Round 2: APPROVED once one line was fixed
+
+All seven Majors were confirmed resolved. One new Major, now fixed: the `.gitignore` preflight passed two paths to `git check-ignore -q`, which exits 128, so every tick would have stopped. It now checks each path separately (verified in a scratch repo), and a test guards it. Minors 1–5 were also fixed: the harness's temporary branch is deleted at step 8, examples match harness naming, a `merging` state covers a merged slice waiting on a red `main`, the Navigator's hold must be committed, and the program is archived with every listed slice, with `exclude: ^docs/archive/` added to the template pre-commit crossrefs hook.
+
+## ADR Compliance
+
+| ADR | Decision | Compliant? | Notes |
+|-----|----------|------------|-------|
+| ADR-008 | In-session Director; Crafters/Tidiers as background subagents with worktree isolation; Director-only, ff-only writes to `main`; board rebuilt from git | YES | Respawns and Critics run without isolation but are confined by the cd discipline |
+| ADR-005 | Daemon stays for headless runs | YES | `genies daemon` untouched |
+
+## Adversarial Security Pass
+
+1. **XSS (incl. SVG):** N/A, no rendered markup.
+2. **CSS injection:** N/A.
+3. **Authorization:** the merge gate is the trust boundary. Self-approval closed (#4). Residual, low: a genie with a malicious absolute-path write into the main checkout's program item could plant a fake approval line that rides along in the next board commit. Worktrees are not a sandbox. Accepted for v1; a follow-up could check the approval line came from a Director commit.
+4. **Injection:** validators run no `eval`; frontmatter values were probed with `$(…)` and executed nothing. Program/slice ids restricted to `[A-Za-z0-9._-]`; `..` rejected in `slices`. `verify`/`regenerate`/`health_check` are shell commands by design and are read from `main` only, never from a slice branch.
+5. **Secrets:** none introduced; in-session billing removes the API-key path.
+6. **Over-required fields:** none (`starts_when: []` is the only required addition).
+7. **Silently failing credentials:** N/A; the analogous runaway (uncapped misfire respawn on a usage limit) is capped.
+
+## Open items (not blocking)
+
+- **Smoke slice not run.** The live behavior of AC-5 (requests by `SendMessage`) and whether the plan-mode Critic may run `verify` need one real slice end to end after installing. Fallback for the Critic: a general-purpose genie with the Critic identity.
+- **Pre-commit with only a slice staged** skips the `starts_when` scope check (a slice has no pointer to its program). `make lint-docs` still checks it.

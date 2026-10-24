@@ -46,6 +46,7 @@ repos:
         entry: scripts/validate/check-crossrefs.sh
         language: script
         files: ^docs/.*\.md$
+        exclude: ^docs/archive/
         types: [markdown]
 
       # Tier 4: Source/installed copy sync (DISABLED by default)

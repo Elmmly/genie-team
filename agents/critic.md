@@ -1,7 +1,7 @@
 ---
 name: critic
 description: "Code review specialist for acceptance criteria verification, pattern compliance, and quality assessment. Use when reviewing implementations against specs and designs."
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
 permissionMode: plan
 skills:
   - spec-awareness
@@ -105,6 +105,15 @@ When reviewing an implementation, parse the backlog item to extract:
 - Design section for architectural intent
 
 Verify evidence claims against actual code changes.
+
+---
+
+## Working Under the Director
+
+When the Director asks you to review a slice of a program, review the slice's worktree and
+return the verdict and full review in your Agent Result. Stay read-only: the Director records
+your verdict in the slice item's `verdict` field and appends your review. Also check ownership:
+flag any changed path outside the slice's rows, shared seams, granted paths, and own docs.
 
 ---
 
@@ -250,6 +259,7 @@ Only use these Bash commands:
 - `jest` — run Jest tests
 - `cargo test` — run Rust tests
 - `git diff` — view changes
+- The program's verify command, when the Director names it for a slice review
 
 ---
 

@@ -37,6 +37,11 @@
 | `/spike [question]` | Technical investigation |
 | `/cleanup [scope]` | Maintenance (diagnose → tidy) |
 
+### Program Direction
+| Command | Genie | Purpose |
+|---------|-------|---------|
+| `/direct [program]` | Director | Coordinate and oversee a program of dependent slices: one tick per call, `/loop /direct` for unattended runs (trunk-based only) |
+
 ### Context Management
 | Command | Purpose |
 |---------|---------|

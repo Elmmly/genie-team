@@ -38,6 +38,23 @@ created: 2026-01-27
 | `adr_refs` | array of strings | Paths to ADRs in `docs/decisions/` related to this work |
 | `brand_ref` | string | Path to brand guide in `docs/brand/` for brand-aware work |
 
+### Program and slice fields
+
+A body of work split into dependent slices is a **program**: one program item plus one item
+per slice, directed by `/direct`. These fields are optional and apply only to programs and
+slices. See `schemas/program-board.schema.md` for the full contract and the body sections.
+
+| Field | Type | Applies to | Description |
+|-------|------|------------|-------------|
+| `kind` | string | program, slice | enum: `program`, `slice`. Absent for ordinary items |
+| `slices` | array of strings | program | Paths to the program's slice items |
+| `verify` | string | program | Command that must pass in a slice's worktree and on `main` |
+| `regenerate` | string | program | Command that rebuilds git-ignored generated files after a rebase |
+| `health_check` | object | program | `{command, threshold}`: complexity command run after each merge |
+| `starts_when` | array of strings | slice | Paths to slices of the same program that must merge first |
+| `verdict` | string | slice | enum: `APPROVED`, `CHANGES_REQUESTED`, `BLOCKED`. The latest review verdict |
+| `design_section` | string | slice | Heading in the program item's design that this slice delivers |
+
 ## Acceptance Criteria Object
 
 Each item in `acceptance_criteria` has:

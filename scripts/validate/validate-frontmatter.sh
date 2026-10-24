@@ -26,6 +26,8 @@ valid_enum_values() {
     case "${doc_type}:${field}" in
         shaped-work:status)          echo "shaped|designed|implemented|reviewed|done|abandoned" ;;
         shaped-work:appetite)        echo "small|medium|big" ;;
+        shaped-work:kind)            echo "program|slice" ;;
+        shaped-work:verdict)         echo "APPROVED|CHANGES_REQUESTED|BLOCKED" ;;
         adr:status)                  echo "proposed|accepted|deprecated|superseded" ;;
         architecture-diagram:level)  echo "1|2|3" ;;
         brand-spec:status)           echo "draft|active|deprecated" ;;
@@ -36,7 +38,7 @@ valid_enum_values() {
 # Fields that have enum constraints, by type
 enum_fields_for() {
     case "$1" in
-        shaped-work)          echo "status appetite" ;;
+        shaped-work)          echo "status appetite kind verdict" ;;
         adr)                  echo "status" ;;
         architecture-diagram) echo "level" ;;
         brand-spec)           echo "status" ;;
@@ -105,6 +107,17 @@ for file in "$@"; do
             errors=$((errors + 1))
         fi
     done
+
+    # Program and slice ids end up in branch names and git commands: keep them plain
+    kind=$(get_field "$frontmatter" "kind")
+    if [[ "$kind" == "program" || "$kind" == "slice" ]]; then
+        id=$(get_field "$frontmatter" "id")
+        if ! [[ "$id" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "[TIER-2] $file — id '$id' is not valid for a $kind" >&2
+            echo "  → Use letters, digits, '.', '_', and '-' only" >&2
+            errors=$((errors + 1))
+        fi
+    fi
 
     # Check enum values
     for field in $(enum_fields_for "$doc_type"); do
