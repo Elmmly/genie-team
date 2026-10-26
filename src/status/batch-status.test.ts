@@ -8,6 +8,7 @@ import {
   formatStatusJson,
   writeBatchManifest,
   readBatchManifest,
+  logStartMs,
   type StatusItem,
   type StatusReport,
   type BatchManifest,
@@ -336,6 +337,44 @@ describe("readBatchStatus", () => {
 
     // Assert
     expect(report.items[0].status).toBe("failed");
+  });
+});
+
+describe("logStartMs", () => {
+  it("edge: uses mtime when birthtime is later (Linux keeps birthtime when mtime is backdated)", () => {
+    // Arrange
+    const birthtimeMs = 1_000_000;
+    const mtimeMs = 700_000;
+
+    // Act
+    const start = logStartMs(birthtimeMs, mtimeMs);
+
+    // Assert
+    expect(start).toBe(700_000);
+  });
+
+  it("edge: uses mtime when the filesystem reports no birthtime", () => {
+    // Arrange
+    const birthtimeMs = 0;
+    const mtimeMs = 700_000;
+
+    // Act
+    const start = logStartMs(birthtimeMs, mtimeMs);
+
+    // Assert
+    expect(start).toBe(700_000);
+  });
+
+  it("uses birthtime when the log was created before its last write", () => {
+    // Arrange
+    const birthtimeMs = 400_000;
+    const mtimeMs = 700_000;
+
+    // Act
+    const start = logStartMs(birthtimeMs, mtimeMs);
+
+    // Assert
+    expect(start).toBe(400_000);
   });
 });
 

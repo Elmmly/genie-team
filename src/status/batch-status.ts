@@ -85,6 +85,15 @@ function determineStatus(
 }
 
 /**
+ * When a log started. A log cannot start after its last write, and birthtime is
+ * not portable: Linux keeps it when mtime is moved earlier, and some filesystems
+ * report 0. So take the earlier of the two, and mtime when birthtime is missing.
+ */
+export function logStartMs(birthtimeMs: number, mtimeMs: number): number {
+  return birthtimeMs > 0 ? Math.min(birthtimeMs, mtimeMs) : mtimeMs;
+}
+
+/**
  * Compute the report-level exit code from item statuses.
  * 0 = all done, 1 = stuck/failed, 2 = still running.
  */
@@ -140,7 +149,9 @@ export async function readBatchStatus(
       stuckThresholdMs,
       manifestLookup.get(slug),
     );
-    const durationSecs = Math.round((Date.now() - fileStat.birthtimeMs) / 1000);
+    const durationSecs = Math.round(
+      (Date.now() - logStartMs(fileStat.birthtimeMs, fileStat.mtimeMs)) / 1000,
+    );
 
     items.push({
       slug,
