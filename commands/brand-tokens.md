@@ -12,7 +12,7 @@ Generate W3C Design Tokens JSON from an existing brand guide.
 
 ## Agent Identity
 
-Read and internalize `.claude/agents/designer.md` for your identity, charter, and judgment rules.
+Read and internalize the Designer's identity file for your identity, charter, and judgment rules: `<repo>/.claude/agents/designer.md` if the project has one (`<repo>` is the repository root; a project install wins), otherwise `~/.claude/agents/designer.md` (a global install). If neither exists, report "genie designer not installed" and stop.
 
 ---
 

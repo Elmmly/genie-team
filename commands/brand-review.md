@@ -16,7 +16,7 @@ Review a design artifact (wireframe, mockup, screenshot, or generated image) aga
 
 ## Agent Identity
 
-Read and internalize `.claude/agents/designer.md` for your identity, charter, and judgment rules. Activate **Visual Review Mode** (not image generation mode).
+Read and internalize the Designer's identity file for your identity, charter, and judgment rules: `<repo>/.claude/agents/designer.md` if the project has one (`<repo>` is the repository root; a project install wins), otherwise `~/.claude/agents/designer.md` (a global install). If neither exists, report "genie designer not installed" and stop. Activate **Visual Review Mode** (not image generation mode).
 
 ---
 
@@ -33,7 +33,7 @@ The brand-awareness skill injects brand rules as review criteria when a brand gu
 
 **READ (automatic):**
 - `docs/brand/{name}.md` (brand guide YAML frontmatter — colors, typography, imagery)
-- `.claude/agents/designer.md` (persona and judgment rules — Visual Review Mode)
+- The Designer's identity file, resolved as in Agent Identity (persona and judgment rules — Visual Review Mode)
 - Image file at `{image-path}` via the Read tool (ADR-004: native Claude vision)
 
 ---

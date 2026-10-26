@@ -16,7 +16,7 @@ Generate a brand-consistent image using AI, with cost-tiered model routing and g
 
 ## Agent Identity
 
-Read and internalize `.claude/agents/designer.md` for your identity, charter, and judgment rules.
+Read and internalize the Designer's identity file for your identity, charter, and judgment rules: `<repo>/.claude/agents/designer.md` if the project has one (`<repo>` is the repository root; a project install wins), otherwise `~/.claude/agents/designer.md` (a global install). If neither exists, report "genie designer not installed" and stop.
 
 ---
 
@@ -32,7 +32,7 @@ Read and internalize `.claude/agents/designer.md` for your identity, charter, an
 **READ (automatic):**
 - `docs/brand/{name}.md` (brand guide YAML frontmatter — colors, typography, imagery)
 - `schemas/brand-spec.schema.md` (for reference)
-- `.claude/agents/designer.md` (persona and judgment rules)
+- The Designer's identity file, resolved as in Agent Identity (persona and judgment rules)
 
 ---
 

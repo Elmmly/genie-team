@@ -17,7 +17,7 @@ Activate Designer genie to create, evolve, or activate a brand guide via an inte
 
 ## Agent Identity
 
-Read and internalize `.claude/agents/designer.md` for your identity, charter, and judgment rules.
+Read and internalize the Designer's identity file for your identity, charter, and judgment rules: `<repo>/.claude/agents/designer.md` if the project has one (`<repo>` is the repository root; a project install wins), otherwise `~/.claude/agents/designer.md` (a global install). If neither exists, report "genie designer not installed" and stop.
 
 ---
 
@@ -26,7 +26,7 @@ Read and internalize `.claude/agents/designer.md` for your identity, charter, an
 **READ (automatic):**
 - `docs/brand/*.md` (existing brand guides)
 - `schemas/brand-spec.schema.md` (frontmatter contract for brand specs)
-- `.claude/agents/designer.md` (persona and judgment rules)
+- The Designer's identity file, resolved as in Agent Identity (persona and judgment rules)
 
 ---
 

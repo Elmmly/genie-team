@@ -27,7 +27,7 @@ Activate Architect genie to create technical design within shaped boundaries.
 
 ## Agent Identity
 
-Read and internalize `.claude/agents/architect.md` for your identity, charter, and judgment rules.
+Read and internalize the Architect's identity file for your identity, charter, and judgment rules: `<repo>/.claude/agents/architect.md` if the project has one (`<repo>` is the repository root; a project install wins), otherwise `~/.claude/agents/architect.md` (a global install). If neither exists, report "genie architect not installed" and stop.
 
 ---
 

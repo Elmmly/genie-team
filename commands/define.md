@@ -16,7 +16,7 @@ Activate Shaper genie to define problem boundaries and create a shaped work cont
 
 ## Agent Identity
 
-Read and internalize `.claude/agents/shaper.md` for your identity, charter, and judgment rules.
+Read and internalize the Shaper's identity file for your identity, charter, and judgment rules: `<repo>/.claude/agents/shaper.md` if the project has one (`<repo>` is the repository root; a project install wins), otherwise `~/.claude/agents/shaper.md` (a global install). If neither exists, report "genie shaper not installed" and stop.
 
 ---
 
